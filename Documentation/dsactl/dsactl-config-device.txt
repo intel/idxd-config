@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0
+
+dsactl-config-device(1)
+======================
+
+NAME
+----
+dsactl-config-device - configure the individual attribute of device under sysfs
+
+SYNOPSIS
+--------
+[verse]
+'dsactl config-device <device name> [<options>]'
+
+EXAMPLE
+-------
+dsactl config-device dsa0 --token-limit=1
+
+OPTIONS
+-------
+-l::
+--token-limit::
+	specify the token limit for this device, token_limit should be more than
+	0.
+----
+
+include::../copyright.txt[]

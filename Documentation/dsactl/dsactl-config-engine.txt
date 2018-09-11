@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+
+dsactl-config-engine(1)
+======================
+
+NAME
+----
+dsactl-config-engine - configure the individual attribute of engine under sysfs
+
+SYNOPSIS
+--------
+[verse]
+'dsactl config-engine <engine name> [<options>]'
+
+EXAMPLE
+-------
+dsactl config-engine engine1.2 --group-id=0
+
+OPTIONS
+-------
+-g::
+--group-id::
+	specify the group-id for this engine, group-id should be 0 to maximum
+	group per device.
+
+include::../copyright.txt[]

@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: GPL-2.0
+
+dsactl-config-wq(1)
+======================
+
+NAME
+----
+dsactl-config-wq - configure the individual attribute of wq under sysfs
+
+SYNOPSIS
+--------
+[verse]
+'dsactl config-wq <wq name> [<options>]'
+
+EXAMPLE
+-------
+dsactl config-devie wq0.0 --token-reserved=1
+
+OPTIONS
+--------
+-g::
+--group-d::
+	specify group-id used by wq, group-id should be 0 to maximum number of
+	groups per device.
+
+----
+-s::
+--wq-size::
+	specify wq-size used by wq, wq-size should be 0 to maximum workqueue
+	size.
+
+----
+-p::
+--priority::
+	specify priority used by wq, priority should be larger than 0.
+
+----
+-e::
+--enforce-order::
+	specify enforce-order by wq, enforce-order should be either 0 or 1.
+
+----
+-b::
+--block-on-fault::
+	specify block-on-fault by wq, block-on-fault should be either 0 or 1.
+
+
+include::../copyright.txt[]

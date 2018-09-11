@@ -1,0 +1,211 @@
+// SPDX-License-Identifier: GPL-2.0
+
+dsactl-list(1)
+=============
+
+NAME
+----
+dsactl-list - dump the platform dsa device topology and attributes in json
+
+SYNOPSIS
+--------
+[verse]
+'dsactl list' [<options>]
+
+Walk all the dsa device in the system and list all attached devices
+along with some of their major attributes.
+
+Options can be specified to limit the output to devices of a certain
+class.  Where the classes are devices, groups, workqueues and engines. By
+default, 'dsactl list' with no options is equivalent to:
+[verse]
+dsactl list --devices --engines --groups --workqueues
+
+EXAMPLE
+-------
+----
+# dsactl list
+
+[
+  {
+    "dev":"dsa0",
+    "max_groups":4,
+    "max_work_queues":8,
+    "max_engines":4,
+    "work_queue_size":64,
+    "numa_node":-1,
+    "ims_size":256,
+    "max_batch_size":512,
+    "max_transfer_size":"0x80000000",
+    "configurable":1,
+    "pasid_enabled":"true",
+    "drv_status":"device: true",
+    "groups":[
+      {
+        "dev":"group0.1",
+        "engines":[
+          {
+            "dev":"engine0.3",
+            "group_id":1
+          },
+          {
+            "dev":"engine0.2",
+            "group_id":1
+          }
+        ],
+        "work_queues":"wq0.1 ",
+        "workqueues":[
+          {
+            "dev":"wq0.1",
+            "mode":"dedicated",
+            "size":8,
+            "group_id":1,
+            "priority":10,
+            "priv":1,
+            "enforce_order":0,
+            "block_on_fault":"1"
+          }
+        ]
+      },
+      {
+        "dev":"group0.3",
+        "engines":"",
+        "work_queues":""
+      },
+      {
+        "dev":"group0.0",
+        "engines":[
+          {
+            "dev":"engine0.1",
+            "group_id":0
+          },
+          {
+            "dev":"engine0.0",
+            "group_id":0
+          }
+        ],
+        "work_queues":"wq0.0 ",
+        "workqueues":[
+          {
+            "dev":"wq0.0",
+            "mode":"shared",
+            "size":16,
+            "group_id":0,
+            "priority":10,
+            "priv":1,
+            "enforce_order":0,
+            "block_on_fault":"1"
+          }
+        ]
+      },
+      {
+        "dev":"group0.2",
+        "engines":"",
+        "work_queues":""
+      }
+    ],
+    "non_grouped_workqueues":[
+      {
+        "dev":"wq0.2",
+        "mode":"shared",
+        "size":0,
+        "group_id":-1,
+        "priority":0,
+        "priv":0,
+        "enforce_order":0,
+        "block_on_fault":"0"
+      },
+      {
+        "dev":"wq0.4",
+        "mode":"shared",
+        "size":0,
+        "group_id":-1,
+        "priority":0,
+        "priv":0,
+        "enforce_order":0,
+        "block_on_fault":"0"
+      },
+      {
+        "dev":"wq0.6",
+        "mode":"shared",
+        "size":0,
+        "group_id":-1,
+        "priority":0,
+        "priv":0,
+        "enforce_order":0,
+        "block_on_fault":"0"
+      },
+      {
+        "dev":"wq0.3",
+        "mode":"shared",
+        "size":0,
+        "group_id":-1,
+        "priority":0,
+        "priv":0,
+        "enforce_order":0,
+        "block_on_fault":"0"
+      },
+      {
+        "dev":"wq0.7",
+        "mode":"shared",
+        "size":0,
+        "group_id":-1,
+        "priority":0,
+        "priv":0,
+        "enforce_order":0,
+        "block_on_fault":"0"
+      }
+    ]
+  }
+]
+----
+
+OPTIONS
+-------
+-d::
+--device=::
+	A dsa device name like 'dsaX', or dsa id number. Filter listing by devices that
+	reference the given device.
+
+-g::
+--group=::
+	An 'groupX.Y' group name, or device id plus group id tuple
+	'X.Y'. Limit the group list to the single identified device
+	if present.
+
+-q::
+--workqueue=::
+        An 'wqX.Y' workqueue name, or device id plus workqueue id tuple
+        'X.Y'. Limit the workqueue list to the single identified device
+        if present.
+
+-e::
+--engine=::
+	An 'engineX.Y' engine name, or device id plus engine id tuple
+        'X.Y'. Limit the engine list to the single identified device
+        if present.
+
+-D::
+--devices::
+	Include device info in the listing
+
+-G::
+--regions::
+        Include group info in the listing
+
+-Q::
+--workqueues::
+        Include workqueue info in the listing
+
+-E::
+--engines::
+	Include engine info in the listing
+
+TO BE CHANGED
+-i::
+--idle::
+	Include idle (not enabled) devices in the listing
+
+----
+
+include::../copyright.txt[]

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+GVF=version.m4
+
+if test -r $GVF; then
+	VC=$(sed -e 's/m4_define(\[GIT_VERSION], \[//' <$GVF)
+		VC=$(echo $VC | sed -e 's/\])//')
+else
+	VC=unset
+fi
+
+VN=$(./git-version)
+
+test "$VN" = "$VC" || {
+	echo >&2 "GIT_VERSION = $VN"
+	echo "m4_define([GIT_VERSION], [$VN])" >$GVF
+	exit 0
+}

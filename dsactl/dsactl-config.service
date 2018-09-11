@@ -1,0 +1,10 @@
+[Unit]
+Description=Dsactl Config Daemon
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/dsactl config --daemon
+ExecStop=/bin/kill ${MAINPID}
+
+[Install]
+WantedBy=multi-user.target

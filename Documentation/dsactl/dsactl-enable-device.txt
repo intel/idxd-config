@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0
+
+dsactl-enable-device(1)
+======================
+
+NAME
+----
+dsactl-enable-device - enable dsa device
+
+SYNOPSIS
+--------
+[verse]
+'dsactl enable-device' <device>
+
+include::../copyright.txt[]
+
+SEE ALSO
+--------
+linkdsactl:dsactl-disable-device[1]
