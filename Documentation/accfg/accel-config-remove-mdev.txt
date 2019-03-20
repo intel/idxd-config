@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+
+accel-config-remove-mdev(1)
+===========================
+
+NAME
+----
+accel-config-remove-mdev - clear the uuid from a workqueue uuid list. If not uuid is
+specified, then entire uuid list in this workqueue will be removed.
+
+SYNOPSIS
+--------
+[verse]
+'accel-config remove-mdev' <device name>/<workqueue name> [<options>]
+
+EXAMPLE
+-------
+accel-config remove-mdev dsa0/wq0.0 --uuid=0f34f0ed-6f67-4086-a4b7-8e1ecf077dce
+
+OPTIONS
+-------
+-u::
+--uuid=::
+	remove this specific uuid from uuid list in the specified workqueue.
+
+include::../copyright.txt[]

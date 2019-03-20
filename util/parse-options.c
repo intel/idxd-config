@@ -480,7 +480,7 @@ static int parse_options_subcommand_prefix(int argc, const char **argv,
 	if (subcommands && !usagestr[0]) {
 		struct strbuf buf = STRBUF_INIT;
 
-		strbuf_addf(&buf, "ndctl %s [<options>] {", argv[0]);
+		strbuf_addf(&buf, "accel-config %s [<options>] {", argv[0]);
 		for (int i = 0; subcommands[i]; i++) {
 			if (i)
 				strbuf_addstr(&buf, "|");

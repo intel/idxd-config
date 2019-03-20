@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0
+
+accel-config-create-mdev(1)
+===========================
+
+NAME
+----
+accel-config-create-mdev - create mdev to a specified workqueue by generating a
+random uuid and writing to workqueue sysfs. The workqueue has to be enabled
+before running this command and it has to be configured as "mdev" type. If the
+workqueue type is shared, this command can be issued multiple times. If the
+workqueue is dedicated, only one uuid is allowed to be created. If this command
+is issued to a dedicated wq with uuid already existing, it will trigger
+operation not permitted error.
+
+SYNOPSIS
+--------
+[verse]
+'accel-config create-mdev' <device name>/<workqueue name>
+
+EXAMPLE
+-------
+accel-config create-mdev dsa0/wq0.0
+
+include::../copyright.txt[]

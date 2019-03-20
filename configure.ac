@@ -1,14 +1,13 @@
 AC_PREREQ(2.60)
 m4_include([version.m4])
-AC_INIT([dsactl],
+AC_INIT([accel-config],
         GIT_VERSION,
         [linux-dsa@lists.01.org],
-        [dsactl],
-        [https://github.com/xxx/dsactl])
-AC_CONFIG_SRCDIR([dsactl/lib/libdsactl.c])
+        [accel-config],
+        [https://github.com/xxx/accel-config])
+AC_CONFIG_SRCDIR([accfg/lib/libaccfg.c])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([
-	check-news
 	foreign
 	1.11
 	-Wall
@@ -89,14 +88,17 @@ AS_IF([test "x$enable_debug" = "xyes"], [
 ])
 
 AC_ARG_ENABLE([test],
-        AS_HELP_STRING([--enable-test], [enable dsactl test command @<:@default=disabled@:>@]),
+        AS_HELP_STRING([--enable-test], [enable accfg test command @<:@default=disabled@:>@]),
         [], [enable_test=$enable_destructive])
 AS_IF([test "x$enable_test" = "xyes"],
-	[AC_DEFINE([ENABLE_TEST], [1], [dsactl test support])])
+	[AC_DEFINE([ENABLE_TEST], [1], [accfg test support])])
 AM_CONDITIONAL([ENABLE_TEST], [test "x$enable_test" = "xyes"])
 
-
+PKG_CHECK_MODULES([UUID], [uuid],
+        [AC_DEFINE([HAVE_UUID], [1], [Define to 1 if using libuuid])])
 PKG_CHECK_MODULES([JSON], [json-c])
+PKG_CHECK_MODULES([KMOD], [libkmod])
+PKG_CHECK_MODULES([UDEV], [libudev])
 
 AC_ARG_WITH([bash-completion-dir],
 	AS_HELP_STRING([--with-bash-completion-dir[=PATH]],
@@ -131,10 +133,15 @@ AC_ARG_WITH([tmpfilesdir],
 	[tmpfilesdir=$withval],
 	[tmpfilesdir="/run"])
 
-dsactl_confdir=${sysconfdir}/dsactl
-dsactl_conf=dsactl.conf
-AC_SUBST([dsactl_confdir])
-AC_SUBST([dsactl_conf])
+accfg_confdir=${sysconfdir}/accel-config
+accfg_conf=accel-config.conf
+accfg_mdev_bus=/sys/class/mdev_bus
+accfg_mdev_prefix=/sys/bus/mdev/devices
+
+AC_SUBST([accfg_confdir])
+AC_SUBST([accfg_conf])
+AC_SUBST([accfg_mdev_bus])
+AC_SUBST([accfg_mdev_prefix])
 
 my_CFLAGS="\
 -Wall \
@@ -159,9 +166,10 @@ AC_SUBST([my_CFLAGS])
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES([
         Makefile
-        dsactl/lib/Makefile
-        dsactl/Makefile
+        accfg/lib/Makefile
+        accfg/Makefile
         test/Makefile
+        Documentation/accfg/Makefile
 ])
 
 AC_OUTPUT
