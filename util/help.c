@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2017 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015-2019 Intel Corporation. All rights reserved.
  * Copyright(c) 2008 Miklos Vajna. All rights reserved.
  * Copyright(c) 2006 Linus Torvalds. All rights reserved.
  *
@@ -111,7 +111,7 @@ static void setup_man_path(void)
 	 * old_path, the ':' at the end will let 'man' to try
 	 * system-wide paths after ours to find the manual page. If
 	 * there is old_path, we need ':' as delimiter. */
-	strbuf_addstr(&new_path, system_path(DSACTL_MAN_PATH));
+	strbuf_addstr(&new_path, system_path(ACCFG_MAN_PATH));
 	strbuf_addch(&new_path, ':');
 	if (old_path)
 		strbuf_addstr(&new_path, old_path);

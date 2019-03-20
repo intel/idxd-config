@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
+
+accel-config-enable-device(1)
+=============================
+
+NAME
+----
+accel-config-enable-device - enable an accfg device
+
+SYNOPSIS
+--------
+[verse]
+'accel-config enable-device' <device>
+
+EXAMPLE
+-------
+accel-config enable-device dsa0
+
+include::../copyright.txt[]
+
+SEE ALSO
+--------
+linkaccel-config:accel-config-disable-device[1]

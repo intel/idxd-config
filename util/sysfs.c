@@ -1,15 +1,6 @@
-/*
- * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU Lesser General Public License,
- * version 2.1, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
- * more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2015-2019 Intel Corporation. All rights reserved. */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -33,7 +24,6 @@ int __sysfs_read_attr(struct log_ctx *ctx, const char *path, char *buf)
 	int n;
 
 	if (fd < 0) {
-		//printf("sysfs_read_attr: failed to open %s: %s\n", *path, strerror(errno));
 		return -errno;
 	}
 	n = read(fd, buf, SYSFS_ATTR_SIZE);
@@ -41,7 +31,6 @@ int __sysfs_read_attr(struct log_ctx *ctx, const char *path, char *buf)
 	if (n < 0 || n >= SYSFS_ATTR_SIZE) {
 		buf[0] = 0;
 		log_dbg(ctx, "failed to read %s: %s\n", path, strerror(errno));
-		//printf("failed to read, n is %d, SYSFS_ATTR_SIZE is %d\n", n, SYSFS_ATTR_SIZE);
 		return -errno;
 	}
 	buf[n] = 0;
@@ -55,7 +44,7 @@ static int write_attr(struct log_ctx *ctx, const char *path,
 		const char *buf, int quiet)
 {
 	int fd = open(path, O_WRONLY|O_CLOEXEC);
-	int n, len = strlen(buf) + 1, rc;
+	int n, len = strlen(buf), rc;
 
 	if (fd < 0) {
 		rc = -errno;
@@ -86,56 +75,44 @@ int __sysfs_write_attr_quiet(struct log_ctx *ctx, const char *path,
 	return write_attr(ctx, path, buf, 1);
 }
 
-int __sysfs_device_parse(struct log_ctx *ctx, const char *base_path,
-		const char *dev_name, void *parent, add_dev_fn add_dev)
+int __sysfs_device_parse(struct log_ctx *ctx, const char *base_path, char *dev_prefix,
+			int (*filter)(const struct dirent *),
+			void *parent, add_dev_fn add_dev)
 {
 	int add_errors = 0;
-	struct dirent *de;
-	DIR *dir;
+	struct dirent **d, *de;
+	int i, n;
 
-	log_dbg(ctx, "base: %s dev: %s\n", base_path, dev_name);
-
-	//printf("sysfs_device_parse: ctx is %p, base: %p dev: %s parent: %p add_dev_fn %p\n", ctx, base_path, dev_name, parent, add_dev);
-	dir = opendir(base_path);
-	if (!dir) {
-		log_dbg(ctx, "no \"%s\" devices found\n", dev_name);
+	n = scandir(base_path, &d, filter, alphasort);
+	if (n == -1)
 		return -ENODEV;
-	}
 
-	while ((de = readdir(dir)) != NULL) {
+	for (i = 0; i < n; i++) {
 		char *dev_path;
-		char fmt[20];
 		void *dev;
 		int id;
 
-		sprintf(fmt, "%s%%d", dev_name);
-		if (de->d_ino == 0) {
-			printf("d_ino is 0\n");
-			continue;
+		de = d[i];
+		if (sscanf(de->d_name, "%*[a-z]%d", &id) < 0) {
+			free(d);
+			return -EINVAL;
 		}
-		if (sscanf(de->d_name, fmt, &id) != 1){
-		//printf("sscanf is not 1, d_name is %s, fmt is %s, id is %d\n", de->d_name, fmt, id);
+		if (strchr(de->d_name, '!'))
 			continue;
-		}
 		if (asprintf(&dev_path, "%s/%s", base_path, de->d_name) < 0) {
 			log_err(ctx, "%s%d: path allocation failure\n",
-					dev_name, id);
-			//printf("%s%d: path allocation failure\n", dev_name, id);
+				de->d_name, id);
 			continue;
 		}
-
-		//printf("sscanf is 1, d_name is %s, fmt is %s, id is %d\n", de->d_name, fmt, id);
-		dev = add_dev(parent, id, dev_path);
+		dev = add_dev(parent, id, dev_path, dev_prefix);
 		free(dev_path);
 		if (!dev) {
 			add_errors++;
-			log_err(ctx, "%s%d: add_dev() failed\n",
-					dev_name, id);
-			printf("NO dev obtained, add_dev() failed\n");
+			log_err(ctx, "%d: add_dev() failed\n", id);
 		} else
-			log_dbg(ctx, "%s%d: processed\n", dev_name, id);
+			log_dbg(ctx, "%d: processed\n", id);
 	}
-	closedir(dir);
+	free(d);
 
 	return add_errors;
 }

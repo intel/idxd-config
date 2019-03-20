@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0
+
+accel-config-config-engine(1)
+=============================
+
+NAME
+----
+accel-config-config-engine - configure individual attributes of an engine
+
+SYNOPSIS
+--------
+[verse]
+'accel-config config-engine <device name>/<engine name> [<options>]'
+
+EXAMPLE
+-------
+accel-config config-engine dsa0/engine1.2 --group-id=0
+
+OPTIONS
+-------
+-g::
+--group-id=::
+	specify the group-id for this engine, group-id should be between 0
+	and the maximum number of groups per device shown in max_groups
+	attribute under a device. A value of -1 disassociates the engine
+	from any group.
+
+include::../copyright.txt[]
