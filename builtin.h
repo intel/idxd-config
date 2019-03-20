@@ -10,10 +10,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
-#ifndef _DSACTL_BUILTIN_H_
-#define _DSACTL_BUILTIN_H_
-extern const char dsactl_usage_string[];
-extern const char dsactl_more_info_string[];
+#ifndef _ACCFG_BUILTIN_H_
+#define _ACCFG_BUILTIN_H_
+extern const char accfg_usage_string[];
+extern const char accfg_more_info_string[];
 
 struct cmd_struct {
 	const char *cmd;
@@ -33,4 +33,4 @@ int cmd_config_engine(int argc, const char **argv, void *ctx);
 #ifdef ENABLE_TEST
 int cmd_test(int argc, const char **argv, void *ctx);
 #endif
-#endif /* _DSACTL_BUILTIN_H_ */
+#endif /* _ACCFG_BUILTIN_H_ */

@@ -1,0 +1,80 @@
+Name:		accel-config
+Version:	VERSION
+Release:	2%{?dist}
+Summary:	Configure accelerator subsystem devices
+License:	GPLv2
+Group:		System Environment/Base
+Source0:	%{name}-%{version}.tar.gz
+
+Requires:	LNAME%{?_isa} = %{version}-%{release}
+BuildRequires:	autoconf
+BuildRequires:	asciidoc
+BuildRequires:	xmlto
+BuildRequires:	automake
+BuildRequires:	libtool
+BuildRequires:	pkgconfig
+BuildRequires:	pkgconfig(libkmod)
+BuildRequires:	pkgconfig(json-c)
+BuildRequires:	pkgconfig(libudev)
+BuildRequires:	systemd
+
+%description
+Utility library for configuring the accelerator subsystem.
+
+%package -n DNAME
+Summary:	Development files for libaccfg
+License:	LGPLv2
+Group:		Development/Libraries
+Requires:	LNAME%{?_isa} = %{version}-%{release}
+
+%description -n DNAME
+The %{name}-devel package contains libraries and header files for
+developing applications that use %{name}.
+
+
+%package -n LNAME
+Summary:	Configuration library for accelerator subsystem devices
+License:	LGPLv2
+Group:		System Environment/Libraries
+
+%description -n LNAME
+Libraries for %{name}.
+
+%prep
+%setup -q accel-config-%{version}
+
+%build
+echo %{version} > version
+./autogen.sh
+%configure --disable-static --disable-silent-rules
+make %{?_smp_mflags}
+
+%install
+%make_install
+find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
+
+%post -n LNAME -p /sbin/ldconfig
+
+%postun -n LNAME -p /sbin/ldconfig
+
+%files
+%defattr(-,root,root)
+%license Documentation/COPYING licenses/BSD-MIT licenses/CC0
+%{_bindir}/accel-config
+%{_mandir}/man1/accel-config*
+%{_sysconfdir}/accel-config/accel-config.conf.sample
+
+%files -n LNAME
+%defattr(-,root,root)
+%doc README.md
+%license Documentation/COPYING licenses/BSD-MIT licenses/CC0
+%{_libdir}/libaccel-config.so.*
+
+%files -n DNAME
+%defattr(-,root,root)
+%license Documentation/COPYING
+%{_includedir}/accel-config/
+%{_libdir}/libaccel-config.so
+%{_libdir}/pkgconfig/libaccel-config.pc
+
+%changelog

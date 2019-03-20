@@ -1,18 +1,8 @@
-/*
- * Copyright(c) 2015-2017 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2015-2019 Intel Corporation. All rights reserved. */
 
-#ifndef _DSACTL_SIZE_H_
-#define _DSACTL_SIZE_H_
+#ifndef _ACCFG_SIZE_H_
+#define _ACCFG_SIZE_H_
 
 #define SZ_1K     0x00000400
 #define SZ_4K     0x00001000
@@ -32,4 +22,4 @@ unsigned long long __parse_size64(const char *str, unsigned long long *units);
 #define BITS_PER_LONG (sizeof(unsigned long) * 8)
 #define HPAGE_SIZE (2 << 20)
 
-#endif /* _DSACTL_SIZE_H_ */
+#endif /* _ACCFG_SIZE_H_ */

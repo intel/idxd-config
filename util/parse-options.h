@@ -13,8 +13,8 @@
 
 /* originally copied from perf and git */
 
-#ifndef __DSACTL_PARSE_OPTIONS_H
-#define __DSACTL_PARSE_OPTIONS_H
+#ifndef __ACCFG_PARSE_OPTIONS_H
+#define __ACCFG_PARSE_OPTIONS_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -229,4 +229,4 @@ extern int parse_opt_verbosity_cb(const struct option *, const char *, int);
 
 extern const char *parse_options_fix_filename(const char *prefix, const char *file);
 
-#endif /* __DSACTL_PARSE_OPTIONS_H */
+#endif /* __ACCFG_PARSE_OPTIONS_H */

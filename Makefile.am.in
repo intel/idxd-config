@@ -8,9 +8,9 @@ AM_CPPFLAGS = \
 	-DSYSCONFDIR=\""$(sysconfdir)"\" \
 	-DLIBEXECDIR=\""$(libexecdir)"\" \
 	-DPREFIX=\""$(prefix)"\" \
-	-DDSACTL_MAN_PATH=\""$(mandir)"\" \
-	-I${top_srcdir}/dsactl/lib \
-	-I${top_srcdir}/dsactl \
+	-DACCFG_MAN_PATH=\""$(mandir)"\" \
+	-I${top_srcdir}/accfg/lib \
+	-I${top_srcdir}/accfg \
 	-I${top_srcdir}/ \
 	$(KMOD_CFLAGS) \
 	$(UDEV_CFLAGS) \
@@ -35,6 +35,6 @@ SED_PROCESS = \
 	-e 's,@includedir\@,$(includedir),g' \
 	< $< > $@ || rm $@
 
-LIBDSACTL_CURRENT=17
-LIBDSACTL_REVISION=0
-LIBDSACTL_AGE=11
+LIBACCFG_CURRENT=1
+LIBACCFG_REVISION=0
+LIBACCFG_AGE=0

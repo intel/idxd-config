@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0
+
+accel-config-disable-wq(1)
+==========================
+
+NAME
+----
+accel-config-disable-wq - disables an accelerator device work queue
+
+SYNOPSIS
+--------
+[verse]
+'accel-config disable-wq' <device name>/<work queue>
+
+EXAMPLE
+-------
+accel-config disable-wq dsa0/wq0.0
+
+include::../copyright.txt[]
+
+OPTIONS
+-------
+-f::
+--force::
+	Force the disabling of the wq even if there are clients using the wq.
+
+SEE ALSO
+--------
+linkaccel-config:accel-config-enable-wq[1]
