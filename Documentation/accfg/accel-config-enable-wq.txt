@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
+
+accel-config-enable-wq(1)
+=========================
+
+NAME
+----
+accel-config-enable-wq - enables an accelerator device work queue
+
+SYNOPSIS
+--------
+[verse]
+'accel-config enable-wq' <device_name>/<workqueue_name>
+
+EXAMPLE
+-------
+accel-config enable-wq dsa0/wq0.0
+
+include::../copyright.txt[]
+
+SEE ALSO
+--------
+linkaccel-config:accel-config-disable-wq[1]
