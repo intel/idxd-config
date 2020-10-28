@@ -130,3 +130,11 @@ global:
 	accfg_device_get_cmd_status;
 	accfg_device_get_cmd_status_str;
 } LIBACCFG_5;
+
+LIBACCFG_7 {
+global:
+	accfg_wq_get_max_batch_size;
+	accfg_wq_get_max_transfer_size;
+	accfg_wq_set_max_batch_size;
+	accfg_wq_set_max_transfer_size;
+} LIBACCFG_6;

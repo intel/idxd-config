@@ -117,6 +117,8 @@ struct accfg_wq {
 	char *name;
 	enum accfg_wq_type type;
 	char *state;
+	unsigned int max_batch_size;
+	unsigned long max_transfer_size;
 };
 
 struct accfg_wq_uuid {

@@ -633,6 +633,8 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	wq_type = accfg_get_param_str(ctx, dfd, "type");
 	wq->name = accfg_get_param_str(ctx, dfd, "name");
 	wq->threshold =  accfg_get_param_long(ctx, dfd, "threshold");
+	wq->max_batch_size =  accfg_get_param_long(ctx, dfd, "max_batch_size");
+	wq->max_transfer_size =  accfg_get_param_long(ctx, dfd, "max_transfer_size");
 
 	wq_parse_type(wq, wq_type);
 	free(wq_type);
@@ -1598,6 +1600,16 @@ ACCFG_EXPORT unsigned long accfg_wq_get_size(struct accfg_wq *wq)
 	return wq->size;
 }
 
+ACCFG_EXPORT unsigned int accfg_wq_get_max_batch_size(struct accfg_wq *wq)
+{
+	return wq->max_batch_size;
+}
+
+ACCFG_EXPORT unsigned long accfg_wq_get_max_transfer_size(struct accfg_wq *wq)
+{
+	return wq->max_transfer_size;
+}
+
 ACCFG_EXPORT int accfg_wq_get_clients(struct accfg_wq *wq)
 {
 	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
@@ -1874,6 +1886,40 @@ accfg_wq_set_field(wq, val, priority)
 accfg_wq_set_field(wq, val, group_id)
 accfg_wq_set_field(wq, val, block_on_fault)
 accfg_wq_set_field(wq, val, threshold)
+accfg_wq_set_field(wq, val, max_batch_size)
+
+#define accfg_wq_set_long_field(wq, val, field) \
+ACCFG_EXPORT int accfg_wq_set_##field( \
+		struct accfg_wq *wq, unsigned long val) \
+{ \
+	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq); \
+	char *path = wq->wq_buf; \
+	char buf[SYSFS_ATTR_SIZE]; \
+	int rc; \
+	rc = sprintf(wq->wq_buf, "%s/%s", wq->wq_path, #field); \
+	if (rc < 0) \
+		return -errno; \
+	if (sprintf(buf, "%ld", val) < 0) { \
+		err(ctx, "%s: sprintf to buf failed: %s\n", \
+				accfg_wq_get_devname(wq), \
+				strerror(errno)); \
+		return -errno; \
+	} \
+	if (!accfg_device_get_configurable(wq->device)) { \
+		err(ctx, "device is not configurable\n"); \
+		return -errno; \
+	} \
+	if (sysfs_write_attr(ctx, path, buf) < 0) { \
+		err(ctx, "%s: write failed: %s\n", \
+				accfg_wq_get_devname(wq), \
+				strerror(errno)); \
+		return -errno; \
+	} \
+	wq->field = val; \
+	return 0; \
+}
+
+accfg_wq_set_long_field(wq, val, max_transfer_size)
 
 #define accfg_wq_set_str_field(wq, val, field) \
 ACCFG_EXPORT int accfg_wq_set_str_##field( \
