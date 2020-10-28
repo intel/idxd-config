@@ -35,6 +35,8 @@ static struct wq_parameters wq_param = {
 	.priority = INT_MAX,
 	.block_on_fault = INT_MAX,
 	.threshold = INT_MAX,
+	.max_batch_size = INT_MAX,
+	.max_transfer_size = INT_MAX,
 };
 
 static struct engine_parameters engine_param;
@@ -131,7 +133,8 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		struct accfg_wq *wq, struct wq_parameters *wq_params)
 {
-	unsigned int max_groups, max_wq_size;
+	unsigned int max_groups, max_wq_size, max_batch_size;
+	unsigned long max_transfer_size;
 	int rc = 0;
 
 	if (wq_params->mode) {
@@ -145,6 +148,8 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 
 	max_groups = accfg_device_get_max_groups(device);
 	max_wq_size = accfg_device_get_max_work_queues_size(device);
+	max_batch_size = accfg_device_get_max_batch_size(device);
+	max_transfer_size = accfg_device_get_max_transfer_size(device);
 
 	if ((wq_params->wq_size > max_wq_size)
 		&& (wq_params->wq_size != INT_MAX)) {
@@ -164,6 +169,22 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		&& (wq_params->block_on_fault != INT_MAX)) {
 		fprintf(stderr,
 			"valid block-on-default should be either 0 or 1\n");
+		return -EINVAL;
+	}
+
+	if ((wq_params->max_batch_size < 1
+		|| wq_params->max_batch_size > max_batch_size)
+		&& (wq_params->max_batch_size != INT_MAX)) {
+		fprintf(stderr,
+			"valid max-batch-size should be 1 to %d\n", max_batch_size);
+		return -EINVAL;
+	}
+
+	if ((wq_params->max_transfer_size < 1
+		|| wq_params->max_transfer_size > max_transfer_size)
+		&& (wq_params->max_transfer_size != INT_MAX)) {
+		fprintf(stderr,
+			"valid max-transfer-size should be 1 to %ld\n", max_transfer_size);
 		return -EINVAL;
 	}
 
@@ -212,6 +233,18 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 
 	if (wq_params->threshold != INT_MAX) {
 		rc = accfg_wq_set_threshold(wq, wq_params->threshold);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (wq_params->max_batch_size != INT_MAX) {
+		rc = accfg_wq_set_max_batch_size(wq, wq_params->max_batch_size);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (wq_params->max_transfer_size != INT_MAX) {
+		rc = accfg_wq_set_max_transfer_size(wq, wq_params->max_transfer_size);
 		if (rc < 0)
 			return rc;
 	}
@@ -400,6 +433,10 @@ int cmd_config_wq(int argc, const char **argv, void *ctx)
 			   "specify name by wq"),
 		OPT_STRING('m', "mode", &wq_param.mode, "mode",
 			   "specify mode by wq"),
+		OPT_UINTEGER('c', "max-batch-size", &wq_param.max_batch_size,
+			     "specify max-batch-size used by wq"),
+		OPT_U64('x', "max-transfer-size", &wq_param.max_transfer_size,
+			     "specify max-transfer-size used by wq"),
 		OPT_END(),
 	};
 
