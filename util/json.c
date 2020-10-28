@@ -403,6 +403,14 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	if (jobj)
 		json_object_object_add(jaccfg, "block_on_fault", jobj);
 
+	jobj = json_object_new_int(accfg_wq_get_max_batch_size(wq));
+	if (jobj)
+		json_object_object_add(jaccfg, "max_batch_size", jobj);
+
+	jobj = json_object_new_int64(accfg_wq_get_max_transfer_size(wq));
+	if (jobj)
+		json_object_object_add(jaccfg, "max_transfer_size", jobj);
+
 	if (!(flags & UTIL_JSON_SAVE)) {
 		jobj = json_object_new_int(accfg_wq_get_cdev_minor(wq));
 		if (jobj)

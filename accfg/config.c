@@ -47,6 +47,7 @@ struct device_set_table {
 struct wq_set_table {
 	char *name;
 	int (*set_int_func)(struct accfg_wq *wq, int val);
+	int (*set_long_func)(struct accfg_wq *wq, unsigned long val);
 	int (*set_str_func)(struct accfg_wq *wq, const char *val);
 	bool (*is_writable)(struct accfg_wq *wq, int val);
 };
@@ -89,14 +90,16 @@ static const struct group_set_table group_table[] = {
 static bool is_wq_threshold_writable(struct accfg_wq *wq, int val);
 
 static const struct wq_set_table wq_table[] = {
-	{ "size", accfg_wq_set_size, NULL, NULL },
-	{ "priority", accfg_wq_set_priority, NULL, NULL },
-	{ "group_id", accfg_wq_set_group_id, NULL, NULL },
-	{ "block_on_fault", accfg_wq_set_block_on_fault, NULL, NULL },
-	{ "type", NULL, accfg_wq_set_str_type, NULL },
-	{ "name", NULL, accfg_wq_set_str_name, NULL },
-	{ "mode", NULL, accfg_wq_set_str_mode, NULL },
-	{ "threshold", accfg_wq_set_threshold, NULL,
+	{ "size", accfg_wq_set_size, NULL, NULL, NULL },
+	{ "priority", accfg_wq_set_priority, NULL, NULL, NULL },
+	{ "group_id", accfg_wq_set_group_id, NULL, NULL, NULL },
+	{ "block_on_fault", accfg_wq_set_block_on_fault, NULL, NULL, NULL },
+	{ "type", NULL, NULL, accfg_wq_set_str_type, NULL },
+	{ "name", NULL, NULL, accfg_wq_set_str_name, NULL },
+	{ "mode", NULL, NULL, accfg_wq_set_str_mode, NULL },
+	{ "max_batch_size", accfg_wq_set_max_batch_size, NULL, NULL, NULL },
+	{ "max_transfer_size", NULL, accfg_wq_set_max_transfer_size, NULL, NULL },
+	{ "threshold", accfg_wq_set_threshold, NULL, NULL,
 		is_wq_threshold_writable },
 };
 
@@ -251,6 +254,21 @@ static int wq_json_set_val(struct accfg_wq *wq, json_object *jobj, char *key)
 					return 0;
 
 				rc = wq_table[i].set_int_func(wq, val);
+				if (rc != 0)
+					return rc;
+
+				return 0;
+			} else if (wq_table[i].set_long_func) {
+				unsigned long val = json_object_get_int64(jobj);
+
+				if ((val == 0) && (errno == EINVAL))
+					return -errno;
+
+				if (wq_table[i].is_writable &&
+					!wq_table[i].is_writable(wq, val))
+					return 0;
+
+				rc = wq_table[i].set_long_func(wq, val);
 				if (rc != 0)
 					return rc;
 
