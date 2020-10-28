@@ -83,6 +83,8 @@ struct dsa_context {
 	int wq_size;
 	int dedicated;
 	int bof;
+	unsigned int wq_max_batch_size;
+	unsigned long wq_max_xfer_size;
 
 	int is_batch;
 	union {

@@ -80,6 +80,8 @@ static struct wq_parameters wq00_param = {
 	.priority = 10,
 	.block_on_fault = 1,
 	.threshold = 15,
+	.max_batch_size = 1,
+	.max_transfer_size = 1,
 	.mode = "shared",
 	.type = "user",
 	.name = "myapp1"
@@ -90,6 +92,8 @@ static struct wq_parameters wq01_param = {
 	.wq_size = 8,
 	.priority = 10,
 	.block_on_fault = 0,
+	.max_batch_size = (1 << 4),
+	.max_transfer_size = (1l << 16),
 	.mode = "dedicated",
 	.type = "user",
 	.name = "myapp2"
@@ -102,6 +106,8 @@ static struct wq_parameters wq02_param = {
 	.priority = 10,
 	.block_on_fault = 1,
 	.threshold = 8,
+	.max_batch_size = (1 << 8),
+	.max_transfer_size = (1l << 30),
 	.mode = "shared",
 	.type = "mdev",
 	.name = "guest1"
@@ -112,6 +118,8 @@ static struct wq_parameters wq03_param = {
 	.wq_size = 7,
 	.priority = 10,
 	.block_on_fault = 0,
+	.max_batch_size = (1 << 9),
+	.max_transfer_size = (1l << 31),
 	.mode = "dedicated",
 	.type = "mdev",
 	.name = "guest2"
@@ -126,6 +134,8 @@ static struct wq_parameters wq12_param = {
 	.priority = 15,
 	.block_on_fault = 1,
 	.threshold = 50,
+	.max_batch_size = 1,
+	.max_transfer_size = 1,
 	.mode = "shared",
 	.type = "user",
 	.name = "myapp3"
@@ -137,6 +147,8 @@ static struct wq_parameters wq13_param = {
 	.priority = 15,
 	.block_on_fault = 1,
 	.threshold = 50,
+	.max_batch_size = 1,
+	.max_transfer_size = 1,
 	.mode = "shared",
 	.type = "user",
 	.name = "myapp3"
@@ -148,6 +160,8 @@ static struct wq_parameters wq14_param = {
 	.priority = 15,
 	.block_on_fault = 1,
 	.threshold = 50,
+	.max_batch_size = 1,
+	.max_transfer_size = 1,
 	.mode = "shared",
 	.type = "user",
 	.name = "myapp3"
@@ -332,6 +346,8 @@ static int config_wq(struct accfg_ctx *ctx, int dev_id, int wq_id,
 			accfg_wq_set_group_id(wq, wq_param.group_id);
 			accfg_wq_set_priority(wq, wq_param.priority);
 			accfg_wq_set_block_on_fault(wq, wq_param.block_on_fault);
+			accfg_wq_set_max_batch_size(wq, wq_param.max_batch_size);
+			accfg_wq_set_max_transfer_size(wq, wq_param.max_transfer_size);
 			if (wq_param.threshold)
 				accfg_wq_set_threshold(wq, wq_param.threshold);
 		}
@@ -377,6 +393,16 @@ static int check_wq(struct accfg_ctx *ctx, int dev_id, int wq_id,
 			if (wq_param.threshold !=
 					(unsigned int)accfg_wq_get_threshold(wq)) {
 				fprintf(stderr, "check_wq failed on threshold\n");
+				return -EINVAL;
+			}
+			if (wq_param.max_batch_size !=
+					accfg_wq_get_max_batch_size(wq)) {
+				fprintf(stderr, "%s failed on max_batch_size\n", __func__);
+				return -EINVAL;
+			}
+			if (wq_param.max_transfer_size !=
+					accfg_wq_get_max_transfer_size(wq)) {
+				fprintf(stderr, "%s failed on max_transfer_size\n", __func__);
 				return -EINVAL;
 			}
 			if (strcmp(wq_param.name, accfg_wq_get_type_name(wq)) != 0) {
@@ -695,6 +721,50 @@ static int set_exceed_config(struct accfg_ctx *ctx, const char *dev_name)
 	return 0;
 }
 
+static int wq_bounds_test(struct accfg_ctx *ctx, const char *dev_name)
+{
+	struct accfg_device *device;
+	int rc = 0;
+
+	printf("configure device 0, group 0.0, wq0.0 for bounds test\n");
+	rc = config_device(ctx, 0, device0_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config device %s failed\n", dev_name);
+		return rc;
+	}
+
+	device = accfg_ctx_device_get_by_name(ctx, dev_name);
+	if (!device)
+		return -EINVAL;
+
+	rc = config_group(ctx, 0, 0, group00_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config group group0.0 failed\n");
+		return rc;
+	}
+
+	/* should not be 0  */
+	wq00_param.max_batch_size = 0;
+	wq00_param.max_transfer_size = 0;
+	rc = config_wq(ctx, 0, 0, wq00_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config wq wq0.0 failed\n");
+		return rc;
+	}
+	/* should not be greater device max_batch_size/max_transfer_size */
+	wq00_param.max_batch_size =
+		(accfg_device_get_max_batch_size(device) << 1);
+	wq00_param.max_transfer_size =
+		(accfg_device_get_max_transfer_size(device) << 1);
+	rc = config_wq(ctx, 0, 0, wq00_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config wq wq0.0 failed\n");
+		return rc;
+	}
+
+	return 0;
+}
+
 static int test_enable_wq(struct accfg_device *device, struct accfg_wq *wq)
 {
 	int rc = 0;
@@ -928,10 +998,34 @@ static int do_test3(struct accfg_ctx *ctx)
 	return 0;
 }
 
+/* test the boundary conditions for wq max_batch_size and max_transfer_size */
+static int do_test4(struct accfg_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = device_test_reset(ctx, "dsa0");
+	if (rc != 0)
+		return rc;
+
+	rc = wq_bounds_test(ctx, "dsa0");
+	if (rc != 0) {
+		fprintf(stderr, "test 4: wq boundary conditions test failed\n");
+		return rc;
+	}
+
+	rc = device_test_reset(ctx, "dsa0");
+	if (rc != 0)
+		return rc;
+
+	fprintf(stderr, "test 4: wq boundary conditions test passed successfully\n");
+		return 0;
+}
+
 typedef int (*do_test_fn)(struct accfg_ctx *ctx);
 static do_test_fn do_test[] = {
 	do_test0,
 	do_test1,
+	do_test4,
 	do_test2,
 	do_test3
 };

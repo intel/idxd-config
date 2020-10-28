@@ -177,6 +177,8 @@ int dsa_alloc(struct dsa_context *ctx, int shared)
 	ctx->wq_size = accfg_wq_get_size(ctx->wq);
 	ctx->wq_idx = accfg_wq_get_id(ctx->wq);
 	ctx->bof = accfg_wq_get_block_on_fault(ctx->wq);
+	ctx->wq_max_batch_size = accfg_wq_get_max_batch_size(ctx->wq);
+	ctx->wq_max_xfer_size = accfg_wq_get_max_transfer_size(ctx->wq);
 
 	ctx->max_batch_size = accfg_device_get_max_batch_size(dev);
 	ctx->max_xfer_size = accfg_device_get_max_transfer_size(dev);
