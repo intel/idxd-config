@@ -513,58 +513,10 @@ static int wq_parse_type(struct accfg_wq *wq, char *wq_type)
 		wq->type = ACCFG_WQT_KERNEL;
 	else if (strcmp(ptype, "user") == 0)
 		wq->type = ACCFG_WQT_USER;
-	else if (strcmp(ptype, "mdev") == 0)
-		wq->type = ACCFG_WQT_MDEV;
 	else
 		wq->type = ACCFG_WQT_NONE;
 
 	free(type);
-
-	return 0;
-}
-
-static int uuid_entry_add(struct accfg_ctx *ctx, struct accfg_wq *wq, int dfd)
-{
-	struct accfg_wq_uuid *wq_uuid;
-	char *read_uuid = NULL;
-	FILE *uuid_fd;
-	ssize_t nread;
-	size_t len = 0;
-	int fd;
-
-	/* pull uuid entry and add the uuid in sysfs */
-	fd = openat(dfd, "uuid", O_RDONLY);
-	if (fd == -1)
-		return -errno;
-
-	uuid_fd = fdopen(fd, "r");
-	if (!uuid_fd) {
-		err(ctx, "fopen of uuid path for wq failed: %s\n",
-			strerror(errno));
-		close(fd);
-		return -errno;
-	}
-
-	while ((nread = getline(&read_uuid,
-		&len, uuid_fd) != -1)) {
-		/* add '\0' to terminate the read_uuid */
-		read_uuid[UUID_STR_LEN - 1] = '\0';
-		wq_uuid = calloc(1, sizeof(struct accfg_wq_uuid));
-		if (!wq_uuid) {
-			err(ctx, "allocation of wq_uuid failed\n");
-			close(fd);
-			return -ENOMEM;
-		}
-
-		if (uuid_parse(read_uuid, wq_uuid->uuid) != 0) {
-			err(ctx, "uuid_parse failed: %s\n",
-				strerror(errno));
-			close(fd);
-			free(wq_uuid);
-			return -ENOMEM;
-		}
-		list_add_tail(&wq->uuid_list, &wq_uuid->list);
-	}
 
 	return 0;
 }
@@ -579,7 +531,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	char *path;
 	char *wq_base_string;
 	unsigned long device_id, wq_id;
-	int dfd, ret = 0;
+	int dfd;
 	char *wq_type;
 
 	if (!device)
@@ -605,7 +557,6 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 		return NULL;
 	}
 
-	list_head_init(&wq->uuid_list);
 	wq_base_string = strdup(wq_base);
 	if (!wq_base_string) {
 		err(ctx, "conversion of wq_base_string failed\n");
@@ -638,13 +589,6 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 
 	wq_parse_type(wq, wq_type);
 	free(wq_type);
-
-	/* parse uuid only in mdeve wq type */
-	if (wq->type == ACCFG_WQT_MDEV) {
-		ret = uuid_entry_add(ctx, wq, dfd);
-		if (ret < 0)
-			goto err_wq;
-	}
 
 	close(dfd);
 	wq->wq_path = strdup(wq_base);
@@ -1944,10 +1888,6 @@ ACCFG_EXPORT int accfg_wq_set_str_##field( \
 			return -errno; \
 		} \
 	} \
-	if (!strcmp(#field, "mode") && !list_empty(&wq->uuid_list)) { \
-		err(ctx, "change wq mode in mdev is not allowed\n"); \
-		return -errno; \
-	} \
 	if (sysfs_write_attr(ctx, path, buf) < 0) { \
 		err(ctx, "%s: write failed: %s\n", \
 				accfg_wq_get_devname(wq), \
@@ -2023,266 +1963,6 @@ ACCFG_EXPORT int accfg_wq_set_mode(struct accfg_wq *wq,
 	if (wq_mode >= ACCFG_WQ_MODE_UNKNOWN)
 		return -EINVAL;
 	return accfg_wq_set_str_mode(wq, accfg_wq_mode_str[wq_mode]);
-}
-
-static char *accfg_wq_get_pcie_path(struct accfg_wq *wq)
-{
-	char *buf, *dup_string;
-	struct accfg_device *dev = accfg_wq_get_device(wq);
-	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-
-	dup_string = strdup(dev->device_path);
-	if (!dup_string) {
-		err(ctx, "duplicating device path failed\n");
-		return NULL;
-	}
-
-	buf = basename(dirname(dup_string));
-	buf = strdup(buf);
-	if (!buf) {
-		err(ctx, "duplicate basename failed\n");
-		return NULL;
-	}
-
-	free(dup_string);
-
-	return buf;
-}
-
-ACCFG_EXPORT uuid_t *accfg_wq_first_uuid(struct accfg_wq *wq)
-{
-	struct accfg_wq_uuid *wq_uuid;
-
-	wq_uuid = list_top(&wq->uuid_list, struct accfg_wq_uuid, list);
-	wq->iter = wq_uuid;
-
-	return (uuid_t *)wq_uuid->uuid;
-}
-
-ACCFG_EXPORT uuid_t *accfg_wq_next_uuid(struct accfg_wq *wq)
-{
-	struct accfg_wq_uuid *wq_uuid;
-
-	if (!wq->iter)
-		return NULL;
-	wq_uuid = list_next(&wq->uuid_list, wq->iter, list);
-	if (!wq_uuid)
-		return NULL;
-	wq->iter = wq_uuid;
-
-	return (uuid_t *)wq_uuid->uuid;
-}
-
-ACCFG_EXPORT int accfg_wq_create_mdev(struct accfg_wq *wq, uuid_t uuid)
-{
-	char *pcie_path;
-	char *mdev_create_path;
-	char *wq_uuid_path;
-	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-	struct accfg_wq_uuid *wq_uuid, *entry, *next;
-	char uuid_string[UUID_STR_LEN];
-	int rc = 0;
-
-	uuid_clear(uuid);
-	wq_uuid = calloc(1, sizeof(struct accfg_wq_uuid));
-	if (!wq_uuid) {
-		err(ctx, "allocation of wq_uuid failed\n");
-		return -ENOMEM;
-	}
-
-	/* generate uuid */
-	uuid_generate(wq_uuid->uuid);
-
-	/* extract pcie path name by parsing symbolic link */
-	pcie_path = accfg_wq_get_pcie_path(wq);
-	if (!pcie_path) {
-		err(ctx, "getting pcie path failed\n");
-		free(wq_uuid);
-		return -ENOMEM;
-	}
-
-	/* create mdev via sysfs using uuid */
-	mdev_create_path = malloc(PATH_MAX);
-	if (!mdev_create_path) {
-		err(ctx, "malloc of mdev_create_path failed\n");
-		rc = -ENOMEM;
-		goto create_err;
-	}
-
-	wq_uuid_path = malloc(PATH_MAX);
-	if (!wq_uuid_path) {
-		err(ctx, "malloc of wq_uuid_path failed\n");
-		rc = -ENOMEM;
-		goto wq_err;
-	}
-
-	/* convert uuid into string format */
-	uuid_unparse(wq_uuid->uuid, uuid_string);
-
-	list_for_each_safe(&wq->uuid_list, entry, next, list) {
-		if (uuid_compare(wq_uuid->uuid, entry->uuid) == 0) {
-			err(ctx, "uuid %s already exists for wq %s\n",
-					uuid_string,
-					accfg_wq_get_devname(wq));
-			rc = -EINVAL;
-			goto out_err;
-		}
-	}
-
-	/* add uuid onto linked list if it does not exist */
-	list_add_tail(&wq->uuid_list, &wq_uuid->list);
-
-	/* write uuid to wq/uuid */
-	if (sprintf(wq_uuid_path, "%s/%s", wq->wq_path, "uuid") < 0) {
-		err(ctx, "create wq_uuid_path failed with %s\n",
-				strerror(errno));
-		rc = -errno;
-		goto out_err;
-	}
-
-	rc = sysfs_write_attr(ctx, wq_uuid_path, uuid_string);
-	if (rc < 0) {
-		err(ctx, "write uuid into wq/uuid failed: %d\n", rc);
-		goto out_err;
-	}
-
-	/* create mdev via sysfs using uuid */
-	if (sprintf(mdev_create_path, "%s/%s/%s/idxd-wq/create", MDEV_BUS, pcie_path,
-                                MDEV_POSTFIX) < 0) {
-		err(ctx, "create mdev_create_path failed with %s\n",
-				strerror(errno));
-		rc = -errno;
-		goto out_err;
-	}
-
-	rc = sysfs_write_attr(ctx, mdev_create_path, uuid_string);
-	if (rc < 0) {
-		err(ctx, "create mdev failed %d\n", rc);
-		goto out_err;
-	}
-
-	uuid_copy(uuid, wq_uuid->uuid);
-	free(wq_uuid_path);
-	free(pcie_path);
-	free(mdev_create_path);
-	return 0;
- out_err:
-	free(wq_uuid_path);
- wq_err:
-	free(mdev_create_path);
- create_err:
-	free(pcie_path);
-
-	free(wq_uuid);
-	return rc;
-}
-
-static int accfg_wq_uuid_remove(struct accfg_wq *wq, uuid_t uuid)
-{
-	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-	char *wq_uuid_path;
-	char *mdev_remove_path;
-	char uuid_str[UUID_STR_LEN];
-	int rc = 0;
-
-	uuid_unparse(uuid, uuid_str);
-
-	/* write 1 into /remove to remove it */
-	mdev_remove_path = malloc(PATH_MAX);
-	if (!mdev_remove_path) {
-		err(ctx, "malloc of mdev_remove_path failed\n");
-		return -ENOMEM;
-	}
-
-	if (sprintf(mdev_remove_path, "%s/%s/%s",
-			MDEV_PREFIX, uuid_str, "remove") < 0) {
-		err(ctx, "mdev_remove_path creation failed with %s\n",
-				strerror(errno));
-		free(mdev_remove_path);
-		rc = -errno;
-		goto err_remove_path;
-	}
-
-	rc = sysfs_write_attr(ctx, mdev_remove_path, "1");
-	if (rc < 0) {
-		err(ctx, "remove mdev when write 1 failed with %d\n", rc);
-		goto err_remove_path;
-	}
-
-	/* write same uuid into sysfs to remove it */
-	wq_uuid_path = malloc(PATH_MAX);
-	if (!wq_uuid_path) {
-		err(ctx, "malloc of wq_uuid_path failed\n");
-		rc = -ENOMEM;
-		goto err_remove_path;
-	}
-
-	/* write uuid to wq/uuid */
-	if (sprintf(wq_uuid_path, "%s/%s", wq->wq_path, "uuid") < 0) {
-		err(ctx, "remove wq_uuid_path failed with %s\n",
-				strerror(errno));
-		rc = -errno;
-		goto err_uuid_path;
-	}
-
-	rc = sysfs_write_attr(ctx, wq_uuid_path, uuid_str);
-	if (rc < 0) {
-		err(ctx, "write uuid into wq/uuid failed with %d\n", rc);
-		goto err_uuid_path;
-	}
-
- err_uuid_path:
-	free(wq_uuid_path);
- err_remove_path:
-	free(mdev_remove_path);
-
-	return rc;
-}
-
-ACCFG_EXPORT int accfg_wq_remove_mdev(struct accfg_wq *wq, uuid_t uuid)
-{
-	struct accfg_wq_uuid *entry, *next;
-	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-	uuid_t uuid_zero;
-	int rc;
-
-	/* generate null uuid */
-	uuid_generate(uuid_zero);
-	uuid_clear(uuid_zero);
-
-	/* If user writes null, erase entire list. */
-	if (uuid_compare(uuid, uuid_zero) == 0) {
-		list_for_each_safe(&wq->uuid_list, entry, next, list) {
-			rc = accfg_wq_uuid_remove(wq, entry->uuid);
-			if (rc != 0) {
-				err(ctx, "remove uuid failed: %d\n", rc);
-				return rc;
-			}
-
-			list_del(&entry->list);
-			free(entry);
-			wq->uuids--;
-		}
-		return 0;
-	}
-
-	/* If uuid already exists, remove the old uuid. */
-	list_for_each_safe(&wq->uuid_list, entry, next, list) {
-		if (uuid_compare(uuid, entry->uuid) == 0) {
-			list_del(&entry->list);
-			wq->uuids--;
-			rc = accfg_wq_uuid_remove(wq, entry->uuid);
-			free(entry);
-			if (rc != 0) {
-				err(ctx, "remove uuid failed: %d\n", rc);
-				return rc;
-			}
-			return 0;
-		}
-	}
-
-	err(ctx, "could not find matched uuid\n");
-	return -EINVAL;
 }
 
 ACCFG_EXPORT struct accfg_engine *accfg_engine_get_first(

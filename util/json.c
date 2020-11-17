@@ -20,8 +20,7 @@
 static const char *wq_type_str[] = {
 	"none",
 	"kernel",
-	"user",
-	"mdev"
+	"user"
 };
 
 /* adapted from mdadm::human_size_brief() */
@@ -354,9 +353,6 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	unsigned long size = ULLONG_MAX;
 	enum accfg_wq_mode wq_mode;
 	enum accfg_wq_state wq_state;
-	const uuid_t *wq_uuid;
-	struct json_object *json_uuid;
-	char uuid_string[UUID_STR_LEN];
 	int int_val;
 
 	if (!jaccfg)
@@ -430,7 +426,6 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 		json_object_object_add(jaccfg, "threshold", jobj);
 
 	if (!(flags & UTIL_JSON_SAVE)) {
-		int uuid_found = 0;
 
 		switch (wq_state) {
 		case ACCFG_WQ_DISABLED:
@@ -449,22 +444,6 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 		}
 		if (jobj)
 			json_object_object_add(jaccfg, "state", jobj);
-
-		/* UUID can't be programmed through config file */
-		jobj = json_object_new_array();
-		accfg_wq_uuid_foreach(wq, wq_uuid) {
-			uuid_unparse(*wq_uuid, uuid_string);
-			json_uuid = json_object_new_string(uuid_string);
-			if (json_uuid)
-				json_object_array_add(jobj, json_uuid);
-			else
-				break;
-			uuid_found++;
-		}
-		if (uuid_found)
-			json_object_object_add(jaccfg, "uuid", jobj);
-		else
-			json_object_put(jobj);
 
 		jobj = json_object_new_int(accfg_wq_get_clients(wq));
 		if (jobj)

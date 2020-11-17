@@ -97,8 +97,6 @@ struct accfg_wq {
 	struct accfg_device *device;
         struct accfg_group *group;
 	struct list_node list;
-	struct list_head uuid_list;
-	struct accfg_wq_uuid *iter;
 	char *wq_path;
         char *wq_buf;
         int id, buf_len;
@@ -111,7 +109,6 @@ struct accfg_wq {
 	int priority;
 	int block_on_fault;
 	int cdev_minor;
-	int uuids;
 	unsigned int threshold;
 	char *mode;
 	char *name;
@@ -119,11 +116,6 @@ struct accfg_wq {
 	char *state;
 	unsigned int max_batch_size;
 	unsigned long max_transfer_size;
-};
-
-struct accfg_wq_uuid {
-	uuid_t uuid;
-	struct list_node list;
 };
 
 #define ACCFG_EXPORT __attribute__ ((visibility("default")))

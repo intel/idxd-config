@@ -56,8 +56,7 @@ enum accfg_wq_state {
 enum accfg_wq_type {
 	ACCFG_WQT_NONE = 0,
 	ACCFG_WQT_KERNEL,
-	ACCFG_WQT_USER,
-	ACCFG_WQT_MDEV,
+	ACCFG_WQT_USER
 };
 
 enum accfg_control_flag {
@@ -98,7 +97,6 @@ struct wq_parameters {
 	const char *mode;
 	const char *type;
 	const char *name;
-	const char *uuid_str;
 };
 
 struct engine_parameters {
@@ -210,19 +208,12 @@ int accfg_group_set_traffic_class_b(struct accfg_group *group, int val);
 struct accfg_wq;
 struct accfg_wq *accfg_wq_get_first(struct accfg_device *device);
 struct accfg_wq *accfg_wq_get_next(struct accfg_wq *wq);
-uuid_t *accfg_wq_first_uuid(struct accfg_wq *wq);
-uuid_t *accfg_wq_next_uuid(struct accfg_wq *wq);
 
 
 #define accfg_wq_foreach(device, wq) \
         for (wq = accfg_wq_get_first(device); \
              wq != NULL; \
              wq = accfg_wq_get_next(wq))
-
-#define accfg_wq_uuid_foreach(wq, uuid) \
-        for (uuid = accfg_wq_first_uuid(wq); \
-             uuid != NULL; \
-             uuid = accfg_wq_next_uuid(wq))
 
 struct accfg_ctx *accfg_wq_get_ctx(struct accfg_wq *wq);
 struct accfg_device *accfg_wq_get_device(struct accfg_wq *wq);
@@ -261,8 +252,6 @@ int accfg_wq_enable(struct accfg_wq *wq);
 int accfg_wq_disable(struct accfg_wq *wq, bool force);
 int accfg_wq_priority_boundary(struct accfg_wq *wq);
 int accfg_wq_size_boundary(struct accfg_device *device, int wq_num);
-int accfg_wq_create_mdev(struct accfg_wq *wq, uuid_t uuid);
-int accfg_wq_remove_mdev(struct accfg_wq *wq, uuid_t uuid);
 
 /* libaccfg function for engine */
 struct accfg_engine;

@@ -59,8 +59,6 @@ LIBACCFG_1 {
 	accfg_device_wq_get_by_id;
 	accfg_wq_get_first;
 	accfg_wq_get_next;
-	accfg_wq_first_uuid;
-	accfg_wq_next_uuid;
 	accfg_wq_get_ctx;
 	accfg_wq_get_device;
 	accfg_wq_get_group;
@@ -76,7 +74,6 @@ LIBACCFG_1 {
 	accfg_wq_get_cdev_minor;
 	accfg_wq_get_type;
 	accfg_wq_get_threshold;
-	accfg_wq_get_uuid;
 	accfg_wq_set_size;
 	accfg_wq_set_priority;
 	accfg_wq_set_group_id;
@@ -89,8 +86,6 @@ LIBACCFG_1 {
 	accfg_wq_disable;
 	accfg_wq_priority_boundary;
 	accfg_wq_size_boundary;
-	accfg_wq_create_mdev;
-	accfg_wq_remove_mdev;
 	accfg_engine_get_first;
 	accfg_engine_get_next;
 	accfg_engine_get_ctx;

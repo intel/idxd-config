@@ -63,45 +63,6 @@ configure wq1.2
 configure wq1.3
 configure wq1.4
 test 1: set large wq to exceed max total size in dsa passed successfully
-wq not enabled
-uuid 7a0dca6f-02fe-4cd3-a7ee-9a767883dc08 successfully attached to wq0.2
-uuid d6a87782-8736-4166-aba3-c6580269f186 successfully attached to wq0.2
-uuid 4d0758a3-7ff1-42ec-9979-ba046a1f5722 successfully attached to wq0.2
-uuid c0aa9cd2-3d9d-4cf9-a085-f5bb0f1e9fe0 successfully attached to wq0.2
-uuid 57a5e7a6-cd7d-4fdb-b764-dc0b5fceb047 successfully attached to wq0.2
-successfully removed the saved uuid c0aa9cd2-3d9d-4cf9-a085-f5bb0f1e9fe0 in wq
-successfully removed the rest uuid in shared wq
-wq0.0 is disabled already
-wq0.1 is disabled already
-wq0.3 is disabled already
-wq0.4 is disabled already
-wq0.5 is disabled already
-wq0.6 is disabled already
-wq0.7 is disabled already
-test 2: test the create-mdev and remove-mdev on shared wq passed successfully
-configure device 0
-configure group0.0
-configure wq0.0
-configure engine0.0
-configure engine0.1
-configure group0.1
-configure wq0.1
-configure wq0.2
-configure wq0.3
-configure engine0.2
-configure engine0.3
-wq not enabled
-uuid 97fc3e6a-9cb3-46d7-93e6-7b64ebb0d0dd successfully attached to wq0.3
-successfully removed the saved uuid 97fc3e6a-9cb3-46d7-93e6-7b64ebb0d0dd in wq
-wq0.0 is disabled already
-wq0.1 is disabled already
-wq0.2 is disabled already
-wq0.3 is disabled already
-wq0.4 is disabled already
-wq0.5 is disabled already
-wq0.6 is disabled already
-wq0.7 is disabled already
-test 3: test the create-mdev and remove-mdev on dedicated wq passed successfully
 test-libaccfg: PASS
 SUCCESS!
 ```

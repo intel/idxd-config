@@ -109,7 +109,7 @@ static struct wq_parameters wq02_param = {
 	.max_batch_size = (1 << 8),
 	.max_transfer_size = (1l << 30),
 	.mode = "shared",
-	.type = "mdev",
+	.type = "user",
 	.name = "guest1"
 };
 
@@ -121,7 +121,7 @@ static struct wq_parameters wq03_param = {
 	.max_batch_size = (1 << 9),
 	.max_transfer_size = (1l << 31),
 	.mode = "dedicated",
-	.type = "mdev",
+	.type = "user",
 	.name = "guest2"
 
 };
@@ -765,123 +765,6 @@ static int wq_bounds_test(struct accfg_ctx *ctx, const char *dev_name)
 	return 0;
 }
 
-static int test_enable_wq(struct accfg_device *device, struct accfg_wq *wq)
-{
-	int rc = 0;
-	enum accfg_wq_state wq_state;
-	const char *wq_name;
-
-	if (!accfg_device_is_active(device)) {
-		rc = accfg_device_enable(device);
-		if (rc < 0) {
-			fprintf(stderr, "device_enable failed\n");
-			return rc;
-		}
-	}
-
-	wq_state = accfg_wq_get_state(wq);
-	wq_name = accfg_wq_get_devname(wq);
-
-	if (wq_state == ACCFG_WQ_ENABLED) {
-		fprintf(stderr, "wq %s is already enabled\n", wq_name);
-		return rc;
-	}
-
-	rc = accfg_wq_enable(wq);
-	if (rc < 0) {
-		fprintf(stderr, "wq_enable of %s failed", wq_name);
-		return rc;
-	}
-
-	return 0;
-}
-
-static int mdev_test(struct accfg_ctx *ctx, struct accfg_device *device,
-			struct accfg_wq *wq)
-{
-	enum accfg_wq_mode wq_mode;
-	int rc, i = 0, iterations = 1;
-	uuid_t uuid, uuid_zero, saved_uuid;
-	char uuid_str[UUID_STR_LEN];
-
-	wq_mode = accfg_wq_get_mode(wq);
-	if (wq_mode != ACCFG_WQ_SHARED && wq_mode != ACCFG_WQ_DEDICATED)
-		return -ENXIO;
-
-	if (wq_mode == ACCFG_WQ_SHARED)
-		iterations = 5;
-
-	/* For shared wq, we can create multiple uuid */
-	for (i = 0; i < iterations; i++) {
-		rc = accfg_wq_create_mdev(wq, uuid);
-		if (rc != 0)
-			return rc;
-
-		if (i == 3 || wq_mode == ACCFG_WQ_DEDICATED)
-			uuid_copy(saved_uuid, uuid);
-
-		uuid_unparse(uuid, uuid_str);
-		printf("uuid %s successfully attached to %s\n", uuid_str,
-				accfg_wq_get_devname(wq));
-	}
-
-	/* Remove the saved uuid first */
-	rc = accfg_wq_remove_mdev(wq, saved_uuid);
-	if (rc != 0)
-		return rc;
-
-	uuid_unparse(saved_uuid, uuid_str);
-	printf("successfully removed the saved uuid %s in wq\n", uuid_str);
-
-	/* Remove all rest of the uuid */
-	if (wq_mode == ACCFG_WQ_SHARED) {
-		uuid_clear(uuid_zero);
-		rc = accfg_wq_remove_mdev(wq, uuid_zero);
-		if (rc != 0)
-			return rc;
-		printf("successfully removed the rest uuid in shared wq\n");
-	}
-
-	return 0;
-}
-
-static int dsa_mdev_test(struct accfg_ctx *ctx, const char *wq_name,
-		const char *dev_name)
-{
-	int rc;
-	struct accfg_device *device;
-	struct accfg_wq *wq;
-	enum accfg_wq_state wq_state;
-
-	accfg_device_foreach(ctx, device) {
-		if (strcmp(accfg_device_get_devname(device), dev_name))
-			continue;
-
-		if (!accfg_device_type_validate(dev_name))
-			return -EINVAL;
-
-		accfg_wq_foreach(device, wq) {
-			if (strcmp(accfg_wq_get_devname(wq), wq_name))
-				continue;
-
-			wq_state = accfg_wq_get_state(wq);
-			if (wq_state == ACCFG_WQ_DISABLED
-					|| wq_state == ACCFG_WQ_QUIESCING)
-				fprintf(stderr, "wq not enabled\n");
-
-			rc = test_enable_wq(device, wq);
-			if (rc != 0)
-				return rc;
-
-			rc = mdev_test(ctx, device, wq);
-			if (rc < 0)
-				return rc;
-		}
-	}
-
-	return 0;
-}
-
 /* test the set and get libaccfg functions for all components in dsa0 */
 static int do_test0(struct accfg_ctx *ctx)
 {
@@ -935,71 +818,8 @@ static int do_test1(struct accfg_ctx *ctx)
 		return 0;
 }
 
-/* test the create-mdev and remove-mdev on shared wq */
-static int do_test2(struct accfg_ctx *ctx)
-{
-	int rc = 0;
-
-	rc = device_test_reset(ctx, "dsa0");
-	if (rc != 0)
-		return rc;
-
-	rc = config_device(ctx, 0, device0_param, "dsa0");
-	if (rc != 0) {
-		fprintf(stderr, "config device dsa0 failed\n");
-		return rc;
-	}
-
-	rc = config_wq(ctx, 0, 2, wq02_param, "dsa0");
-	if (rc != 0) {
-		fprintf(stderr, "config wq wq0.2 failed\n");
-		return rc;
-	}
-
-	rc = dsa_mdev_test(ctx, "wq0.2", "dsa0");
-	if (rc != 0) {
-		fprintf(stderr, "test 2: test the create-mdev and remove-mdev on shared wq failed\n");
-		return rc;
-	}
-
-	rc = device_test_reset(ctx, "dsa0");
-	if (rc != 0)
-		return rc;
-
-	fprintf(stderr, "test 2: test the create-mdev and remove-mdev on shared wq passed successfully\n");
-	return 0;
-}
-
-/* test the create-mdev and remove-mdev on dedicated wq */
-static int do_test3(struct accfg_ctx *ctx)
-{
-	int rc = 0;
-
-	rc = device_test_reset(ctx, "dsa0");
-	if (rc != 0)
-		return rc;
-
-	/* set configuration of each attribute */
-	rc = set_config(ctx, "dsa0");
-	if (rc != 0)
-		return rc;
-
-	rc = dsa_mdev_test(ctx, "wq0.3", "dsa0");
-	if (rc != 0) {
-		fprintf(stderr, "test 3: test the create-mdev and remove-mdev on dedicated wq failed\n");
-		return rc;
-	}
-
-	rc = device_test_reset(ctx, "dsa0");
-	if (rc != 0)
-		return rc;
-
-	fprintf(stderr, "test 3: test the create-mdev and remove-mdev on dedicated wq passed successfully\n");
-	return 0;
-}
-
 /* test the boundary conditions for wq max_batch_size and max_transfer_size */
-static int do_test4(struct accfg_ctx *ctx)
+static int do_test2(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
@@ -1009,7 +829,7 @@ static int do_test4(struct accfg_ctx *ctx)
 
 	rc = wq_bounds_test(ctx, "dsa0");
 	if (rc != 0) {
-		fprintf(stderr, "test 4: wq boundary conditions test failed\n");
+		fprintf(stderr, "test 2: wq boundary conditions test failed\n");
 		return rc;
 	}
 
@@ -1017,7 +837,7 @@ static int do_test4(struct accfg_ctx *ctx)
 	if (rc != 0)
 		return rc;
 
-	fprintf(stderr, "test 4: wq boundary conditions test passed successfully\n");
+	fprintf(stderr, "test 2: wq boundary conditions test passed successfully\n");
 		return 0;
 }
 
@@ -1025,9 +845,7 @@ typedef int (*do_test_fn)(struct accfg_ctx *ctx);
 static do_test_fn do_test[] = {
 	do_test0,
 	do_test1,
-	do_test4,
 	do_test2,
-	do_test3
 };
 
 static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
