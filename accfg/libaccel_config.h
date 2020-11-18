@@ -31,6 +31,7 @@ extern "C" {
 /* no need to save device state */
 enum accfg_device_type {
 	ACCFG_DEVICE_DSA = 0,
+	ACCFG_DEVICE_IAX = 1,
 	ACCFG_DEVICE_TYPE_UNKNOWN = -1,
 };
 

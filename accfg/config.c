@@ -296,6 +296,10 @@ static int group_json_set_val(struct accfg_group *group,
 		json_object *jobj, char *key)
 {
 	int rc, i;
+	struct accfg_device *dev = NULL;
+
+	if (group)
+		dev = accfg_group_get_device(group);
 
 	if (!group || !jobj || !key)
 		return -EINVAL;
@@ -311,6 +315,12 @@ static int group_json_set_val(struct accfg_group *group,
 						|| (val < 0))
 					return -EINVAL;
 
+				if ((accfg_device_get_type(dev) == ACCFG_DEVICE_IAX)
+					&& ((!strcmp(group_table[i].name, "tokens_reserved"))
+					|| (!strcmp(group_table[i].name, "use_token_limit"))
+					|| (!strcmp(group_table[i].name, "tokens_allowed")))) {
+					return 0;
+				}
 				if (group_table[i].is_writable &&
 					!group_table[i].is_writable(group,
 						val))

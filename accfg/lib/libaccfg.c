@@ -39,6 +39,7 @@ static int filename_prefix_len;
 
 ACCFG_EXPORT char *accfg_basenames[] = {
         [ACCFG_DEVICE_DSA]      = "dsa",
+	[ACCFG_DEVICE_IAX]      = "iax",
 	NULL
 };
 
@@ -397,6 +398,8 @@ static int device_parse_type(struct accfg_device *device)
 
 	if (!strcmp(device->device_type_str, "dsa"))
 		device->type = ACCFG_DEVICE_DSA;
+	else if (!strcmp(device->device_type_str, "iax"))
+		device->type = ACCFG_DEVICE_IAX;
 	else
 		device->type = ACCFG_DEVICE_TYPE_UNKNOWN;
 
