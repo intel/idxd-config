@@ -194,6 +194,7 @@ static void free_device(struct accfg_device *device, struct list_head *head)
 		list_del_from(head, &device->list);
 	free(device->device_path);
 	free(device->device_buf);
+	free(device->mdev_path);
 	free(device);
 }
 
@@ -413,6 +414,7 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	char *path;
 	int dfd;
 	int rc;
+	char *p;
 
 	path = calloc(1, strlen(ctl_base) + MAX_PARAM_LEN);
 	if (!path) {
@@ -470,6 +472,20 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 		goto err_dev_path;
 	}
 
+	device->mdev_path = strdup(device->device_path);
+	if (!device->mdev_path) {
+		err(ctx, "strdup of device_path failed\n");
+		goto err_dev_path;
+	}
+
+	if (asprintf(&p, "%s/%s", MDEV_BUS,
+			basename(dirname(device->mdev_path))) < 0) {
+		err(ctx, "device mdev_path allocation failed\n");
+		goto err_dev_path;
+	}
+	free(device->mdev_path);
+	device->mdev_path = p;
+
 	device->device_buf = calloc(1, strlen(device->device_path) +
 			MAX_PARAM_LEN);
 	if (!device->device_buf) {
@@ -490,6 +506,7 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 err_dev_path:
 err_read:
 	free(device->device_buf);
+	free(device->mdev_path);
 	free(device);
 err_device:
 	free(path);

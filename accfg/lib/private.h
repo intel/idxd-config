@@ -30,6 +30,7 @@ struct accfg_device {
         struct list_node list;
 	int group_init;
         char *device_path;
+	char *mdev_path;
         char *device_buf;
 	char *device_type_str;
 	enum accfg_device_type type;
