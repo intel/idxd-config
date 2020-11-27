@@ -141,4 +141,6 @@ global:
 	accfg_mdev_get_uuid;
 	accfg_mdev_get_type;
 	accfg_mdev_basenames;
+	accfg_create_mdev;
+	accfg_remove_mdev;
 } LIBACCFG_7;

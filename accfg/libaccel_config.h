@@ -189,6 +189,9 @@ struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device);
 struct accfg_device_mdev *accfg_device_next_mdev(struct accfg_device_mdev *mdev);
 void accfg_mdev_get_uuid(struct accfg_device_mdev *mdev, uuid_t uuid);
 enum accfg_mdev_type accfg_mdev_get_type(struct accfg_device_mdev *mdev);
+int accfg_create_mdev(struct accfg_device *device, enum accfg_mdev_type type,
+		uuid_t uuid);
+int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid);
 
 #define accfg_device_mdev_foreach(device, mdev) \
 	for (mdev = accfg_device_first_mdev(device); \

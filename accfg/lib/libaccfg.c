@@ -979,6 +979,110 @@ ACCFG_EXPORT enum accfg_mdev_type accfg_mdev_get_type(struct accfg_device_mdev *
 	return mdev->type;
 }
 
+static void accfg_gen_uuid(struct accfg_device *device, uuid_t uuid)
+{
+	struct accfg_device_mdev *entry, *next;
+
+	uuid_clear(uuid);
+	while (1) {
+		uuid_generate(uuid);
+		if (list_empty(&device->mdev_list))
+			return;
+		list_for_each_safe(&device->mdev_list, entry, next, list) {
+			if (uuid_compare(uuid, entry->uuid) != 0)
+				return;
+		}
+	}
+}
+
+ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
+		enum accfg_mdev_type type, uuid_t uuid)
+{
+	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_device_mdev *mdev;
+	char uuid_str[UUID_STR_LEN];
+	char mdev_path[PATH_MAX];
+	int rc;
+
+	if (type >= ACCFG_MDEV_TYPE_UNKNOWN || type < 0)
+		return -EINVAL;
+
+	mdev = calloc(1, sizeof(struct accfg_device_mdev));
+	if (!mdev) {
+		err(ctx, "mdev allocation failed\n");
+		return -ENOMEM;
+	}
+	accfg_gen_uuid(device, mdev->uuid);
+	mdev->type = type;
+
+	uuid_unparse(mdev->uuid, uuid_str);
+	sprintf(mdev_path, "%s/%s/idxd-%s/create", device->mdev_path,
+			MDEV_POSTFIX, accfg_mdev_basenames[type]);
+	rc = sysfs_write_attr(ctx, mdev_path, uuid_str);
+	if (rc < 0) {
+		err(ctx, "create mdev failed %d\n", rc);
+		goto create_err;
+	}
+
+	list_add_tail(&device->mdev_list, &mdev->list);
+	uuid_copy(uuid, mdev->uuid);
+	return 0;
+
+create_err:
+	free(mdev);
+	return rc;
+}
+
+static int accfg_device_mdev_remove(struct accfg_device *device,
+		struct accfg_device_mdev *mdev)
+{
+	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	char uuid_str[UUID_STR_LEN];
+	char mdev_path[PATH_MAX];
+	int rc;
+
+	uuid_unparse(mdev->uuid, uuid_str);
+	sprintf(mdev_path, "%s/%s/remove", device->mdev_path, uuid_str);
+	rc = sysfs_write_attr(ctx, mdev_path, "1");
+	if (rc < 0)
+		return rc;
+
+	list_del(&mdev->list);
+	free(mdev);
+
+	return 0;
+}
+
+ACCFG_EXPORT int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid)
+{
+	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_device_mdev *entry, *next;
+	int rc, all;
+
+	/* remove all mdevs if null uuid is passed */
+	all = uuid_is_null(uuid);
+	list_for_each_safe(&device->mdev_list, entry, next, list) {
+		if (all || !uuid_compare(entry->uuid, uuid)) {
+			rc = accfg_device_mdev_remove(device, entry);
+			if (rc < 0)
+				goto remove_err;
+			if (!all)
+				return 0;
+		}
+	}
+
+	if (!all) {
+		err(ctx, "mdev uuid not found\n");
+		return -EINVAL;
+	}
+
+	return 0;
+
+remove_err:
+	err(ctx, "remove mdev failed %d\n", rc);
+	return rc;
+}
+
 /**
  * accfg_device_get_first - retrieve first device in the system
  * @ctx: context established by accfg_new
