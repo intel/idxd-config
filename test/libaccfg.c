@@ -492,7 +492,6 @@ static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name)
 
 			if (wq_state == ACCFG_WQ_DISABLED ||
 					wq_state == ACCFG_WQ_QUIESCING) {
-				fprintf(stderr, "%s is disabled already\n", accfg_wq_get_devname(wq));
 				continue;
 			}
 
@@ -762,6 +761,15 @@ static int wq_bounds_test(struct accfg_ctx *ctx, const char *dev_name)
 		return rc;
 	}
 
+	/* reset to valid values for following tests */
+	wq00_param.max_batch_size = 1;
+	wq00_param.max_transfer_size = 1;
+	rc = config_wq(ctx, 0, 0, wq00_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config wq wq0.0 failed\n");
+		return rc;
+	}
+
 	return 0;
 }
 
@@ -831,6 +839,144 @@ static int test_wq_boundary_conditions(struct accfg_ctx *ctx)
 	return 0;
 }
 
+static int mdev_test(struct accfg_ctx *ctx, const char *dev_name,
+		char *mdev_type_str, int num_mdevs)
+{
+	struct accfg_device *device;
+	enum accfg_mdev_type type;
+	int rc, i;
+	char **m;
+	uuid_t uuid;
+
+	device = accfg_ctx_device_get_by_name(ctx, dev_name);
+	if (!device) {
+		fprintf(stderr, "Device %s not found\n", dev_name);
+		return -EINVAL;
+	}
+
+	for (m = accfg_mdev_basenames, type = 0; *m; m++, type++)
+		if (!strcmp(*m, mdev_type_str))
+			break;
+
+	if (!*m) {
+		fprintf(stderr, "Invalid mdev type\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_mdevs; i++) {
+		rc = accfg_create_mdev(device, type, uuid);
+		if (rc) {
+			fprintf(stderr, "mdev creation failed\n");
+			return rc;
+		}
+	}
+
+	/* Remove all mdevs */
+	uuid_clear(uuid);
+	rc = accfg_remove_mdev(device, uuid);
+	if (rc) {
+		fprintf(stderr, "mdev removal failed\n");
+		return rc;
+	}
+
+	return rc;
+}
+
+static int enable_wq(struct accfg_ctx *ctx, const char *dev_name, int wq_id)
+{
+	struct accfg_device *device;
+	struct accfg_wq *wq;
+	int rc;
+
+	device = accfg_ctx_device_get_by_name(ctx, dev_name);
+	if (!device) {
+		fprintf(stderr, "Device %s not found\n", dev_name);
+		return -EINVAL;
+	}
+	if (!accfg_device_is_active(device)) {
+		rc = accfg_device_enable(device);
+		if (rc < 0) {
+			fprintf(stderr, "device enable of %s failed\n",
+					dev_name);
+			return rc;
+		}
+	}
+
+	wq = accfg_device_wq_get_by_id(device, wq_id);
+	if (!wq) {
+		fprintf(stderr, "wq with id %d not found for device %s\n",
+				wq_id, dev_name);
+		return -EINVAL;
+	}
+
+	if (accfg_wq_get_state(wq) == ACCFG_WQ_ENABLED)
+		return 0;
+
+	return accfg_wq_enable(wq);
+}
+
+/* test 1swq type mdev creation and removal */
+static int test_mdev_1swq(struct accfg_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = device_test_reset(ctx, "dsa0");
+	if (rc)
+		return rc;
+
+	rc = set_config(ctx, "dsa0");
+	if (rc != 0)
+		return rc;
+
+	rc = enable_wq(ctx, "dsa0", 2);
+	if (rc) {
+		fprintf(stderr, "enable wq wq0.2 failed");
+		return rc;
+	}
+
+	/* create and remove 5 1swq mdevs */
+	rc = mdev_test(ctx, "dsa0", "1swq", 5);
+	if (rc)
+		return rc;
+
+	rc = device_test_reset(ctx, "dsa0");
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+/* test 1dwq type mdev creation and removal */
+static int test_mdev_1dwq(struct accfg_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = device_test_reset(ctx, "dsa0");
+	if (rc)
+		return rc;
+
+	rc = set_config(ctx, "dsa0");
+	if (rc != 0)
+		return rc;
+
+	rc = enable_wq(ctx, "dsa0", 3);
+	if (rc) {
+		fprintf(stderr, "enable wq wq0.3 failed");
+		return rc;
+	}
+
+	/* create and remove 1 1dwq mdev */
+	rc = mdev_test(ctx, "dsa0", "1dwq", 1);
+	if (rc)
+		return rc;
+
+	rc = device_test_reset(ctx, "dsa0");
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
 typedef int (*do_test_fn)(struct accfg_ctx *ctx);
 struct _test_case {
 	do_test_fn test_fn;
@@ -852,6 +998,16 @@ static struct _test_case test_cases[] = {
 	{
 		.test_fn = test_wq_boundary_conditions,
 		.desc = "wq boundary conditions",
+		.enabled = true,
+	},
+	{
+		.test_fn = test_mdev_1swq,
+		.desc = "1swq type mdev creation and removal",
+		.enabled = true,
+	},
+	{
+		.test_fn = test_mdev_1dwq,
+		.desc = "1dwq type mdev creation and removal",
 		.enabled = true,
 	},
 };
