@@ -766,7 +766,7 @@ static int wq_bounds_test(struct accfg_ctx *ctx, const char *dev_name)
 }
 
 /* test the set and get libaccfg functions for all components in dsa0 */
-static int do_test0(struct accfg_ctx *ctx)
+static int test_config(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
@@ -781,22 +781,18 @@ static int do_test0(struct accfg_ctx *ctx)
 
 	/* get configuration to see if match */
 	rc = check_config(ctx, "dsa0");
-	if (rc != 0) {
-		fprintf(stderr, "test 0: test the set and get libaccfg functions for components failed\n");
+	if (rc != 0)
 		return rc;
-	}
 
 	rc = device_test_reset(ctx, "dsa0");
 	if (rc != 0)
 		return rc;
 
-	fprintf(stderr, "test 0: test the set and get libaccfg functions for components passed successfully\n");
-
 	return 0;
 }
 
 /* set large wq to exceed max total size in dsa */
-static int do_test1(struct accfg_ctx *ctx)
+static int test_max_wq_size(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
@@ -805,21 +801,18 @@ static int do_test1(struct accfg_ctx *ctx)
 		return rc;
 
 	rc = set_exceed_config(ctx, "dsa1");
-	if (rc != 0) {
-		fprintf(stderr, "test 1: set large wq to exceed max total size in dsa failed\n");
+	if (rc != 0)
 		return rc;
-	}
 
 	rc = device_test_reset(ctx, "dsa1");
 	if (rc != 0)
 		return rc;
 
-	fprintf(stderr, "test 1: set large wq to exceed max total size in dsa passed successfully\n");
-		return 0;
+	return 0;
 }
 
 /* test the boundary conditions for wq max_batch_size and max_transfer_size */
-static int do_test2(struct accfg_ctx *ctx)
+static int test_wq_boundary_conditions(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
@@ -828,24 +821,39 @@ static int do_test2(struct accfg_ctx *ctx)
 		return rc;
 
 	rc = wq_bounds_test(ctx, "dsa0");
-	if (rc != 0) {
-		fprintf(stderr, "test 2: wq boundary conditions test failed\n");
+	if (rc != 0)
 		return rc;
-	}
 
 	rc = device_test_reset(ctx, "dsa0");
 	if (rc != 0)
 		return rc;
 
-	fprintf(stderr, "test 2: wq boundary conditions test passed successfully\n");
-		return 0;
+	return 0;
 }
 
 typedef int (*do_test_fn)(struct accfg_ctx *ctx);
-static do_test_fn do_test[] = {
-	do_test0,
-	do_test1,
-	do_test2,
+struct _test_case {
+	do_test_fn test_fn;
+	char *desc;
+	bool enabled;
+};
+
+static struct _test_case test_cases[] = {
+	{
+		.test_fn = test_config,
+		.desc = "set and get configurations",
+		.enabled = true,
+	},
+	{
+		.test_fn = test_max_wq_size,
+		.desc = "max wq size",
+		.enabled = true,
+	},
+	{
+		.test_fn = test_wq_boundary_conditions,
+		.desc = "wq boundary conditions",
+		.enabled = true,
+	},
 };
 
 static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
@@ -914,15 +922,21 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(do_test); i++) {
-		err = do_test[i](ctx);
+	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
+		if (!test_cases[i].enabled) {
+			fprintf(stderr, "\naccfg-test%d *disabled*\n", i);
+			continue;
+		}
+		printf("\nRunning accfg-test%d: %s\n", i, test_cases[i].desc);
+		err = test_cases[i].test_fn(ctx);
 		if (err < 0) {
-			fprintf(stderr, "accfg-test%d failed: %d\n", i, err);
+			fprintf(stderr, "accfg-test%d *failed*: %d\n", i, err);
 			break;
 		}
+		printf("accfg-test%d passed!\n", i);
 	}
 
-	if (i >= ARRAY_SIZE(do_test))
+	if (i >= ARRAY_SIZE(test_cases))
 		result = EXIT_SUCCESS;
 
 	kmod_module_remove_module(mod, 0);
