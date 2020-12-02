@@ -43,6 +43,12 @@ ACCFG_EXPORT char *accfg_basenames[] = {
 	NULL
 };
 
+ACCFG_EXPORT char *accfg_mdev_basenames[] = {
+	[ACCFG_MDEV_TYPE_1_DWQ]      = "1dwq",
+	[ACCFG_MDEV_TYPE_1_SWQ]      = "1swq",
+	NULL
+};
+
 enum {
 	ACCFG_CMD_STATUS_MAX = 0x45,
 };
@@ -407,6 +413,77 @@ static int device_parse_type(struct accfg_device *device)
 	return 0;
 }
 
+static int mdev_str_to_type(char *mdev_type_str)
+{
+	char **b;
+	char *s;
+	int l, i;
+
+	s = strchr(mdev_type_str, '-');
+	if (!s)
+		s = mdev_type_str;
+	else
+		s++;
+	l = (int) (strchrnul(s, '-') - s);
+
+	for (b = accfg_mdev_basenames, i = 0; *b != NULL; b++, i++)
+		if (!strncmp(*b, s, l))
+			return i;
+
+	return ACCFG_MDEV_TYPE_UNKNOWN;
+}
+
+static int add_device_mdevs(struct accfg_ctx *ctx, struct accfg_device *dev)
+{
+	struct accfg_device_mdev *dev_mdev;
+	uuid_t uu;
+	struct dirent **d;
+	char *f, *mdev_type_str;
+	char p[PATH_MAX];
+	char mdev_path[PATH_MAX];
+	int n, n1, rc = 0;
+
+	n1 = n = scandir(dev->mdev_path, &d, NULL, alphasort);
+	if (n < 0) {
+		err(ctx, "scandir failed\n");
+		return -ENOENT;
+	}
+
+	while (n--) {
+		f = &d[n]->d_name[0];
+		if (*f == '.' || uuid_parse(f, uu))
+			continue;
+		sprintf(p, "%s/%s/mdev_type", dev->mdev_path, f);
+		if (!realpath(p, mdev_path))
+			continue;
+		dev_mdev = calloc(1,
+			sizeof(struct accfg_device_mdev));
+		if (!dev_mdev) {
+			err(ctx, "allocation failed\n");
+			rc = -ENOMEM;
+			goto exit_add_mdev;
+		}
+		uuid_copy(dev_mdev->uuid, uu);
+		mdev_type_str = strrchr(mdev_path, '/') + 1;
+		dev_mdev->device = dev;
+		dev_mdev->type = mdev_str_to_type(mdev_type_str);
+		if (dev_mdev->type == ACCFG_MDEV_TYPE_UNKNOWN) {
+			err(ctx, "mdev type error\n");
+			free(dev_mdev);
+			rc = -EINVAL;
+			goto exit_add_mdev;
+		}
+		list_add_tail(&dev->mdev_list, &dev_mdev->list);
+	}
+
+exit_add_mdev:
+	while (n1--)
+		free(d[n1]);
+	free(d);
+
+	return rc;
+}
+
 static void *add_device(void *parent, int id, const char *ctl_base, char *dev_prefix)
 {
 	struct accfg_ctx *ctx = parent;
@@ -439,6 +516,7 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	list_head_init(&device->groups);
 	list_head_init(&device->wqs);
 	list_head_init(&device->engines);
+	list_head_init(&device->mdev_list);
 
 	device->ctx = ctx;
 	device->id = id;
@@ -500,6 +578,9 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 		goto err_dev_path;
 	list_add_tail(&ctx->devices, &device->list);
 	free(path);
+
+	if (add_device_mdevs(ctx, device))
+		goto err_dev_path;
 
 	return device;
 

@@ -35,6 +35,7 @@ struct accfg_device {
 	char *device_type_str;
 	enum accfg_device_type type;
         size_t buf_len;
+	struct list_head mdev_list;
 
 	/* Device Attributes */
 	struct accfg_error errors;
@@ -54,6 +55,13 @@ struct accfg_device {
 	unsigned long opcap;
 	unsigned long gencap;
 	char *pasid_enabled;
+};
+
+struct accfg_device_mdev {
+	struct accfg_device *device;
+	uuid_t uuid;
+	enum accfg_mdev_type type;
+	struct list_node list;
 };
 
 struct accfg_group {

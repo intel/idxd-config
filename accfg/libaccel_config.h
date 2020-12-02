@@ -67,6 +67,12 @@ enum accfg_control_flag {
 	ACCFG_WQ_DISABLE,
 };
 
+enum accfg_mdev_type {
+	ACCFG_MDEV_TYPE_1_DWQ,
+	ACCFG_MDEV_TYPE_1_SWQ,
+	ACCFG_MDEV_TYPE_UNKNOWN,
+};
+
 /* no need to save device error */
 struct accfg_error {
         uint64_t val[4];
@@ -78,6 +84,7 @@ struct dev_parameters {
 };
 
 extern char *accfg_basenames[];
+extern char *accfg_mdev_basenames[];
 
 struct group_parameters {
 	unsigned int tokens_reserved;
