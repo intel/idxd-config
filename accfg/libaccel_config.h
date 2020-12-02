@@ -48,9 +48,10 @@ enum accfg_wq_mode {
 };
 
 enum accfg_wq_state {
-	ACCFG_WQ_DISABLED = 0,
-	ACCFG_WQ_ENABLED = 1,
-	ACCFG_WQ_QUIESCING = 2,
+	ACCFG_WQ_DISABLED,
+	ACCFG_WQ_ENABLED,
+	ACCFG_WQ_QUIESCING,
+	ACCFG_WQ_LOCKED,
 	ACCFG_WQ_UNKNOWN = -1,
 };
 

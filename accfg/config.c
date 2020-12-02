@@ -474,7 +474,7 @@ static int configure_json_value(struct accfg_ctx *ctx,
 			if (!wq)
 				return -ENOENT;
 			wq_state = accfg_wq_get_state(wq);
-			if (wq_state == ACCFG_WQ_ENABLED) {
+			if (wq_state == ACCFG_WQ_ENABLED || wq_state == ACCFG_WQ_LOCKED) {
 				fprintf(stderr, "%s is active, will skip...\n", parsed_string);
 				return 0;
 			}
@@ -539,7 +539,8 @@ static int configure_json_value(struct accfg_ctx *ctx,
 					key);
 			return rc;
 		}
-	} else if (wq && wq_state != ACCFG_WQ_ENABLED) {
+	} else if (wq && wq_state != ACCFG_WQ_ENABLED &&
+			wq_state != ACCFG_WQ_LOCKED) {
 		rc = wq_json_set_val(wq, jobj, key);
 		if (rc < 0) {
 			fprintf(stderr, "wq set %s value failed\n",

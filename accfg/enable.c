@@ -201,9 +201,9 @@ static int action_enable_wq(struct accfg_wq *wq, const char *wq_name)
 {
 	enum accfg_wq_state wq_state = accfg_wq_get_state(wq);
 
-	if (wq_state == ACCFG_WQ_ENABLED) {
+	if (wq_state == ACCFG_WQ_ENABLED || wq_state == ACCFG_WQ_LOCKED) {
 		fprintf(stderr,
-			"%s is in enabled mode already, skipping...\n",
+			"%s is in enabled or locked mode, skipping...\n",
 			wq_name);
 		return -ENXIO;
 	} else if (wq_state == ACCFG_WQ_QUIESCING) {

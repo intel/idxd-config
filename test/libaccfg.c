@@ -334,8 +334,10 @@ static int config_wq(struct accfg_ctx *ctx, int dev_id, int wq_id,
 
 			/* check if wq is disabled before configuration */
 			wstate = accfg_wq_get_state(wq);
-			if (wstate == ACCFG_WQ_ENABLED) {
-				fprintf(stderr, "wq%d in %s is in enabled mode and can not be configured\n", wq_id, dev_name);
+			if (wstate == ACCFG_WQ_ENABLED || wstate == ACCFG_WQ_LOCKED) {
+				fprintf(stderr,
+					"wq%d in %s is in enabled or locked mode and cannot be configured\n",
+					wq_id, dev_name);
 				continue;
 			}
 
@@ -497,7 +499,7 @@ static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name)
 
 			rc = accfg_wq_disable(wq, true);
 			if (rc < 0) {
-				fprintf(stderr, "wq under %s disabled failed\n", dev_name);
+				fprintf(stderr, "wq under %s disable failed\n", dev_name);
 				return rc;
 			}
 		}
@@ -886,6 +888,7 @@ static int enable_wq(struct accfg_ctx *ctx, const char *dev_name, int wq_id)
 {
 	struct accfg_device *device;
 	struct accfg_wq *wq;
+	enum accfg_wq_state wq_state;
 	int rc;
 
 	device = accfg_ctx_device_get_by_name(ctx, dev_name);
@@ -909,7 +912,8 @@ static int enable_wq(struct accfg_ctx *ctx, const char *dev_name, int wq_id)
 		return -EINVAL;
 	}
 
-	if (accfg_wq_get_state(wq) == ACCFG_WQ_ENABLED)
+	wq_state = accfg_wq_get_state(wq);
+	if (wq_state == ACCFG_WQ_ENABLED || wq_state == ACCFG_WQ_LOCKED)
 		return 0;
 
 	return accfg_wq_enable(wq);

@@ -400,7 +400,8 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 
 	wq_state = accfg_wq_get_state(wq);
 	/* Don't display idle wqs */
-	if (wq_state != ACCFG_WQ_ENABLED && !(flags & UTIL_JSON_IDLE))
+	if (wq_state != ACCFG_WQ_ENABLED && wq_state != ACCFG_WQ_LOCKED &&
+			!(flags & UTIL_JSON_IDLE))
 		goto err;
 
 	jobj = json_object_new_string(accfg_wq_get_devname(wq));
@@ -476,6 +477,9 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 			break;
 		case ACCFG_WQ_QUIESCING:
 			jobj = json_object_new_string("quiescing");
+			break;
+		case ACCFG_WQ_LOCKED:
+			jobj = json_object_new_string("locked");
 			break;
 		case ACCFG_WQ_UNKNOWN:
 		default:

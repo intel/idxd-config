@@ -1942,7 +1942,7 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 
 	/* verify state */
 	if (!accfg_wq_state_expected(wq, flag)) {
-		err(ctx, "WQ not in expected state.");
+		err(ctx, "WQ not in expected state\n");
 		return -ENXIO;
 	}
 
@@ -1988,6 +1988,8 @@ ACCFG_EXPORT enum accfg_wq_state accfg_wq_get_state(struct accfg_wq *wq)
 		return ACCFG_WQ_ENABLED;
 	else if (strcmp(read_state, "quiescing") == 0)
 		return ACCFG_WQ_QUIESCING;
+	else if (strcmp(read_state, "locked") == 0)
+		return ACCFG_WQ_LOCKED;
 
 	return ACCFG_WQ_UNKNOWN;
 }
