@@ -957,6 +957,28 @@ static void engines_init(struct accfg_device *device)
 			add_engine);
 }
 
+ACCFG_EXPORT struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device)
+{
+	return list_top(&device->mdev_list, struct accfg_device_mdev, list);
+}
+
+ACCFG_EXPORT struct accfg_device_mdev *accfg_device_next_mdev(struct accfg_device_mdev *mdev)
+{
+	struct accfg_device *device = mdev->device;
+
+	return list_next(&device->mdev_list, mdev, list);
+}
+
+ACCFG_EXPORT void accfg_mdev_get_uuid(struct accfg_device_mdev *mdev, uuid_t uuid)
+{
+	uuid_copy(uuid, mdev->uuid);
+}
+
+ACCFG_EXPORT enum accfg_mdev_type accfg_mdev_get_type(struct accfg_device_mdev *mdev)
+{
+	return mdev->type;
+}
+
 /**
  * accfg_device_get_first - retrieve first device in the system
  * @ctx: context established by accfg_new

@@ -133,3 +133,12 @@ global:
 	accfg_wq_set_max_batch_size;
 	accfg_wq_set_max_transfer_size;
 } LIBACCFG_6;
+
+LIBACCFG_8 {
+global:
+	accfg_device_first_mdev;
+	accfg_device_next_mdev;
+	accfg_mdev_get_uuid;
+	accfg_mdev_get_type;
+	accfg_mdev_basenames;
+} LIBACCFG_7;

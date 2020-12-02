@@ -184,6 +184,17 @@ int accfg_device_is_active(struct accfg_device *device);
 int accfg_device_get_cmd_status(struct accfg_device *device);
 const char * accfg_device_get_cmd_status_str(struct accfg_device *device);
 
+struct accfg_device_mdev;
+struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device);
+struct accfg_device_mdev *accfg_device_next_mdev(struct accfg_device_mdev *mdev);
+void accfg_mdev_get_uuid(struct accfg_device_mdev *mdev, uuid_t uuid);
+enum accfg_mdev_type accfg_mdev_get_type(struct accfg_device_mdev *mdev);
+
+#define accfg_device_mdev_foreach(device, mdev) \
+	for (mdev = accfg_device_first_mdev(device); \
+		mdev != NULL; \
+		mdev = accfg_device_next_mdev(mdev))
+
 /* libaccfg function for group */
 struct accfg_group;
 struct accfg_group *accfg_group_get_first(struct accfg_device *device);
