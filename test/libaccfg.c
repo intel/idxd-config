@@ -475,12 +475,14 @@ static int check_engine(struct accfg_ctx *ctx, int dev_id, int engine_id,
 	return 0;
 }
 
-static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name)
+static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name,
+		bool forced)
 {
 	int rc = 0;
 	struct accfg_device *device;
 	struct accfg_wq *wq;
 	enum accfg_wq_state wq_state;
+	uuid_t uuid;
 
 	device = accfg_ctx_device_get_by_name(ctx, dev_name);
 	if (!device)
@@ -488,6 +490,15 @@ static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name)
 
 	/* make sure device is disabled before configuration */
 	if (accfg_device_is_active(device)) {
+
+		/* Remove all mdevs */
+		uuid_clear(uuid);
+		rc = accfg_remove_mdev(device, uuid);
+		if (rc && !forced) {
+			fprintf(stderr, "mdev removal failed\n");
+			return rc;
+		}
+
 		/* make sure each wq is disabled */
 		accfg_wq_foreach(device, wq) {
 			wq_state = accfg_wq_get_state(wq);
@@ -498,20 +509,31 @@ static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name)
 			}
 
 			rc = accfg_wq_disable(wq, true);
-			if (rc < 0) {
+			if (rc < 0 && !forced) {
 				fprintf(stderr, "wq under %s disable failed\n", dev_name);
 				return rc;
 			}
 		}
 		rc = accfg_device_disable(device, true);
 		if (rc < 0) {
-			fprintf(stderr, "%s should be disabled before config but failed\n", dev_name);
+			fprintf(stderr, "%s disabling failed\n", dev_name);
 			return rc;
 		}
 	}
 
 	return 0;
 
+}
+
+static void test_cleanup(struct accfg_ctx *ctx)
+{
+	struct accfg_device *device;
+
+	accfg_device_foreach(ctx, device) {
+		const char *dev_name = accfg_device_get_devname(device);
+
+		device_test_reset(ctx, dev_name, true);
+	}
 }
 
 static int set_config(struct accfg_ctx *ctx, const char *dev_name)
@@ -780,7 +802,7 @@ static int test_config(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc != 0)
 		return rc;
 
@@ -794,7 +816,7 @@ static int test_config(struct accfg_ctx *ctx)
 	if (rc != 0)
 		return rc;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc != 0)
 		return rc;
 
@@ -806,7 +828,7 @@ static int test_max_wq_size(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
-	rc = device_test_reset(ctx, "dsa1");
+	rc = device_test_reset(ctx, "dsa1", false);
 	if (rc != 0)
 		return rc;
 
@@ -814,7 +836,7 @@ static int test_max_wq_size(struct accfg_ctx *ctx)
 	if (rc != 0)
 		return rc;
 
-	rc = device_test_reset(ctx, "dsa1");
+	rc = device_test_reset(ctx, "dsa1", false);
 	if (rc != 0)
 		return rc;
 
@@ -826,7 +848,7 @@ static int test_wq_boundary_conditions(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc != 0)
 		return rc;
 
@@ -834,7 +856,7 @@ static int test_wq_boundary_conditions(struct accfg_ctx *ctx)
 	if (rc != 0)
 		return rc;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc != 0)
 		return rc;
 
@@ -924,7 +946,7 @@ static int test_mdev_1swq(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc)
 		return rc;
 
@@ -943,7 +965,7 @@ static int test_mdev_1swq(struct accfg_ctx *ctx)
 	if (rc)
 		return rc;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc)
 		return rc;
 
@@ -955,7 +977,7 @@ static int test_mdev_1dwq(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc)
 		return rc;
 
@@ -974,7 +996,7 @@ static int test_mdev_1dwq(struct accfg_ctx *ctx)
 	if (rc)
 		return rc;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc)
 		return rc;
 
@@ -1037,6 +1059,9 @@ static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
 	}
 
 	rc = kmod_module_get_initstate(*mod);
+	if (rc == -ENOENT)
+		rc = kmod_module_probe_insert_module(*mod, 0, NULL, NULL, NULL,
+				NULL);
 	return rc;
 }
 
@@ -1098,6 +1123,8 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 
 	if (i >= ARRAY_SIZE(test_cases))
 		result = EXIT_SUCCESS;
+	else
+		test_cleanup(ctx);
 
 	kmod_module_remove_module(mod, 0);
 	kmod_module_probe_insert_module(mod, 0, NULL, NULL, NULL, NULL);
