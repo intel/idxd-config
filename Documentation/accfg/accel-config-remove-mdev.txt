@@ -5,22 +5,34 @@ accel-config-remove-mdev(1)
 
 NAME
 ----
-accel-config-remove-mdev - clear the uuid from a workqueue uuid list. If not uuid is
-specified, then entire uuid list in this workqueue will be removed.
+accel-config-remove-mdev - remove mdev of a device associated with
+the passed uuid. Passing a null uuid will remove all mdevs of the
+device.
 
 SYNOPSIS
 --------
 [verse]
-'accel-config remove-mdev' <device name>/<workqueue name> [<options>]
+'accel-config remove-mdev <device-name> [<uuid>|<options>]'
 
 EXAMPLE
 -------
-accel-config remove-mdev dsa0/wq0.0 --uuid=0f34f0ed-6f67-4086-a4b7-8e1ecf077dce
+accel-config remove-mdev dsa0 0f34f0ed-6f67-4086-a4b7-8e1ecf077dce
 
+accel-config remove-mdev dsa0 00000000-0000-0000-0000-000000000000
+
+accel-config remove-mdev dsa0 -l
+----
+Available mdevs:
+        uuid:edc13abf-cbf4-4de8-bf01-0dc864c54290, type:1dwq
+        uuid:7e776dce-a80b-4da8-9b13-d0483bff678f, type:1swq
+        uuid:45174189-1b18-4270-9f02-30cadbd4b1a4, type:1swq
+        uuid:3c53af36-be6f-405f-9ebf-d556e0735943, type:1swq
+        uuid:131a1337-4c32-48a0-97a7-0aac053f383c, type:1swq
+----
 OPTIONS
 -------
--u::
---uuid=::
-	remove this specific uuid from uuid list in the specified workqueue.
+-l::
+--list-mdevs::
+	list available mdevs of device
 
 include::../copyright.txt[]
