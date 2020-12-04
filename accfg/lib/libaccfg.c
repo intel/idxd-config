@@ -1110,12 +1110,13 @@ ACCFG_EXPORT int accfg_device_get_clients(struct accfg_device *device)
 ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 {
 	struct accfg_ctx *ctx;
-	char *path = dev->device_buf;
+	char *path;
 	char buf[SYSFS_ATTR_SIZE];
 
 	if (!dev)
 		return -EINVAL;
 
+	path = dev->device_buf;
 	ctx = accfg_device_get_ctx(dev);
 
 	if (sprintf(path, "%s/token_limit", dev->device_path) >=
