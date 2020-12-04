@@ -529,7 +529,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 {
 	struct accfg_wq *wq;
 	struct accfg_device *device = parent;
-	struct accfg_group *group = device->group;
+	struct accfg_group *group;
 	struct accfg_ctx *ctx;
 	char *path;
 	char *wq_base_string;
@@ -540,6 +540,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	if (!device)
 		return NULL;
 
+	group = device->group;
 	ctx = accfg_device_get_ctx(device);
 	dfd = open(wq_base, O_PATH);
 	if (dfd < 0)
