@@ -715,7 +715,7 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	struct accfg_engine *engine;
 	struct accfg_device *device = parent;
 	struct accfg_ctx *ctx;
-	struct accfg_group *group = device->group;
+	struct accfg_group *group;
 	char *path;
 	char *engine_base_string;
 	int dfd;
@@ -724,6 +724,7 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	if (!device)
 		return NULL;
 
+	group = device->group;
 	ctx = accfg_device_get_ctx(device);
 	dfd = open(engine_base, O_PATH);
 	if (dfd < 0)
