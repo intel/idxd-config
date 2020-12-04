@@ -616,7 +616,6 @@ err_read:
 	free(wq->wq_buf);
 	free(wq->wq_path);
 err_wq:
-	close(dfd);
 	free(wq);
 	free(path);
 	return NULL;
