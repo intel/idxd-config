@@ -56,8 +56,7 @@ static struct json_object *group_to_json(struct accfg_group *group,
 	struct json_object *jobj = NULL;
 	struct accfg_device *dev = NULL;
 
-	if (group)
-		dev = accfg_group_get_device(group);
+	dev = accfg_group_get_device(group);
 
 	if (!jgroup)
 		return NULL;
