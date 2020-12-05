@@ -416,18 +416,10 @@ static int device_parse_type(struct accfg_device *device)
 static int mdev_str_to_type(char *mdev_type_str)
 {
 	char **b;
-	char *s;
-	int l, i;
-
-	s = strchr(mdev_type_str, '-');
-	if (!s)
-		s = mdev_type_str;
-	else
-		s++;
-	l = (int) (strchrnul(s, '-') - s);
+	int i;
 
 	for (b = accfg_mdev_basenames, i = 0; *b != NULL; b++, i++)
-		if (!strncmp(*b, s, l))
+		if (strstr(mdev_type_str, *b))
 			return i;
 
 	return ACCFG_MDEV_TYPE_UNKNOWN;
@@ -1002,6 +994,7 @@ ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
 	struct accfg_device_mdev *mdev;
 	char uuid_str[UUID_STR_LEN];
 	char mdev_path[PATH_MAX];
+	unsigned int version;
 	int rc;
 
 	if (type >= ACCFG_MDEV_TYPE_UNKNOWN || type < 0)
@@ -1016,8 +1009,10 @@ ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
 	mdev->type = type;
 
 	uuid_unparse(mdev->uuid, uuid_str);
-	sprintf(mdev_path, "%s/%s/idxd-%s/create", device->mdev_path,
-			MDEV_POSTFIX, accfg_mdev_basenames[type]);
+	version = device->version  >> 8;
+	sprintf(mdev_path, "%s/%s/idxd-%s-%s-v%d/create", device->mdev_path,
+			MDEV_POSTFIX, device->device_type_str,
+			accfg_mdev_basenames[type], version);
 	rc = sysfs_write_attr(ctx, mdev_path, uuid_str);
 	if (rc < 0) {
 		err(ctx, "create mdev failed %d\n", rc);
