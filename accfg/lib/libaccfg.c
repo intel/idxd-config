@@ -153,6 +153,16 @@ static char *accfg_get_param_str(struct accfg_ctx *ctx, int dfd, char *name)
 	return strdup(buf);
 }
 
+static void free_mdevs(struct accfg_device *device)
+{
+	struct accfg_device_mdev *mdev, *next;
+
+	list_for_each_safe(&device->mdev_list, mdev, next, list) {
+		list_del_from(&device->mdev_list, &mdev->list);
+		free(mdev);
+	}
+}
+
 static void free_engine(struct accfg_engine *engine)
 {
 	struct accfg_device *device = engine->device;
@@ -195,6 +205,7 @@ static void free_device(struct accfg_device *device, struct list_head *head)
 		free_wq(wq);
 	list_for_each_safe(&device->engines, engine, engine_next, list)
 		free_engine(engine);
+	free_mdevs(device);
 
 	if (head)
 		list_del_from(head, &device->list);
@@ -472,6 +483,9 @@ exit_add_mdev:
 	while (n1--)
 		free(d[n1]);
 	free(d);
+
+	if (rc)
+		free_mdevs(dev);
 
 	return rc;
 }
