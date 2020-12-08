@@ -400,17 +400,17 @@ static int device_parse(struct accfg_ctx *ctx, const char *base_path,
 
 static int device_parse_type(struct accfg_device *device)
 {
-	if (!device)
-		return -EINVAL;
+	char **b;
+	int i;
 
-	if (!strcmp(device->device_type_str, "dsa"))
-		device->type = ACCFG_DEVICE_DSA;
-	else if (!strcmp(device->device_type_str, "iax"))
-		device->type = ACCFG_DEVICE_IAX;
-	else
-		device->type = ACCFG_DEVICE_TYPE_UNKNOWN;
+	for (b = accfg_basenames, i = 0; *b != NULL; b++, i++) {
+		if (!strcmp(device->device_type_str, *b)) {
+			device->type = i;
+			return 0;
+		}
+	}
 
-	return 0;
+	return -ENODEV;
 }
 
 static int mdev_str_to_type(char *mdev_type_str)
