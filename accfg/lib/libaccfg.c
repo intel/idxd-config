@@ -568,11 +568,12 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	rc = device_parse_type(device);
 	if (rc < 0)
 		goto err_dev_path;
-	list_add_tail(&ctx->devices, &device->list);
-	free(path);
 
 	if (add_device_mdevs(ctx, device))
 		goto err_dev_path;
+
+	list_add_tail(&ctx->devices, &device->list);
+	free(path);
 
 	return device;
 
