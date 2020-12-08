@@ -1039,7 +1039,7 @@ static struct _test_case test_cases[] = {
 };
 
 static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
-		int log_level)
+		struct kmod_module **mdev_mod, int log_level)
 {
 	struct log_ctx log_ctx;
 	int rc;
@@ -1057,11 +1057,25 @@ static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
 		kmod_unref(*ctx);
 		return rc;
 	}
-
-	rc = kmod_module_get_initstate(*mod);
+	rc = kmod_module_new_from_name(*ctx, "idxd_mdev", mdev_mod);
+	if (rc < 0) {
+		kmod_module_unref(*mod);
+		kmod_unref(*ctx);
+		return rc;
+	}
+	rc = kmod_module_get_initstate(*mdev_mod);
 	if (rc == -ENOENT)
-		rc = kmod_module_probe_insert_module(*mod, 0, NULL, NULL, NULL,
+		rc = kmod_module_probe_insert_module(*mdev_mod, 0, NULL, NULL, NULL,
 				NULL);
+	if (rc >= 0)
+		rc = kmod_module_get_initstate(*mod);
+
+	if (rc < 0) {
+		kmod_module_unref(*mod);
+		kmod_module_unref(*mdev_mod);
+		kmod_unref(*ctx);
+	}
+
 	return rc;
 }
 
@@ -1071,14 +1085,14 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 	unsigned int i;
 	int err, result = EXIT_FAILURE;
 	struct kmod_ctx *kmod_ctx;
-	struct kmod_module *mod;
+	struct kmod_module *mod, *mdev_mod;
 	struct accfg_device *device;
 
 	if (!accfg_test_attempt(test, KERNEL_VERSION(5, 6, 0)))
 		return EXIT_SKIP;
 
 	accfg_set_log_priority(ctx, loglevel);
-	err = idxd_kmod_init(&kmod_ctx, &mod, loglevel);
+	err = idxd_kmod_init(&kmod_ctx, &mod, &mdev_mod, loglevel);
 	if (err < 0) {
 		accfg_test_skip(test);
 		fprintf(stderr, "idxd kmod unavailable skipping tests\n");
@@ -1123,11 +1137,13 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 
 	if (i >= ARRAY_SIZE(test_cases))
 		result = EXIT_SUCCESS;
-	else
-		test_cleanup(ctx);
 
-	kmod_module_remove_module(mod, 0);
-	kmod_module_probe_insert_module(mod, 0, NULL, NULL, NULL, NULL);
+	test_cleanup(ctx);
+
+	kmod_module_remove_module(mdev_mod, 0);
+	kmod_module_probe_insert_module(mdev_mod, 0, NULL, NULL, NULL, NULL);
+	kmod_module_unref(mod);
+	kmod_module_unref(mdev_mod);
 	kmod_unref(kmod_ctx);
 
 	return result;
