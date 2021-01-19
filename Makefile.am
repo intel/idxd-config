@@ -5,7 +5,9 @@ SUBDIRS = . accfg/lib accfg
 if ENABLE_DOCS
 SUBDIRS += Documentation/accfg
 endif
+if ENABLE_TEST
 SUBDIRS += test
+endif
 
 BUILT_SOURCES = version.m4
 version.m4: FORCE
