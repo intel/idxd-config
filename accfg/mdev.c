@@ -90,6 +90,11 @@ int cmd_create_mdev(int argc, const char **argv, void *ctx)
 		usage_with_options(u, options);
 	}
 
+	if (!accfg_device_get_mdev_enabled(device)) {
+		fprintf(stderr, "mdev support not available\n");
+		return 0;
+	}
+
 	argc = parse_options(argc, argv, options, u, 0);
 	if (opt_called)
 		return 0;
@@ -136,6 +141,11 @@ int cmd_remove_mdev(int argc, const char **argv, void *ctx)
 	if (!device) {
 		fprintf(stderr, "Enter a valid device to remove mdev\n");
 		usage_with_options(u, options);
+	}
+
+	if (!accfg_device_get_mdev_enabled(device)) {
+		fprintf(stderr, "mdev support not available\n");
+		return 0;
 	}
 
 	argc = parse_options(argc, argv, options, u, 0);
