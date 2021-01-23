@@ -1229,6 +1229,12 @@ ACCFG_EXPORT bool accfg_device_get_pasid_enabled(
 	return device->pasid_enabled;
 }
 
+ACCFG_EXPORT bool accfg_device_get_mdev_enabled(
+		struct accfg_device *device)
+{
+	return device->mdev_path != NULL;
+}
+
 ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
 		struct accfg_error *error)
 {

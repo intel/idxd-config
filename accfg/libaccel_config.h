@@ -172,6 +172,7 @@ unsigned long accfg_device_get_op_cap(struct accfg_device *device);
 unsigned long accfg_device_get_gen_cap(struct accfg_device *device);
 unsigned int accfg_device_get_configurable(struct accfg_device *device);
 bool accfg_device_get_pasid_enabled(struct accfg_device  *device);
+bool accfg_device_get_mdev_enabled(struct accfg_device *device);
 int accfg_device_get_errors(struct accfg_device *device, struct accfg_error *error);
 enum accfg_device_state accfg_device_get_state(struct accfg_device *device);
 unsigned int accfg_device_get_max_tokens(struct accfg_device *device);

@@ -139,4 +139,5 @@ global:
 	accfg_mdev_basenames;
 	accfg_create_mdev;
 	accfg_remove_mdev;
+	accfg_device_get_mdev_enabled;
 } LIBACCFG_6;
