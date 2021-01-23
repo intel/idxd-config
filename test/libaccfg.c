@@ -34,6 +34,8 @@
 #define PORTAL_SIZE	4096
 #define BUF_SIZE	4096
 
+static bool mdev_disabled;
+
 struct accfg_wq_ctx {
 	int major;
 	int minor;
@@ -491,12 +493,14 @@ static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name,
 	/* make sure device is disabled before configuration */
 	if (accfg_device_is_active(device)) {
 
-		/* Remove all mdevs */
-		uuid_clear(uuid);
-		rc = accfg_remove_mdev(device, uuid);
-		if (rc && !forced) {
-			fprintf(stderr, "mdev removal failed\n");
-			return rc;
+		if (!mdev_disabled) {
+			/* Remove all mdevs */
+			uuid_clear(uuid);
+			rc = accfg_remove_mdev(device, uuid);
+			if (rc && !forced) {
+				fprintf(stderr, "mdev removal failed\n");
+				return rc;
+			}
 		}
 
 		/* make sure each wq is disabled */
@@ -1008,6 +1012,7 @@ struct _test_case {
 	do_test_fn test_fn;
 	char *desc;
 	bool enabled;
+	bool mdev;
 };
 
 static struct _test_case test_cases[] = {
@@ -1015,26 +1020,31 @@ static struct _test_case test_cases[] = {
 		.test_fn = test_config,
 		.desc = "set and get configurations",
 		.enabled = true,
+		.mdev = false,
 	},
 	{
 		.test_fn = test_max_wq_size,
 		.desc = "max wq size",
 		.enabled = true,
+		.mdev = false,
 	},
 	{
 		.test_fn = test_wq_boundary_conditions,
 		.desc = "wq boundary conditions",
 		.enabled = true,
+		.mdev = false,
 	},
 	{
 		.test_fn = test_mdev_1swq,
 		.desc = "1swq type mdev creation and removal",
 		.enabled = true,
+		.mdev = true,
 	},
 	{
 		.test_fn = test_mdev_1dwq,
 		.desc = "1dwq type mdev creation and removal",
 		.enabled = true,
+		.mdev = true,
 	},
 };
 
@@ -1070,6 +1080,7 @@ static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
 	if (rc < 0) {
 		kmod_module_unref(*mdev_mod);
 		*mdev_mod = NULL;
+		mdev_disabled = true;
 	}
 	rc = kmod_module_get_initstate(*mod);
 	if (rc == -ENOENT)
@@ -1130,6 +1141,10 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 			fprintf(stderr, "\naccfg-test%d *disabled*\n", i);
 			continue;
 		}
+
+		if (test_cases[i].mdev && mdev_disabled)
+			continue;
+
 		printf("\nRunning accfg-test%d: %s\n", i, test_cases[i].desc);
 		err = test_cases[i].test_fn(ctx);
 		if (err < 0) {
