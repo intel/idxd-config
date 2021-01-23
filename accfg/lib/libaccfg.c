@@ -568,7 +568,11 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 		goto err_dev_path;
 	}
 	free(device->mdev_path);
-	device->mdev_path = p;
+	if (access(p, R_OK)) {
+		free(p);
+		device->mdev_path = NULL;
+	} else
+		device->mdev_path = p;
 
 	device->device_buf = calloc(1, strlen(device->device_path) +
 			MAX_PARAM_LEN);
@@ -583,7 +587,7 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	if (rc < 0)
 		goto err_dev_path;
 
-	if (add_device_mdevs(ctx, device))
+	if (device->mdev_path && add_device_mdevs(ctx, device))
 		goto err_dev_path;
 
 	list_add_tail(&ctx->devices, &device->list);
@@ -1012,6 +1016,9 @@ ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
 	unsigned int version;
 	int rc;
 
+	if (!device->mdev_path)
+		return -ENOENT;
+
 	if (type >= ACCFG_MDEV_TYPE_UNKNOWN || type < 0)
 		return -EINVAL;
 
@@ -1068,6 +1075,9 @@ ACCFG_EXPORT int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid)
 	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
 	struct accfg_device_mdev *entry, *next;
 	int rc, all;
+
+	if (!device->mdev_path)
+		return -ENOENT;
 
 	/* remove all mdevs if null uuid is passed */
 	all = uuid_is_null(uuid);
