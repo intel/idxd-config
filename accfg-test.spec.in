@@ -24,7 +24,7 @@ Utility library for configuring the accelerator subsystem.
 
 %package -n DNAME
 Summary:	Development files for libaccfg
-License:	LGPLv2
+License:	LGPLv2.1
 Group:		Development/Libraries
 Requires:	LNAME%{?_isa} = %{version}-%{release}
 
@@ -35,7 +35,7 @@ developing applications that use %{name}.
 
 %package -n LNAME
 Summary:	Configuration library for accelerator subsystem devices
-License:	LGPLv2
+License:	LGPLv2.1
 Group:		System Environment/Libraries
 
 %description -n LNAME
@@ -69,6 +69,7 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %files
 %defattr(-,root,root)
 %license Documentation/COPYING licenses/BSD-MIT licenses/CC0
+%license licenses/accel-config-licenses LICENSE_GPL_2_0
 %{_bindir}/accel-config
 %{_mandir}/man1/accel-config*
 %{_sysconfdir}/accel-config/accel-config.conf.sample
@@ -77,6 +78,7 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %defattr(-,root,root)
 %doc README.md
 %license Documentation/COPYING licenses/BSD-MIT licenses/CC0
+%license licenses/libaccel-config-licenses accfg/lib/LICENSE_LGPL_2_1
 %{_libdir}/libaccel-config.so.*
 
 %files -n DNAME
@@ -88,7 +90,7 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 
 %files -n %{name}-test
 %defattr(-,root,root)
-%license Documentation/COPYING
+%license Documentation/COPYING LICENSE_GPL_2_0
 %{_datadir}/accel-config/test/*
 
 %changelog
