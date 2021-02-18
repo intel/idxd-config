@@ -81,7 +81,7 @@ int main_handle_options(const char ***argv, int *argc, const char *usage_msg,
 	return handled;
 }
 
-void main_handle_internal_command(int argc, const char **argv, void *ctx,
+int main_handle_internal_command(int argc, const char **argv, void *ctx,
 		struct cmd_struct *cmds, int num_cmds)
 {
 	const char *cmd = argv[0];
@@ -97,6 +97,10 @@ void main_handle_internal_command(int argc, const char **argv, void *ctx,
 		struct cmd_struct *p = cmds+i;
 		if (strcmp(p->cmd, cmd))
 			continue;
-		exit(p->fn(argc, argv, ctx));
+		return p->fn(argc, argv, ctx);
 	}
+
+	fprintf(stderr, "Unknown command: '%s'\n", argv[0]);
+
+	return -EINVAL;
 }

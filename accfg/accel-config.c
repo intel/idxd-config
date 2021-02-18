@@ -98,9 +98,12 @@ int main(int argc, const char **argv)
 	rc = accfg_new(&ctx);
 	if (rc)
 		return 0;
-	main_handle_internal_command(argc, argv, ctx, commands,
+	rc = main_handle_internal_command(argc, argv, ctx, commands,
 				     ARRAY_SIZE(commands));
 	accfg_unref(ctx);
-	fprintf(stderr, "Unknown command: '%s'\n", argv[0]);
-	return -EINVAL;
+
+	if (!rc)
+		return EXIT_SUCCESS;
+
+	return EXIT_FAILURE;
 }
