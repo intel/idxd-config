@@ -81,43 +81,6 @@ int main_handle_options(const char ***argv, int *argc, const char *usage_msg,
 	return handled;
 }
 
-static int run_builtin(struct cmd_struct *p, int argc, const char **argv,
-		void *ctx)
-{
-	int status;
-	struct stat st;
-
-	status = p->fn(argc, argv, ctx);
-
-	if (status)
-		return status & 0xff;
-
-	/* Somebody closed stdout? */
-	if (fstat(fileno(stdout), &st))
-		return 0;
-	/* Ignore write errors for pipes and sockets.. */
-	if (S_ISFIFO(st.st_mode) || S_ISSOCK(st.st_mode))
-		return 0;
-
-	status = 1;
-	/* Check for ENOSPC and EIO errors.. */
-	if (fflush(stdout)) {
-		fprintf(stderr, "write failure on standard output: %s", strerror(errno));
-		goto out;
-	}
-	if (ferror(stdout)) {
-		fprintf(stderr, "unknown write failure on standard output");
-		goto out;
-	}
-	if (fclose(stdout)) {
-		fprintf(stderr, "close failed on standard output: %s", strerror(errno));
-		goto out;
-	}
-	status = 0;
-out:
-	return status;
-}
-
 void main_handle_internal_command(int argc, const char **argv, void *ctx,
 		struct cmd_struct *cmds, int num_cmds)
 {
@@ -134,6 +97,6 @@ void main_handle_internal_command(int argc, const char **argv, void *ctx,
 		struct cmd_struct *p = cmds+i;
 		if (strcmp(p->cmd, cmd))
 			continue;
-		exit(run_builtin(p, argc, argv, ctx));
+		exit(p->fn(argc, argv, ctx));
 	}
 }
