@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <libkmod.h>
 #include <builtin.h>
 #include <accfg/libaccel_config.h>
 #include <ccan/array_size/array_size.h>
@@ -74,9 +75,34 @@ static struct cmd_struct commands[] = {
 #endif
 };
 
+static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod)
+{
+	int rc;
+
+	*ctx = kmod_new(NULL, NULL);
+	if (!*ctx)
+		return -ENXIO;
+
+	rc = kmod_module_new_from_name(*ctx, "idxd", mod);
+	if (rc < 0) {
+		kmod_unref(*ctx);
+		return rc;
+	}
+
+	rc = kmod_module_get_initstate(*mod);
+	if (rc < 0) {
+		kmod_module_unref(*mod);
+		kmod_unref(*ctx);
+	}
+
+	return rc;
+}
+
 int main(int argc, const char **argv)
 {
 	struct accfg_ctx *ctx;
+	struct kmod_ctx *kmod_ctx;
+	struct kmod_module *mod;
 	int rc;
 
 	/* Look for flags.. */
@@ -95,15 +121,27 @@ int main(int argc, const char **argv)
 		return 0;
 	}
 
+	rc = idxd_kmod_init(&kmod_ctx, &mod);
+	if (rc < 0) {
+		fprintf(stderr, "Failed initializing kernel module\n");
+		goto error_exit;
+	}
+
 	rc = accfg_new(&ctx);
-	if (rc)
-		return 0;
+	if (rc) {
+		kmod_module_unref(mod);
+		kmod_unref(kmod_ctx);
+		goto error_exit;
+	}
+
 	rc = main_handle_internal_command(argc, argv, ctx, commands,
 				     ARRAY_SIZE(commands));
 	accfg_unref(ctx);
+	kmod_module_unref(mod);
+	kmod_unref(kmod_ctx);
 
 	if (!rc)
 		return EXIT_SUCCESS;
-
+error_exit:
 	return EXIT_FAILURE;
 }
