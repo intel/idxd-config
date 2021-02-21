@@ -172,7 +172,8 @@ static int device_action(int argc, const char **argv, const char *usage,
 	}
 
 	if (fail_reason) {
-		fprintf(stderr, "failed due to reason %d\n", fail_reason);
+		fprintf(stderr, "failed due to reason %s\n",
+				strerror(abs(fail_reason)));
 		return fail_reason;
 	}
 
@@ -334,8 +335,8 @@ static int wq_action(int argc, const char **argv, const char *usage,
 	}
 
 	if (fail_reason) {
-		fprintf(stderr, "failed due to reason %d\n",
-			fail_reason);
+		fprintf(stderr, "failed due to reason %s\n",
+			strerror(abs(fail_reason)));
 		return fail_reason;
 	}
 	return -ENXIO;
