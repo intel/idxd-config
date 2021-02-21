@@ -143,5 +143,8 @@ int main(int argc, const char **argv)
 	if (!rc)
 		return EXIT_SUCCESS;
 error_exit:
+	errno = abs(rc);
+	perror("Error");
+
 	return EXIT_FAILURE;
 }
