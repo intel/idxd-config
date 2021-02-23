@@ -911,10 +911,26 @@ static int filter_file_name_prefix(const struct dirent *d)
 	return !strncmp(filename_prefix, d->d_name, filename_prefix_len);
 }
 
+static void groups_init(struct accfg_device *device)
+{
+	struct accfg_ctx *ctx = device->ctx;
+
+	if (device->group_init) {
+		dbg(ctx, "group is initialized already\n");
+		return;
+	}
+	device->group_init = 1;
+	set_filename_prefix("group");
+	device_parse(device->ctx, device->device_path, "group",
+			filter_file_name_prefix,
+			device, add_group);
+}
+
 static void devices_init(struct accfg_ctx *ctx)
 {
 	char **accel_name;
 	char *path;
+	struct accfg_device *device;
 
 	if (ctx->devices_init) {
 		dbg(ctx, "device is initialized already\n");
@@ -933,21 +949,10 @@ static void devices_init(struct accfg_ctx *ctx)
 				filter_file_name_prefix, ctx, add_device);
 		free(path);
 	}
-}
 
-static void groups_init(struct accfg_device *device)
-{
-	struct accfg_ctx *ctx = device->ctx;
-
-	if (device->group_init) {
-		dbg(ctx, "group is intialized already\n");
-		return;
+	accfg_device_foreach(ctx, device) {
+		groups_init(device);
 	}
-	device->group_init = 1;
-	set_filename_prefix("group");
-	device_parse(device->ctx, device->device_path, "group",
-			filter_file_name_prefix,
-			device, add_group);
 }
 
 static void engines_init(struct accfg_device *device)
