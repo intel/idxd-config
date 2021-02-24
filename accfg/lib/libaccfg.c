@@ -1463,20 +1463,12 @@ ACCFG_EXPORT int accfg_device_get_cmd_status(struct accfg_device *device)
 ACCFG_EXPORT const char * accfg_device_get_cmd_status_str(struct accfg_device *device)
 {
 	int status;
-	const char *stat_str;
 
 	status = accfg_device_get_cmd_status(device);
-	if (status < 0)
+	if (status < 0 || status >= ACCFG_CMD_STATUS_MAX)
 		return NULL;
 
-	if (status > ACCFG_CMD_STATUS_MAX)
-		return NULL;
-
-	stat_str = accfg_device_cmd_status[status];
-	if (strlen(stat_str) == 0)
-		return NULL;
-
-	return stat_str;
+	return accfg_device_cmd_status[status];
 }
 
 /* Helper function to validate device type in the defined device array based on
