@@ -54,6 +54,7 @@ enum {
 };
 
 const char *accfg_device_cmd_status[] = {
+	[0x0]   = "Successful completion",
 	[0x1]	= "Invalid command code",
 	[0x2]	= "Invalid WQ index",
 	[0x3]	= "Internal or platform hardware error",
