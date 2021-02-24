@@ -81,6 +81,15 @@ static int dev_action_switch(struct accfg_device *device,
 	}
 }
 
+static void print_device_cmd_status(struct accfg_device *device)
+{
+	const char *status;
+
+	status = accfg_device_get_cmd_status_str(device);
+	if (status)
+		fprintf(stderr, "device command status: %s\n", status);
+}
+
 static int device_action(int argc, const char **argv, const char *usage,
 			 const struct option *options, enum dev_action action,
 			 struct accfg_ctx *ctx)
@@ -134,14 +143,10 @@ static int device_action(int argc, const char **argv, const char *usage,
 				else
 					fail++;
 			} else if (!fail) {
-				const char *status;
-
 				fail_reason = rc;
 				fprintf(stderr, "failed in %s\n", argv[i]);
 
-				status = accfg_device_get_cmd_status_str(device);
-				if (status)
-					fprintf(stderr, "device cmd err: %s.\n", status);
+				print_device_cmd_status(device);
 			}
 		}
 
@@ -297,13 +302,10 @@ static int wq_action(int argc, const char **argv, const char *usage,
 					else
 						fail++;
 				} else if (!fail) {
-					const char *status;
-
 					fail_reason = rc;
 					fprintf(stderr, "failed in %s\n", wq_name);
-					status = accfg_device_get_cmd_status_str(device);
-					if (status)
-						fprintf(stderr, "device cmd err: %s.\n", status);
+
+					print_device_cmd_status(device);
 				}
 			}
 		}
