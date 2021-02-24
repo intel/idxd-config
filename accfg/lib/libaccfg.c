@@ -1434,6 +1434,7 @@ ACCFG_EXPORT int accfg_device_get_cmd_status(struct accfg_device *device)
 	char *path;
 	int len;
 	char buf[SYSFS_ATTR_SIZE], *end_ptr;
+	int rc;
 
 	if (!device)
 		return -EINVAL;
@@ -1445,20 +1446,16 @@ ACCFG_EXPORT int accfg_device_get_cmd_status(struct accfg_device *device)
 	if (snprintf(path, len, "%s/cmd_status", device->device_path) >= len) {
 		err(ctx, "%s: buffer too small!\n",
 				accfg_device_get_devname(device));
-		return 0;
+		return -ENOMEM;
 	}
 
-	if (sysfs_read_attr(ctx, path, buf) < 0)
-		return 0;
+	rc = sysfs_read_attr(ctx, path, buf);
+	if (rc < 0)
+		return rc;
 
 	status = strtol(buf, &end_ptr, 0);
-	if ((errno == ERANGE && (status == LONG_MAX || status == LONG_MIN)) ||
-	    (errno != 0 && status == 0))
-		return -ERANGE;
-
-	/* Nothing was found */
-	if (end_ptr == buf)
-		return -ENXIO;
+	if (errno == ERANGE || end_ptr == buf)
+		return -EIO;
 
 	return (int)status;
 }
