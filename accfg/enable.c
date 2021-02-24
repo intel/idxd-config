@@ -85,9 +85,11 @@ static void print_device_cmd_status(struct accfg_device *device)
 {
 	const char *status;
 
-	status = accfg_device_get_cmd_status_str(device);
-	if (status)
-		fprintf(stderr, "device command status: %s\n", status);
+	if (accfg_device_get_cmd_status(device) > 0) {
+		status = accfg_device_get_cmd_status_str(device);
+		if (status)
+			fprintf(stderr, "device command status: %s\n", status);
+	}
 }
 
 static int device_action(int argc, const char **argv, const char *usage,
