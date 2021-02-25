@@ -247,7 +247,6 @@ static int wq_action(int argc, const char **argv, const char *usage,
 	unsigned long dev_id, wq_id;
 	int i, rc = 0, success = 0, fail = 0, fail_reason = 0;
 	const char *all = "all";
-	enum accfg_wq_state state;
 
 	argc = parse_options(argc, argv, options, u, 0);
 
@@ -293,17 +292,9 @@ static int wq_action(int argc, const char **argv, const char *usage,
 				found++;
 				rc = wq_action_switch(wq, action, wq_name);
 				if (rc == 0) {
-					/*
-					 * Double check if the state of the
-					 * wq matches with the enable/disable
-					 */
-					state = accfg_wq_get_state(wq);
-					if (((state == 1) && (action == WQ_ACTION_ENABLE))
-					    ||((state == 0) && (action == WQ_ACTION_DISABLE)))
-						success++;
-					else
-						fail++;
-				} else if (!fail) {
+					success++;
+				} else {
+					fail++;
 					fail_reason = rc;
 					fprintf(stderr, "failed in %s\n", wq_name);
 
