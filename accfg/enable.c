@@ -226,7 +226,7 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		usage,
 		NULL
 	};
-	unsigned long dev_id, wq_id;
+	uint64_t dev_id, wq_id;
 	int i, rc = -EINVAL, success = 0;
 	const char *all = "all";
 
@@ -252,7 +252,8 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		char dev_name[MAX_DEV_LEN], wq_name[MAX_DEV_LEN];
 		int found = 0;
 
-		if (sscanf(argv[i], "%[^/]/wq%lu.%lu", dev_name, &dev_id, &wq_id) != 3) {
+		if (sscanf(argv[i], "%[^/]/wq%" SCNu64 ".%" SCNu64,
+					dev_name, &dev_id, &wq_id) != 3) {
 			fprintf(stderr, "'%s' is not a valid wq name\n",
 				argv[i]);
 			return -EINVAL;
@@ -261,7 +262,7 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		if (!accfg_device_type_validate(dev_name))
 			return -EINVAL;
 
-		rc = sprintf(wq_name, "wq%lu.%lu", dev_id, wq_id);
+		rc = sprintf(wq_name, "wq%" PRIu64 ".%" PRIu64, dev_id, wq_id);
 		if (rc < 0)
 			return rc;
 

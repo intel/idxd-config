@@ -22,17 +22,17 @@
 #include <ccan/minmax/minmax.h>
 #include <ccan/short_types/short_types.h>
 
-unsigned long *bitmap_alloc(unsigned long nbits)
+uint64_t *bitmap_alloc(uint64_t nbits)
 {
-	return calloc(BITS_TO_LONGS(nbits), sizeof(unsigned long));
+	return calloc(BITS_TO_LONGS(nbits), sizeof(uint64_t));
 }
 
-void bitmap_set(unsigned long *map, unsigned int start, int len)
+void bitmap_set(uint64_t *map, unsigned int start, int len)
 {
-	unsigned long *p = map + BIT_WORD(start);
+	uint64_t *p = map + BIT_WORD(start);
 	const unsigned int size = start + len;
 	int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
-	unsigned long mask_to_set = BITMAP_FIRST_WORD_MASK(start);
+	uint64_t mask_to_set = BITMAP_FIRST_WORD_MASK(start);
 
 	while (len - bits_to_set >= 0) {
 		*p |= mask_to_set;
@@ -47,12 +47,12 @@ void bitmap_set(unsigned long *map, unsigned int start, int len)
 	}
 }
 
-void bitmap_clear(unsigned long *map, unsigned int start, int len)
+void bitmap_clear(uint64_t *map, unsigned int start, int len)
 {
-	unsigned long *p = map + BIT_WORD(start);
+	uint64_t *p = map + BIT_WORD(start);
 	const unsigned int size = start + len;
 	int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
-	unsigned long mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
+	uint64_t mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
 
 	while (len - bits_to_clear >= 0) {
 		*p &= ~mask_to_clear;
@@ -72,7 +72,7 @@ void bitmap_clear(unsigned long *map, unsigned int start, int len)
  * @nr: bit number to test
  * @addr: Address to start counting from
  */
-int test_bit(unsigned int nr, const volatile unsigned long *addr)
+int test_bit(unsigned int nr, const volatile uint64_t *addr)
 {
 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
 }
@@ -82,10 +82,10 @@ int test_bit(unsigned int nr, const volatile unsigned long *addr)
  * find_next_zero_bit.  The difference is the "invert" argument, which
  * is XORed with each fetched word before searching it for one bits.
  */
-static unsigned long _find_next_bit(const unsigned long *addr,
-		unsigned long nbits, unsigned long start, unsigned long invert)
+static uint64_t _find_next_bit(const uint64_t *addr,
+		uint64_t nbits, uint64_t start, uint64_t invert)
 {
-	unsigned long tmp;
+	uint64_t tmp;
 
 	if (!nbits || start >= nbits)
 		return nbits;
@@ -110,19 +110,19 @@ static unsigned long _find_next_bit(const unsigned long *addr,
 /*
  * Find the next set bit in a memory region.
  */
-unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
-			    unsigned long offset)
+uint64_t find_next_bit(const uint64_t *addr, uint64_t size,
+			    uint64_t offset)
 {
 	return _find_next_bit(addr, size, offset, 0UL);
 }
 
-unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,
-				 unsigned long offset)
+uint64_t find_next_zero_bit(const uint64_t *addr, uint64_t size,
+				 uint64_t offset)
 {
 	return _find_next_bit(addr, size, offset, ~0UL);
 }
 
-int bitmap_full(const unsigned long *src, unsigned int nbits)
+int bitmap_full(const uint64_t *src, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		return ! (~(*src) & BITMAP_LAST_WORD_MASK(nbits));

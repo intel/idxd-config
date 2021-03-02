@@ -62,7 +62,7 @@ struct list_filter_arg {
 	/* linked list node for each list_filter_arg */
 	struct list_node list;
 	/* flags to indicate command options */
-	unsigned long flags;
+	uint64_t flags;
 	/* track device number during walk-through */
 	int dev_num;
 	/* track group_num during walk-through */

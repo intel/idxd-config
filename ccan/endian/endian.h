@@ -95,7 +95,7 @@ static inline uint32_t bswap_32(uint32_t val)
  * Example:
  *	// Output contains "1024 is 1125899906842624 as eight bytes reversed"
  *	printf("1024 is %llu as eight bytes reversed\n",
- *		(unsigned long long)bswap_64(1024));
+ *		(uint64_t long)bswap_64(1024));
  */
 static inline uint64_t bswap_64(uint64_t val)
 {

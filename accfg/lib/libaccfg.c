@@ -110,7 +110,7 @@ static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 	return strtol(buf, NULL, 0);
 }
 
-static unsigned long long accfg_get_param_unsigned_llong(
+static uint64_t accfg_get_param_unsigned_llong(
 		struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
@@ -318,13 +318,13 @@ ACCFG_EXPORT int accfg_new(struct accfg_ctx **ctx)
 
 	env = secure_getenv("ACCFG_TIMEOUT");
 	if (env != NULL) {
-		unsigned long tmo;
+		uint64_t tmo;
 		char *end;
 
 		tmo = strtoul(env, &end, 0);
 		if (tmo < ULONG_MAX && !end)
 			c->timeout = tmo;
-		dbg(c, "timeout = %ld\n", tmo);
+		dbg(c, "timeout = %" PRIu64 "\n", tmo);
 	}
 
 	return 0;
@@ -643,7 +643,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	struct accfg_ctx *ctx;
 	char *path;
 	char *wq_base_string;
-	unsigned long device_id, wq_id;
+	uint64_t device_id, wq_id;
 	int dfd;
 	char *wq_type;
 
@@ -679,7 +679,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	}
 
 	if (sscanf(basename(wq_base_string),
-				"wq%ld.%ld", &device_id, &wq_id) != 2) {
+				"wq%" SCNu64 ".%" SCNu64, &device_id, &wq_id) != 2) {
 		close(dfd);
 		goto err_wq;
 	}
@@ -740,7 +740,7 @@ static void *add_group(void *parent, int id, const char *group_base,
 	char *path;
 	char *group_base_string;
 	int dfd;
-	unsigned long device_id, group_id;
+	uint64_t device_id, group_id;
 
 	if (!device)
 		return NULL;
@@ -771,7 +771,7 @@ static void *add_group(void *parent, int id, const char *group_base,
 		goto err_group;
 	}
 	if (sscanf(basename(group_base_string),
-				"group%ld.%ld", &device_id, &group_id) != 2) {
+				"group%" SCNu64 ".%" SCNu64, &device_id, &group_id) != 2) {
 		free(group);
 		close(dfd);
 		goto err_group;
@@ -829,7 +829,7 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	char *path;
 	char *engine_base_string;
 	int dfd;
-	unsigned long device_id, engine_id;
+	uint64_t device_id, engine_id;
 
 	if (!device)
 		return NULL;
@@ -862,7 +862,7 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 		goto err_engine;
 	}
 	if (sscanf(basename(engine_base_string),
-			"engine%ld.%ld", &device_id, &engine_id) != 2) {
+			"engine%" SCNu64 ".%" SCNu64, &device_id, &engine_id) != 2) {
 		close(dfd);
 		free(path);
 		free(engine);
@@ -1206,19 +1206,19 @@ ACCFG_EXPORT unsigned int accfg_device_get_max_batch_size(
 	return device->max_batch_size;
 }
 
-ACCFG_EXPORT unsigned long accfg_device_get_max_transfer_size(
+ACCFG_EXPORT uint64_t accfg_device_get_max_transfer_size(
 		struct accfg_device *device)
 {
 	return device->max_transfer_size;
 }
 
-ACCFG_EXPORT unsigned long accfg_device_get_op_cap(
+ACCFG_EXPORT uint64_t accfg_device_get_op_cap(
 		struct accfg_device *device)
 {
 	return device->opcap;
 }
 
-ACCFG_EXPORT unsigned long accfg_device_get_gen_cap(struct accfg_device *device)
+ACCFG_EXPORT uint64_t accfg_device_get_gen_cap(struct accfg_device *device)
 {
 	return device->gencap;
 }
@@ -1258,7 +1258,7 @@ ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
 		return -errno;
 	read_error = accfg_get_param_str(ctx, dfd, "errors");
 	close(dfd);
-	rc = sscanf(read_error, "%lx %lx %lx %lx",
+	rc = sscanf(read_error, "%" SCNx64 " %" SCNx64 " %" SCNx64 " %" SCNx64,
 			&error->val[0], &error->val[1],
 			&error->val[2], &error->val[3]);
 	if (rc < 0) {
@@ -1616,12 +1616,12 @@ ACCFG_EXPORT const char *accfg_group_get_devname(struct accfg_group *group)
 	return devpath_to_devname(group->group_path);
 }
 
-ACCFG_EXPORT unsigned long accfg_group_get_size(struct accfg_group *group)
+ACCFG_EXPORT uint64_t accfg_group_get_size(struct accfg_group *group)
 {
 	return group->size;
 }
 
-ACCFG_EXPORT unsigned long accfg_group_get_available_size(
+ACCFG_EXPORT uint64_t accfg_group_get_available_size(
 		struct accfg_group *group)
 {
 	struct accfg_ctx *ctx = accfg_group_get_ctx(group);
@@ -1789,7 +1789,7 @@ ACCFG_EXPORT const char *accfg_wq_get_type_name(struct accfg_wq *wq)
 	return wq->name;
 }
 
-ACCFG_EXPORT unsigned long accfg_wq_get_size(struct accfg_wq *wq)
+ACCFG_EXPORT uint64_t accfg_wq_get_size(struct accfg_wq *wq)
 {
 	return wq->size;
 }
@@ -1799,7 +1799,7 @@ ACCFG_EXPORT unsigned int accfg_wq_get_max_batch_size(struct accfg_wq *wq)
 	return wq->max_batch_size;
 }
 
-ACCFG_EXPORT unsigned long accfg_wq_get_max_transfer_size(struct accfg_wq *wq)
+ACCFG_EXPORT uint64_t accfg_wq_get_max_transfer_size(struct accfg_wq *wq)
 {
 	return wq->max_transfer_size;
 }
@@ -2086,7 +2086,7 @@ accfg_wq_set_field(wq, val, max_batch_size)
 
 #define accfg_wq_set_long_field(wq, val, field) \
 ACCFG_EXPORT int accfg_wq_set_##field( \
-		struct accfg_wq *wq, unsigned long val) \
+		struct accfg_wq *wq, uint64_t val) \
 { \
 	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq); \
 	char *path = wq->wq_buf; \
@@ -2095,7 +2095,7 @@ ACCFG_EXPORT int accfg_wq_set_##field( \
 	rc = sprintf(wq->wq_buf, "%s/%s", wq->wq_path, #field); \
 	if (rc < 0) \
 		return -errno; \
-	if (sprintf(buf, "%ld", val) < 0) { \
+	if (sprintf(buf, "%" PRIu64, val) < 0) { \
 		err(ctx, "%s: sprintf to buf failed: %s\n", \
 				accfg_wq_get_devname(wq), \
 				strerror(errno)); \

@@ -17,17 +17,17 @@ enum util_json_flags {
 
 struct json_object;
 void util_display_json_array(FILE *f_out, struct json_object *jarray,
-		unsigned long flags);
+		uint64_t flags);
 void __util_display_json_array(FILE *fd, struct json_object *jarray,
-                unsigned long flags);
+		uint64_t flags);
 struct json_object *util_device_to_json(struct accfg_device *device,
-		unsigned long flags);
+		uint64_t flags);
 struct json_object *util_wq_to_json(struct accfg_wq *accfg_wq,
-		unsigned long flags);
+		uint64_t flags);
 struct json_object *util_engine_to_json(struct accfg_engine *accfg_engine,
-                unsigned long flags);
-struct json_object *util_json_object_size(unsigned long long size,
-		unsigned long flags);
-struct json_object *util_json_object_hex(unsigned long long val,
-		unsigned long flags);
+		uint64_t flags);
+struct json_object *util_json_object_size(uint64_t size,
+		uint64_t flags);
+struct json_object *util_json_object_hex(uint64_t val,
+		uint64_t flags);
 #endif /* __ACCFG_JSON_H__ */

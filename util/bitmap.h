@@ -21,15 +21,15 @@
 #define small_const_nbits(nbits) \
 	(__builtin_constant_p(nbits) && (nbits) <= BITS_PER_LONG)
 
-unsigned long *bitmap_alloc(unsigned long nbits);
-void bitmap_set(unsigned long *map, unsigned int start, int len);
-void bitmap_clear(unsigned long *map, unsigned int start, int len);
-int test_bit(unsigned int nr, const volatile unsigned long *addr);
-unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
-			    unsigned long offset);
-unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,
-				 unsigned long offset);
-int bitmap_full(const unsigned long *src, unsigned int nbits);
+uint64_t *bitmap_alloc(uint64_t nbits);
+void bitmap_set(uint64_t *map, unsigned int start, int len);
+void bitmap_clear(uint64_t *map, unsigned int start, int len);
+int test_bit(unsigned int nr, const volatile uint64_t *addr);
+uint64_t find_next_bit(const uint64_t *addr, uint64_t size,
+			    uint64_t offset);
+uint64_t find_next_zero_bit(const uint64_t *addr, uint64_t size,
+				 uint64_t offset);
+int bitmap_full(const uint64_t *src, unsigned int nbits);
 
 
 #endif /* _ACCFG_BITMAP_H_ */

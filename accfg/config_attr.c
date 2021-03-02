@@ -134,7 +134,7 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		struct accfg_wq *wq, struct wq_parameters *wq_params)
 {
 	unsigned int max_groups, max_wq_size, max_batch_size;
-	unsigned long max_transfer_size;
+	uint64_t max_transfer_size;
 	int rc = 0;
 
 	if (wq_params->mode) {
@@ -184,7 +184,7 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		|| wq_params->max_transfer_size > max_transfer_size)
 		&& (wq_params->max_transfer_size != INT_MAX)) {
 		fprintf(stderr,
-			"valid max-transfer-size should be 1 to %ld\n", max_transfer_size);
+			"valid max-transfer-size should be 1 to %" PRIu64 "\n", max_transfer_size);
 		return -EINVAL;
 	}
 
