@@ -367,7 +367,7 @@ int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw)
 	int ret = 0;
 
 	while (retry_count < 3) {
-		if (!enqcmd(hw, ctx->wq_reg))
+		if (!enqcmd(ctx->wq_reg, hw))
 			break;
 
 		info("retry\n");

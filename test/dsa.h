@@ -4,6 +4,7 @@
 #define __TEST_DSA_H__
 #include <accfg/libaccel_config.h>
 #include <linux/idxd.h>
+#include "accfg_test.h"
 
 #define MAX_PATH_LENGTH 1024
 
@@ -142,24 +143,6 @@ static inline void dbg(const char *msg, ...)
 	va_start(args, msg);
 	vprint_log("debug", msg, args);
 	va_end(args);
-}
-
-static inline unsigned char enqcmd(struct dsa_hw_desc *desc,
-			volatile void *reg)
-{
-	unsigned char retry;
-
-	asm volatile(".byte 0xf2, 0x0f, 0x38, 0xf8, 0x02\t\n"
-			"setz %0\t\n"
-			: "=r"(retry) : "a" (reg), "d" (desc));
-	return retry;
-}
-
-static inline void movdir64b(struct dsa_hw_desc *desc,
-			volatile void *reg)
-{
-	asm volatile(".byte 0x66, 0x0f, 0x38, 0xf8, 0x02\t\n"
-		: : "a" (reg), "d" (desc));
 }
 
 /* Dump DSA hardware descriptor to log */

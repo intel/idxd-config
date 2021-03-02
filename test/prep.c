@@ -24,7 +24,7 @@ void dsa_desc_submit(struct dsa_context *ctx, struct dsa_hw_desc *hw)
 
 	/* use MOVDIR64B for DWQ */
 	if (ctx->dedicated)
-		movdir64b(hw, ctx->wq_reg);
+		movdir64b(ctx->wq_reg, hw);
 	else /* use ENQCMD for SWQ */
 		if (dsa_enqcmd(ctx, hw))
 			usleep(10000);
