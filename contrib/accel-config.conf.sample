@@ -13,13 +13,14 @@
         "grouped_workqueues":[
           {
             "dev":"wq0.0",
-            "mode":"dedicated",
+            "mode":"shared",
             "size":16,
             "group_id":0,
             "priority":10,
-            "type":"kernel",
-            "name":"dmaengine",
-            "threshold":0
+            "block_on_fault":1,
+            "type":"user",
+            "name":"app1",
+            "threshold":15
           }
         ],
         "grouped_engines":[
@@ -47,8 +48,9 @@
             "size":16,
             "group_id":1,
             "priority":10,
+            "block_on_fault":1,
             "type":"user",
-            "name":"app1",
+	    "name":"app2",
             "threshold":0
           }
         ],

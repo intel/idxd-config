@@ -14,8 +14,8 @@ config.h: $(srcdir)/Makefile.am
 	echo '#define MDEV_PREFIX "$(accfg_mdev_prefix)"' >>$@
 
 libaccel_config_la_SOURCES =\
-	libaccel_config.h \
 	private.h \
+	../../util/list.h \
 	../../util/log.c \
 	../../util/log.h \
 	../../util/sysfs.c \

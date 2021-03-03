@@ -9,51 +9,45 @@
 #include "dsa.h"
 
 void dsa_prep_desc_common(struct dsa_hw_desc *hw, char opcode,
-		uint64_t dest, uint64_t src, size_t len, unsigned long flags)
+		uint64_t dest, uint64_t src, size_t len, unsigned long dflags)
 {
-	hw->flags = flags;
+	hw->flags = dflags;
 	hw->opcode = opcode;
 	hw->src_addr = src;
 	hw->dst_addr = dest;
 	hw->xfer_size = len;
 }
 
-static inline void dsa_desc_submit(struct dsa_context *ctx,
-				struct dsa_hw_desc *hw)
+void dsa_desc_submit(struct dsa_context *ctx, struct dsa_hw_desc *hw)
 {
+	dump_desc(hw);
+
 	/* use MOVDIR64B for DWQ */
 	if (ctx->dedicated)
 		movdir64b(hw, ctx->wq_reg);
-	else /* use ENQCMDS for SWQ */
+	else /* use ENQCMD for SWQ */
 		if (dsa_enqcmd(ctx, hw))
 			usleep(10000);
 }
 
-static void dsa_prep_submit_memcpy(struct dsa_context *ctx,
-		struct dsa_ring_ent *desc, uint64_t dst, uint64_t src,
-		size_t len, unsigned long desc_flags)
+void dsa_prep_memcpy(struct task *tsk)
 {
-	struct dsa_hw_desc *hw;
+	info("preparing descriptor for memcpy\n");
 
-	hw = &desc->hw;
-
-	dsa_prep_desc_common(hw, DSA_OPCODE_MEMMOVE, dst, src, len,
-			desc_flags);
-
-	desc->comp->status = 0;
-
-	dsa_desc_submit(ctx, hw);
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			(uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
 }
 
-void dsa_reprep_memcpy(struct dsa_context *ctx, struct dsa_ring_ent *desc)
+void dsa_reprep_memcpy(struct dsa_context *ctx)
 {
-	struct dsa_completion_record *compl = desc->comp;
-	struct dsa_hw_desc *hw = &desc->hw;
-	int *addr = (int *)compl->fault_addr;
-	int temp;
+	struct dsa_completion_record *compl = ctx->single_task->comp;
+	struct dsa_hw_desc *hw = ctx->single_task->desc;
 
-	printf("PF addr %lx dir %d bc %x\n", compl->fault_addr,
-	compl->result, compl->bytes_completed);
+	info("PF addr %#lx dir %d bc %#x\n",
+			compl->fault_addr, compl->result,
+			compl->bytes_completed);
 
 	hw->xfer_size -= compl->bytes_completed;
 
@@ -61,14 +55,8 @@ void dsa_reprep_memcpy(struct dsa_context *ctx, struct dsa_ring_ent *desc)
 		hw->src_addr += compl->bytes_completed;
 		hw->dst_addr += compl->bytes_completed;
 	}
-	/* resolve the page fault by touching the page */
-	if (compl->status & 0x80)
-		/* ok to write since it is going to be overwritten */
-		*addr = 0;
-	else {
-		temp = *addr;
-		temp++; /* make compile warning go away */
-	}
+
+	resolve_page_fault(compl->fault_addr, compl->status);
 
 	compl->status = 0;
 
@@ -76,312 +64,184 @@ void dsa_reprep_memcpy(struct dsa_context *ctx, struct dsa_ring_ent *desc)
 }
 
 /* Performs no error or bound checking */
-void dsa_prep_batch_memcpy(struct dsa_batch *batch, int idx, int n,
-		uint64_t dst, uint64_t src, size_t len, unsigned long flags)
+void dsa_prep_batch_memcpy(struct batch_task *btsk)
 {
 	int i;
-	struct dsa_hw_desc *hw;
+	struct task *sub_task;
 
-	hw = &batch->descs[idx];
-	for (i = 0; i < n; i++) {
-		size_t copy = len;
-
-		dsa_prep_desc_common(hw, DSA_OPCODE_MEMMOVE, dst, src, copy,
-						flags);
-		dst += copy;
-		src += copy;
-		hw++;
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &(btsk->sub_tasks[i]);
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				(uint64_t)(sub_task->dst1),
+				(uint64_t)(sub_task->src1),
+				sub_task->xfer_size, sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
 	}
 }
 
-int dsa_prep_memcpy(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-		void *dest, void *src, size_t len, unsigned int flags)
+void dsa_prep_memfill(struct task *tsk)
 {
-	int i, n = desc->n;
+	info("preparing descriptor for memfill\n");
 
-	for (i = 0; i < n; i++) {
-		size_t copy = len;
-
-		if (copy > ctx->max_xfer_size)
-			copy = ctx->max_xfer_size;
-
-		dsa_prep_submit_memcpy(ctx, desc, (uint64_t)dest,
-				(uint64_t)src, copy, flags);
-		printf("prepared desc %d s %p d %p c %lx sz %lx\n",
-				i, src, dest, desc->hw.completion_addr, copy);
-
-		len -= copy;
-		dest = (char *)dest + copy;
-		src = (char *)src + copy;
-		desc++;
-	}
-	return 0;
+	/* src_addr is the location of pattern for memfill descriptor */
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			tsk->pattern, tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
 }
 
-static void dsa_prep_submit_memset(struct dsa_context *ctx,
-		struct dsa_ring_ent *desc, uint64_t dst, uint64_t value,
-		size_t len, unsigned long desc_flags)
+void dsa_reprep_memfill(struct dsa_context *ctx)
 {
-	struct dsa_hw_desc *hw;
+	struct dsa_completion_record *compl = ctx->single_task->comp;
+	struct dsa_hw_desc *hw = ctx->single_task->desc;
 
-	hw = &desc->hw;
-
-	/* src_addr is the location of value for memfill descriptor */
-	dsa_prep_desc_common(hw, DSA_OPCODE_MEMFILL, dst, value, len,
-						desc_flags);
-	desc->comp->status = 0;
-
-	dsa_desc_submit(ctx, hw);
-}
-
-void dsa_reprep_memset(struct dsa_context *ctx, struct dsa_ring_ent *desc)
-{
-	struct dsa_completion_record *compl = desc->comp;
-	struct dsa_hw_desc *hw = &desc->hw;
-	int *addr = (int *)compl->fault_addr;
-
-	printf("PF addr %lx dir %d bc %x\n", compl->fault_addr,
-	compl->result, compl->bytes_completed);
+	info("PF addr %#lx dir %d bc %#x\n",
+			compl->fault_addr, compl->result,
+			compl->bytes_completed);
 
 	hw->xfer_size -= compl->bytes_completed;
 
 	hw->dst_addr += compl->bytes_completed;
 
-	/* resolve the page fault by touching the page */
-	*addr = 0; /* ok to write since it is going to be overwritten */
+	resolve_page_fault(compl->fault_addr, compl->status);
 
 	compl->status = 0;
 
 	dsa_desc_submit(ctx, hw);
 }
 
-int dsa_prep_memset(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-	void *dst, uint64_t value, size_t len, unsigned long flags)
-{
-	int i, n = desc->n;
-
-	for (i = 0; i < n; i++) {
-		size_t fill = len;
-
-		if (fill > ctx->max_xfer_size)
-			fill = ctx->max_xfer_size;
-
-		dsa_prep_submit_memset(ctx, desc, (uint64_t)dst, value,
-				fill, flags);
-		printf("prepared desc %d d %p c %lx sz %lx\n",
-				i, dst, desc->hw.completion_addr, fill);
-
-		len -= fill;
-		dst = (char *)dst + fill;
-		desc++;
-	}
-	return 0;
-}
-
-void dsa_prep_batch_memset(struct dsa_batch *batch, int idx, int n,
-		uint64_t dst, uint64_t val, size_t len, unsigned long flags)
+void dsa_prep_batch_memfill(struct batch_task *btsk)
 {
 	int i;
-	struct dsa_hw_desc *hw;
+	struct task *sub_task;
 
-	hw = &batch->descs[idx];
-	for (i = 0; i < n; i++) {
-		size_t fill = len;
-
-		dsa_prep_desc_common(hw, DSA_OPCODE_MEMFILL, dst, val, fill,
-						flags);
-		printf("prepared batch desc %d d %lx c %lx sz %lx\n",
-				i, dst, hw->completion_addr, fill);
-		dst += fill;
-		hw++;
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &(btsk->sub_tasks[i]);
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				(uint64_t)(sub_task->dst1),
+				sub_task->pattern,
+				sub_task->xfer_size,
+				sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
 	}
 }
 
-static void dsa_prep_submit_compare(struct dsa_context *ctx,
-		struct dsa_ring_ent *desc, uint64_t src1, uint64_t src2,
-		size_t len, unsigned long flags)
+void dsa_prep_compare(struct task *tsk)
 {
-	struct dsa_hw_desc *hw;
+	info("preparing descriptor for compare\n");
 
-	hw = &desc->hw;
-
-	dsa_prep_desc_common(hw, DSA_OPCODE_COMPARE, src1, src2, len, flags);
-
-	desc->comp->status = 0;
-
-	dsa_desc_submit(ctx, hw);
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->src1),
+			(uint64_t)(tsk->src2), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
 }
 
-void dsa_reprep_compare(struct dsa_context *ctx, struct dsa_ring_ent *desc)
+void dsa_reprep_compare(struct dsa_context *ctx)
 {
-	struct dsa_completion_record *compl = desc->comp;
-	struct dsa_hw_desc *hw = &desc->hw;
-	int *addr = (int *)compl->fault_addr, temp;
+	struct dsa_completion_record *compl = ctx->single_task->comp;
+	struct dsa_hw_desc *hw = ctx->single_task->desc;
 
-	printf("PF addr %lx dir %d bc %x\n", compl->fault_addr,
-	compl->result, compl->bytes_completed);
+	info("PF addr %#lx dir %d bc %#x\n",
+			compl->fault_addr, compl->result,
+			compl->bytes_completed);
 
 	hw->xfer_size -= compl->bytes_completed;
 
 	hw->src_addr += compl->bytes_completed;
 	hw->dst_addr += compl->bytes_completed;
 
-	/* resolve the page fault by touching the page */
-	temp = *addr;
-	temp++; /* make compile warning go away */
+	resolve_page_fault(compl->fault_addr, compl->status);
 
 	compl->status = 0;
 
 	dsa_desc_submit(ctx, hw);
 }
 
-int dsa_prep_compare(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-	void *src1, void *src2, size_t len, unsigned long flags)
-{
-	int i, n = desc->n;
-
-	for (i = 0; i < n; i++) {
-		size_t comp = len;
-
-		if (comp > ctx->max_xfer_size)
-			comp = ctx->max_xfer_size;
-
-		dsa_prep_submit_compare(ctx, desc, (uint64_t)src1,
-				(uint64_t)src2, comp, flags);
-		printf("prepared desc %d s %p d %p c %lx sz %lx\n",
-				i, src1, src2,
-				desc->hw.completion_addr, comp);
-
-		len -= comp;
-		src1 = (char *)src1 + comp;
-		src2 = (char *)src2 + comp;
-		desc++;
-	}
-	return 0;
-}
-
-void dsa_prep_batch_compare(struct dsa_batch *batch, int idx, int n,
-		uint64_t src1, uint64_t src2, size_t len, unsigned long flags)
+void dsa_prep_batch_compare(struct batch_task *btsk)
 {
 	int i;
-	struct dsa_hw_desc *hw;
+	struct task *sub_task;
 
-	hw = &batch->descs[idx];
-
-	for (i = 0; i < n; i++) {
-		size_t comp = len;
-
-		dsa_prep_desc_common(hw, DSA_OPCODE_COMPARE, src1, src2, comp,
-						flags);
-		src1 += comp;
-		src2 += comp;
-		hw++;
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &(btsk->sub_tasks[i]);
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				(uint64_t)(sub_task->src1),
+				(uint64_t)(sub_task->src2),
+				sub_task->xfer_size,
+				sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
 	}
 }
 
-static void dsa_prep_submit_compval(struct dsa_context *ctx,
-		struct dsa_ring_ent *desc, uint64_t val, uint64_t src,
-		size_t len, unsigned long flags)
+void dsa_prep_compval(struct task *tsk)
 {
-	struct dsa_hw_desc *hw;
+	info("preparing descriptor for compval\n");
 
-	hw = &desc->hw;
-
-	dsa_prep_desc_common(hw, DSA_OPCODE_COMPVAL, val, src, len, flags);
-
-	desc->comp->status = 0;
-
-	dsa_desc_submit(ctx, hw);
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, tsk->pattern,
+			(uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
 }
 
-void dsa_reprep_compval(struct dsa_context *ctx, struct dsa_ring_ent *desc)
+void dsa_reprep_compval(struct dsa_context *ctx)
 {
-	struct dsa_completion_record *compl = desc->comp;
-	struct dsa_hw_desc *hw = &desc->hw;
-	int *addr = (int *)compl->fault_addr, temp;
+	struct dsa_completion_record *compl = ctx->single_task->comp;
+	struct dsa_hw_desc *hw = ctx->single_task->desc;
 
-	printf("PF addr %lx dir %d bc %x\n", compl->fault_addr,
-	compl->result, compl->bytes_completed);
+	info("PF addr %#lx dir %d bc %#x\n",
+			compl->fault_addr, compl->result,
+			compl->bytes_completed);
 
 	hw->xfer_size -= compl->bytes_completed;
 
 	hw->src_addr += compl->bytes_completed;
 
-	/* resolve the page fault by touching the page */
-	temp = *addr;
-	temp++; /* make compile warning go away */
+	resolve_page_fault(compl->fault_addr, compl->status);
 
 	compl->status = 0;
 
 	dsa_desc_submit(ctx, hw);
 }
 
-int dsa_prep_compval(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-	uint64_t val, void *src, size_t len, unsigned long flags)
-{
-	int i, n = desc->n;
-
-	for (i = 0; i < n; i++) {
-		size_t comp = len;
-		if (comp > ctx->max_xfer_size)
-			comp = ctx->max_xfer_size;
-
-		dsa_prep_submit_compval(ctx, desc, val,
-				(uint64_t)src, comp, flags);
-		printf("prepared desc %d s %p c %lx sz %lx\n",
-				i, src, desc->hw.completion_addr, comp);
-
-		len -= comp;
-		src = (char *)src + comp;
-		desc++;
-	}
-	return 0;
-}
-
-void dsa_prep_batch_compval(struct dsa_batch *batch, int idx, int n,
-		uint64_t val, uint64_t src, size_t len, unsigned long flags)
+void dsa_prep_batch_compval(struct batch_task *btsk)
 {
 	int i;
-	struct dsa_hw_desc *hw;
+	struct task *sub_task;
 
-	hw = &batch->descs[idx];
-
-	for (i = 0; i < n; i++) {
-		size_t comp = len;
-
-		dsa_prep_desc_common(hw, DSA_OPCODE_COMPVAL, val, src, comp,
-						flags);
-		printf("prepared batch desc %d s %lx c %lx sz %lx\n",
-				i, src, hw->completion_addr, comp);
-		src += comp;
-		hw++;
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &(btsk->sub_tasks[i]);
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				sub_task->pattern,
+				(uint64_t)(sub_task->src1),
+				sub_task->xfer_size,
+				sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
 	}
 }
 
-static void dsa_prep_submit_dualcast(struct dsa_context *ctx,
-	struct dsa_ring_ent *desc, uint64_t dst1,
-	uint64_t dst2, uint64_t src, size_t len, unsigned long flags)
+void dsa_prep_dualcast(struct task *tsk)
 {
-	struct dsa_hw_desc *hw;
+	info("preparing descriptor for dualcast\n");
 
-	hw = &desc->hw;
-
-	dsa_prep_desc_common(hw, DSA_OPCODE_DUALCAST, dst1, src, len, flags);
-	hw->dest2 = dst2;
-
-	desc->comp->status = 0;
-
-	dsa_desc_submit(ctx, hw);
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			(uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->dest2 = (uint64_t)(tsk->dst2);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
 }
 
-void dsa_reprep_dualcast(struct dsa_context *ctx, struct dsa_ring_ent *desc)
+void dsa_reprep_dualcast(struct dsa_context *ctx)
 {
-	struct dsa_completion_record *compl = desc->comp;
-	struct dsa_hw_desc *hw = &desc->hw;
-	int *addr = (int *)compl->fault_addr, temp;
+	struct dsa_completion_record *compl = ctx->single_task->comp;
+	struct dsa_hw_desc *hw = ctx->single_task->desc;
 
-	printf("PF addr %lx dir %d bc %x\n", compl->fault_addr,
-	compl->result, compl->bytes_completed);
+	info("PF addr %#lx dir %d bc %#x\n",
+			compl->fault_addr, compl->result,
+			compl->bytes_completed);
 
 	hw->xfer_size -= compl->bytes_completed;
 
@@ -389,90 +249,45 @@ void dsa_reprep_dualcast(struct dsa_context *ctx, struct dsa_ring_ent *desc)
 	hw->dst_addr += compl->bytes_completed;
 	hw->dest2 += compl->bytes_completed;
 
-	/* resolve the page fault by touching the page */
-
-	/* ok to write since it is going to be overwritten */
-	if (compl->status & 0x80)
-		*addr = 0;
-	else {
-		temp = *addr;
-		temp++; /* make compile warning go away */
-	}
+	resolve_page_fault(compl->fault_addr, compl->status);
 
 	compl->status = 0;
 
 	dsa_desc_submit(ctx, hw);
 }
 
-int dsa_prep_dualcast(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-		void *dst1, void *dst2, void *src, size_t len,
-		unsigned long flags)
-{
-	int i, n = desc->n;
-
-	for (i = 0; i < n; i++) {
-		size_t copy = len;
-
-		if (copy > ctx->max_xfer_size)
-			copy = ctx->max_xfer_size;
-
-		dsa_prep_submit_dualcast(ctx, desc, (uint64_t)dst1,
-				(uint64_t)dst2, (uint64_t)src, copy, flags);
-
-		printf("prepared desc %d s %p d1 %p d2 %p c %lx sz %lx\n",
-				i, src, dst1, dst2,
-				desc->hw.completion_addr, copy);
-
-		len -= copy;
-		src = (char *)src + copy;
-		dst1 = (char *)dst1 + copy;
-		dst2 = (char *)dst2 + copy;
-		desc++;
-	}
-	return 0;
-}
-
-void dsa_prep_batch_dualcast(struct dsa_batch *batch, int idx, int n,
-		uint64_t dst1, uint64_t dst2, uint64_t src, size_t len,
-		unsigned long flags)
+void dsa_prep_batch_dualcast(struct batch_task *btsk)
 {
 	int i;
-	struct dsa_hw_desc *hw;
+	struct task *sub_task;
 
-	hw = &batch->descs[idx];
-
-	for (i = 0; i < n; i++) {
-		size_t copy = len;
-
-		dsa_prep_desc_common(hw, DSA_OPCODE_DUALCAST, dst1, src, copy,
-						flags);
-		hw->dest2 = dst2;
-		printf("prepared batch desc %d s %lx d1 %lx d2 %lx c %lx sz %lx\n",
-				i, src, dst1, dst2,
-				hw->completion_addr, copy);
-		src += copy;
-		dst1 += copy;
-		dst2 += copy;
-		hw++;
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &(btsk->sub_tasks[i]);
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				(uint64_t)(sub_task->dst1),
+				(uint64_t)(sub_task->src1),
+				sub_task->xfer_size,
+				sub_task->dflags);
+		sub_task->desc->dest2 = (uint64_t)(sub_task->dst2);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
 	}
 }
 
-void dsa_prep_submit_batch(struct dsa_batch *batch, int idx, int n,
-		struct dsa_ring_ent *desc, unsigned long desc_flags)
+void dsa_prep_batch(struct batch_task *btsk, unsigned long desc_flags)
 {
-	struct dsa_context *ctx = batch->ctx;
-	struct dsa_hw_desc *hw;
-	uint64_t batch_addr = (uint64_t)&batch->descs[idx];
+	struct task *ctsk = btsk->core_task;
 
-	printf("preparing batch using %d %d %lx h:t %d:%d\n",
-			idx, n, batch_addr, ctx->head, ctx->tail);
+	info("preparing batch descriptor\n");
 
-	hw = &desc->hw;
+	/* BOF bit is reserved for batch descriptor, turn it off */
+	desc_flags &= ~IDXD_OP_FLAG_BOF;
 
-	dsa_prep_desc_common(hw, DSA_OPCODE_BATCH, 0, batch_addr,
-				n, desc_flags);
+	dsa_prep_desc_common(ctsk->desc, DSA_OPCODE_BATCH,
+			0, (uint64_t)(btsk->sub_descs),
+			btsk->task_num, desc_flags);
+	ctsk->desc->completion_addr = (uint64_t)(ctsk->comp);
+	ctsk->desc->desc_count = (uint32_t)(btsk->task_num);
 
-	desc->comp->status = 0;
-
-	dsa_desc_submit(ctx, hw);
+	ctsk->comp->status = 0;
 }

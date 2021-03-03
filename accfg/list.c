@@ -15,6 +15,7 @@
 #include <ccan/array_size/array_size.h>
 #include <accfg.h>
 
+static struct util_filter_params util_param;
 static struct {
 	bool devices;
 	bool groups;
@@ -39,7 +40,6 @@ static struct config_save {
 	const char *saved_file;
 } config_save;
 
-struct util_filter_params param;
 static int did_fail;
 
 #define fail(fmt, ...) \
@@ -54,6 +54,9 @@ static struct json_object *group_to_json(struct accfg_group *group,
 {
 	struct json_object *jgroup = json_object_new_object();
 	struct json_object *jobj = NULL;
+	struct accfg_device *dev = NULL;
+
+	dev = accfg_group_get_device(group);
 
 	if (!jgroup)
 		return NULL;
@@ -67,21 +70,23 @@ static struct json_object *group_to_json(struct accfg_group *group,
 	if (!jobj)
 		goto err;
 
-	json_object_object_add(jgroup, "tokens_reserved", jobj);
-	jobj = json_object_new_int(accfg_group_get_use_token_limit(group));
-	if (!jobj)
-		goto err;
+	if (accfg_device_get_type(dev) != ACCFG_DEVICE_IAX) {
+		json_object_object_add(jgroup, "tokens_reserved", jobj);
+		jobj = json_object_new_int(accfg_group_get_use_token_limit(group));
+		if (!jobj)
+			goto err;
 
-	json_object_object_add(jgroup, "use_token_limit", jobj);
-	jobj = json_object_new_int(accfg_group_get_tokens_allowed(group));
-	if (!jobj)
-		goto err;
+		json_object_object_add(jgroup, "use_token_limit", jobj);
+		jobj = json_object_new_int(accfg_group_get_tokens_allowed(group));
+		if (!jobj)
+			goto err;
 
-	json_object_object_add(jgroup, "tokens_allowed", jobj);
-	jobj = json_object_new_int(accfg_group_get_traffic_class_a(
+		json_object_object_add(jgroup, "tokens_allowed", jobj);
+		jobj = json_object_new_int(accfg_group_get_traffic_class_a(
 				group));
-	if (!jobj)
-		goto err;
+		if (!jobj)
+			goto err;
+	}
 
 	json_object_object_add(jgroup, "traffic_class_a", jobj);
 	jobj = json_object_new_int(accfg_group_get_traffic_class_b(
@@ -150,18 +155,19 @@ static bool filter_wq(struct accfg_wq *wq, struct util_filter_ctx *ctx)
 	}
 
 	/* for the rest, add into device jobj directly */
-	if (!jc->jwq_ungroup && lfa->flags & UTIL_JSON_IDLE) {
-		jc->jwq_ungroup = json_object_new_array();
-		if (!jc->jwq_ungroup)
-			return false;
+	if (!in_group) {
+		if (!jc->jwq_ungroup && (lfa->flags & UTIL_JSON_IDLE)) {
+			jc->jwq_ungroup = json_object_new_array();
+			if (!jc->jwq_ungroup)
+				return false;
 
-		container = lfa->jdevice;
-		json_object_object_add(container, "ungrouped workqueues",
-				       jc->jwq_ungroup);
-	}
+			container = lfa->jdevice;
+			json_object_object_add(container, "ungrouped workqueues",
+					       jc->jwq_ungroup);
+		}
 
-	if (!in_group)
 		json_object_array_add(jc->jwq_ungroup, jwq);
+	}
 
 	return true;
 }
@@ -222,19 +228,20 @@ static bool filter_engine(struct accfg_engine *engine,
 	}
 
 	/* for the rest, add into device directly */
-	if (!jc->jengine_ungroup && lfa->flags & UTIL_JSON_IDLE) {
-		jc->jengine_ungroup = json_object_new_array();
-		if (!jc->jengine_ungroup)
-			return false;
+	if (!in_group) {
+		if (!jc->jengine_ungroup) {
+			jc->jengine_ungroup = json_object_new_array();
+			if (!jc->jengine_ungroup)
+				return false;
 
-		container = lfa->jdevice;
-		json_object_object_add(container,
-				       "ungrouped_engines",
-				       jc->jengine_ungroup);
-	}
+			container = lfa->jdevice;
+			json_object_object_add(container,
+					       "ungrouped_engines",
+					       jc->jengine_ungroup);
+		}
 
-	if (!in_group)
 		json_object_array_add(jc->jengine_ungroup, jengine);
+	}
 
 	return true;
 }
@@ -384,13 +391,15 @@ static int display_device(struct json_object *jdevices,
 	struct json_object *jdevice;
 	char dev_type[MAX_DEV_LEN];
 
-	if (jdevices && (!param.device))
+	printf("%s\n", "devices:");
+
+	if (jdevices && (!util_param.device))
 		util_display_json_array(stdout, jdevices, lfa->flags);
 
-	if (!param.device)
+	if (!util_param.device)
 		return true;
 
-	if (sscanf(param.device, "%[a-z]%d", dev_type, &device_id) != 2)
+	if (sscanf(util_param.device, "%[a-z]%d", dev_type, &device_id) != 2)
 		return false;
 
 	for (accel_type = accfg_basenames; *accel_type != NULL; accel_type++)
@@ -422,8 +431,9 @@ static int display_group(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 	struct accfg_device *dev;
 	struct accfg_json_container *jc = NULL;
 
+	printf("%s\n", "groups:");
 
-	if (!param.group) {
+	if (!util_param.group) {
 		list_for_each(&lfa->jdev_list, iter, list)
 			util_display_json_array(stdout, iter->jgroups,
 					lfa->flags);
@@ -431,7 +441,7 @@ static int display_group(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 
 	}
 
-	if (sscanf(param.group, "group%d.%d", &device_id, &group_id) != 2)
+	if (sscanf(util_param.group, "group%d.%d", &device_id, &group_id) != 2)
 		return false;
 
 	accfg_device_foreach(ctx, dev) {
@@ -465,15 +475,13 @@ static int display_group(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 static int display_wq(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 {
 	int device_id;
-	bool grouped;
 	unsigned int wq_id, max_wqs, max_groups, i = 0, index = 0;
-	struct json_object *jwq_ungroup;
 	struct accfg_device *dev;
 	struct accfg_json_container *jc = NULL, *iter;
 
 	printf("%s\n", "workqueues:");
 
-	if (!param.wq) {
+	if (!util_param.wq) {
 		list_for_each(&lfa->jdev_list, iter, list) {
 			dev = accfg_ctx_device_get_by_id(ctx, i);
 			max_groups = accfg_device_get_max_groups(dev);
@@ -486,13 +494,11 @@ static int display_wq(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 						lfa->flags);
 			}
 
-			util_display_json_array(stdout, iter->jwq_ungroup,
-					lfa->flags);
 		}
 		return true;
 	}
 
-	if (sscanf(param.wq, "wq%d.%d", &device_id, &wq_id) != 2)
+	if (sscanf(util_param.wq, "wq%d.%d", &device_id, &wq_id) != 2)
 		return false;
 
 	accfg_device_foreach(ctx, dev) {
@@ -512,28 +518,18 @@ static int display_wq(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 			if (!jc)
 				return false;
 
-			jwq_ungroup = jc->jwq_ungroup;
-			grouped = false;
 			printf("device %s:\n", jc->device_name);
 			for (index = 0; index < max_groups; index++) {
 				struct json_object *jwq_group[max_groups];
 
-				if (wq_id != index)
+				if (wq_id != index || (lfa->flags & UTIL_JSON_IDLE))
 					continue;
 				jwq_group[index] = jc->jwq_group[index];
 				if (jwq_group[index] != NULL) {
 					util_display_json_array(stdout,
 							jwq_group[index],
 							lfa->flags);
-					grouped = true;
 				}
-			}
-
-			if (jwq_ungroup && !grouped
-					&& lfa->flags & UTIL_JSON_IDLE) {
-				printf("ungrouped workqueues:");
-				util_display_json_array(stdout, jwq_ungroup,
-						lfa->flags);
 			}
 		}
 	}
@@ -546,14 +542,12 @@ static int display_engine(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 	int device_id;
 	unsigned int engine_id, max_groups, max_engines,
 		     i = 0, index = 0;
-	bool grouped;
 	struct accfg_json_container *jc = NULL, *iter;
-	struct json_object *jengine_ungroup;
 	struct accfg_device *dev;
 
 	printf("%s\n", "engines:");
 
-	if (!param.engine) {
+	if (!util_param.engine) {
 		list_for_each(&lfa->jdev_list, iter, list) {
 			dev = accfg_ctx_device_get_by_id(ctx, i);
 			max_groups = accfg_device_get_max_groups(dev);
@@ -566,13 +560,11 @@ static int display_engine(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 						lfa->flags);
 			}
 
-			util_display_json_array(stdout, iter->jengine_ungroup,
-					lfa->flags);
 		}
 		return true;
 	}
 
-	if  (sscanf(param.engine, "engine%d.%d", &device_id, &engine_id) != 2)
+	if  (sscanf(util_param.engine, "engine%d.%d", &device_id, &engine_id) != 2)
 		return false;
 
 	accfg_device_foreach(ctx, dev) {
@@ -593,26 +585,19 @@ static int display_engine(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 			if (!jc)
 				return false;
 
-			jengine_ungroup = jc->jengine_ungroup;
-			grouped = false;
 			printf("device %s:\n", jc->device_name);
 			for (index = 0; index < max_groups; index++) {
 				struct json_object *jengine_group[max_groups];
 
+				if (lfa->flags & UTIL_JSON_IDLE)
+					continue;
 				jengine_group[index] =
 					jc->jengine_group[index];
 				if (jengine_group[index]) {
 					util_display_json_array(stdout,
 							jengine_group[index],
 							lfa->flags);
-					grouped = true;
 				}
-			}
-
-			if (jengine_ungroup && !grouped) {
-				printf("unassigned engines:\n");
-				util_display_json_array(stdout,
-						jengine_ungroup, lfa->flags);
 			}
 		}
 	}
@@ -651,13 +636,13 @@ static int num_list_flags(void)
 int cmd_list(int argc, const char **argv, void *ctx)
 {
 	const struct option options[] = {
-		OPT_STRING('d', "device", &param.device, "device-id",
+		OPT_STRING('d', "device", &util_param.device, "device-id",
 			   "filter by device"),
-		OPT_STRING('g', "group", &param.group, "group-id",
+		OPT_STRING('g', "group", &util_param.group, "group-id",
 			   "filter by group"),
-		OPT_STRING('q', "workqueue", &param.wq, "wq-id",
+		OPT_STRING('q', "workqueue", &util_param.wq, "wq-id",
 			   "filter by workqueue"),
-		OPT_STRING('e', "engine", &param.engine, "engine-id",
+		OPT_STRING('e', "engine", &util_param.engine, "engine-id",
 			   "filter by engine"),
 		OPT_BOOLEAN('G', "groups", &list.groups,
 				"include group info"),
@@ -687,10 +672,10 @@ int cmd_list(int argc, const char **argv, void *ctx)
 		usage_with_options(u, options);
 
 	if (num_list_flags() == 0) {
-		list.devices = !!param.device;
-		list.groups = !!param.group;
-		list.wqs = !!param.wq;
-		list.engines = !!param.engine;
+		list.devices = !!util_param.device;
+		list.groups = !!util_param.group;
+		list.wqs = !!util_param.wq;
+		list.engines = !!util_param.engine;
 	}
 
 	lfa.jdevices = json_object_new_array();
@@ -705,7 +690,7 @@ int cmd_list(int argc, const char **argv, void *ctx)
 	fctx.list = &lfa;
 	lfa.flags = listopts_to_flags();
 
-	rc = util_filter_walk(ctx, &fctx, &param);
+	rc = util_filter_walk(ctx, &fctx, &util_param);
 	if (rc)
 		return rc;
 
@@ -750,7 +735,7 @@ int cmd_save(int argc, const char **argv, void *ctx)
 	fctx.list = &lfa;
 	lfa.flags = listopts_to_flags();
 
-	rc = util_filter_walk(ctx, &fctx, &param);
+	rc = util_filter_walk(ctx, &fctx, &util_param);
 	if (rc)
 		return rc;
 

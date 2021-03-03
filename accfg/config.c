@@ -20,8 +20,8 @@
 #include <sys/stat.h>
 #include <accfg.h>
 
-struct util_filter_params param;
 static bool verbose;
+static struct util_filter_params util_param;
 
 static struct config {
 	bool devices;
@@ -47,6 +47,7 @@ struct device_set_table {
 struct wq_set_table {
 	char *name;
 	int (*set_int_func)(struct accfg_wq *wq, int val);
+	int (*set_long_func)(struct accfg_wq *wq, unsigned long val);
 	int (*set_str_func)(struct accfg_wq *wq, const char *val);
 	bool (*is_writable)(struct accfg_wq *wq, int val);
 };
@@ -70,32 +71,35 @@ static const struct device_set_table device_table[] = {
 
 static bool is_group_token_attribs_writable(struct accfg_group *group,
 		int val);
-static bool is_group_tfc_attribs_writable(struct accfg_group *group,
+static bool is_group_token_limit_writable(struct accfg_group *group,
 		int val);
 
 static const struct group_set_table group_table[] = {
 	{ "tokens_reserved", accfg_group_set_tokens_reserved, NULL,
 		is_group_token_attribs_writable },
 	{ "use_token_limit", accfg_group_set_use_token_limit, NULL,
-		is_group_token_attribs_writable },
+		is_group_token_limit_writable },
 	{ "tokens_allowed", accfg_group_set_tokens_allowed, NULL,
 		is_group_token_attribs_writable },
 	{ "traffic_class_a", accfg_group_set_traffic_class_a, NULL,
-		is_group_tfc_attribs_writable },
+		is_group_token_attribs_writable },
 	{ "traffic_class_b", accfg_group_set_traffic_class_b, NULL,
-		is_group_tfc_attribs_writable },
+		is_group_token_attribs_writable },
 };
 
 static bool is_wq_threshold_writable(struct accfg_wq *wq, int val);
 
 static const struct wq_set_table wq_table[] = {
-	{ "size", accfg_wq_set_size, NULL, NULL },
-	{ "priority", accfg_wq_set_priority, NULL, NULL },
-	{ "group_id", accfg_wq_set_group_id, NULL, NULL },
-	{ "type", NULL, accfg_wq_set_str_type, NULL },
-	{ "name", NULL, accfg_wq_set_str_name, NULL },
-	{ "mode", NULL, accfg_wq_set_str_mode, NULL },
-	{ "threshold", accfg_wq_set_threshold, NULL,
+	{ "size", accfg_wq_set_size, NULL, NULL, NULL },
+	{ "priority", accfg_wq_set_priority, NULL, NULL, NULL },
+	{ "group_id", accfg_wq_set_group_id, NULL, NULL, NULL },
+	{ "block_on_fault", accfg_wq_set_block_on_fault, NULL, NULL, NULL },
+	{ "type", NULL, NULL, accfg_wq_set_str_type, NULL },
+	{ "name", NULL, NULL, accfg_wq_set_str_name, NULL },
+	{ "mode", NULL, NULL, accfg_wq_set_str_mode, NULL },
+	{ "max_batch_size", accfg_wq_set_max_batch_size, NULL, NULL, NULL },
+	{ "max_transfer_size", NULL, accfg_wq_set_max_transfer_size, NULL, NULL },
+	{ "threshold", accfg_wq_set_threshold, NULL, NULL,
 		is_wq_threshold_writable },
 };
 
@@ -111,7 +115,7 @@ static int configure_json_value(struct accfg_ctx *ctx,
 static int read_config_file(struct accfg_ctx *ctx, struct config *to_config,
 			    struct util_filter_params *util_param);
 
-static bool is_group_token_attribs_writable(struct accfg_group *group,
+static bool is_group_token_limit_writable(struct accfg_group *group,
 		int val)
 {
 	struct accfg_device *dev;
@@ -125,7 +129,8 @@ static bool is_group_token_attribs_writable(struct accfg_group *group,
 	return false;
 }
 
-static bool is_group_tfc_attribs_writable(struct accfg_group *group,
+
+static bool is_group_token_attribs_writable(struct accfg_group *group,
 		int val)
 {
 	if (val == -1)
@@ -203,7 +208,7 @@ static int device_json_set_val(struct accfg_device *dev, json_object *jobj,
 					return -EINVAL;
 
 				rc = device_table[i].set_int_func(dev, val);
-				if (!rc)
+				if (rc != 0)
 					return rc;
 
 				return 0;
@@ -215,7 +220,7 @@ static int device_json_set_val(struct accfg_device *dev, json_object *jobj,
 					return -EINVAL;
 
 				rc = device_table[i].set_str_func(dev, val);
-				if (!rc)
+				if (rc != 0)
 					return rc;
 
 				return 0;
@@ -249,7 +254,22 @@ static int wq_json_set_val(struct accfg_wq *wq, json_object *jobj, char *key)
 					return 0;
 
 				rc = wq_table[i].set_int_func(wq, val);
-				if (!rc)
+				if (rc != 0)
+					return rc;
+
+				return 0;
+			} else if (wq_table[i].set_long_func) {
+				unsigned long val = json_object_get_int64(jobj);
+
+				if ((val == 0) && (errno == EINVAL))
+					return -errno;
+
+				if (wq_table[i].is_writable &&
+					!wq_table[i].is_writable(wq, val))
+					return 0;
+
+				rc = wq_table[i].set_long_func(wq, val);
+				if (rc != 0)
 					return rc;
 
 				return 0;
@@ -261,7 +281,7 @@ static int wq_json_set_val(struct accfg_wq *wq, json_object *jobj, char *key)
 					return -EINVAL;
 
 				rc = wq_table[i].set_str_func(wq, val);
-				if (!rc)
+				if (rc != 0)
 					return rc;
 
 				return 0;
@@ -276,6 +296,10 @@ static int group_json_set_val(struct accfg_group *group,
 		json_object *jobj, char *key)
 {
 	int rc, i;
+	struct accfg_device *dev = NULL;
+
+	if (group)
+		dev = accfg_group_get_device(group);
 
 	if (!group || !jobj || !key)
 		return -EINVAL;
@@ -287,17 +311,22 @@ static int group_json_set_val(struct accfg_group *group,
 		if (strcmp(key, group_table[i].name) == 0) {
 			if (group_table[i].set_int_func) {
 				int val = json_object_get_int(jobj);
-
-				if ((val == 0) && (errno == EINVAL))
+				if (((val == 0) && (errno == EINVAL))
+						|| (val < 0))
 					return -EINVAL;
 
+				if ((accfg_device_get_type(dev) == ACCFG_DEVICE_IAX)
+					&& ((!strcmp(group_table[i].name, "tokens_reserved"))
+					|| (!strcmp(group_table[i].name, "use_token_limit"))
+					|| (!strcmp(group_table[i].name, "tokens_allowed")))) {
+					return 0;
+				}
 				if (group_table[i].is_writable &&
 					!group_table[i].is_writable(group,
 						val))
 					return 0;
-
 				rc = group_table[i].set_int_func(group, val);
-				if (!rc)
+				if (rc != 0)
 					return rc;
 
 				return 0;
@@ -309,7 +338,7 @@ static int group_json_set_val(struct accfg_group *group,
 					return -EINVAL;
 
 				rc = group_table[i].set_str_func(group, val);
-				if (!rc)
+				if (rc != 0)
 					return rc;
 
 				return 0;
@@ -344,7 +373,7 @@ static int engine_json_set_val(struct accfg_engine *engine,
 
 				rc = engine_table[i].set_int_func(engine,
 						val);
-				if (!rc)
+				if (rc != 0)
 					return rc;
 
 				return 0;
@@ -358,7 +387,7 @@ static int engine_json_set_val(struct accfg_engine *engine,
 
 				rc = engine_table[i].set_str_func(engine,
 						val);
-				if (!rc)
+				if (rc != 0)
 					return rc;
 
 				return 0;
@@ -385,6 +414,8 @@ static int configure_json_value(struct accfg_ctx *ctx,
 	static struct accfg_wq *wq;
 	static struct accfg_engine *engine;
 	static struct accfg_group *group;
+	enum accfg_device_state dev_state = ACCFG_DEVICE_DISABLED;
+	enum accfg_wq_state wq_state = ACCFG_WQ_DISABLED;
 
 	if (!ctx || !jobj || !key)
 		return -EINVAL;
@@ -412,6 +443,12 @@ static int configure_json_value(struct accfg_ctx *ctx,
 					fprintf(stderr, "device is not available\n");
 					return -ENOENT;
 				}
+				dev_state = accfg_device_get_state(dev);
+				if (dev_state == ACCFG_DEVICE_ENABLED) {
+					fprintf(stderr,
+						"%s is active, will skip...\n", parsed_string);
+					return 0;
+				}
 				dev_name = parsed_string;
 				wq = NULL;
 				engine = NULL;
@@ -436,6 +473,11 @@ static int configure_json_value(struct accfg_ctx *ctx,
 			wq = accfg_device_wq_get_by_id(dev, id);
 			if (!wq)
 				return -ENOENT;
+			wq_state = accfg_wq_get_state(wq);
+			if (wq_state == ACCFG_WQ_ENABLED || wq_state == ACCFG_WQ_LOCKED) {
+				fprintf(stderr, "%s is active, will skip...\n", parsed_string);
+				return 0;
+			}
 
 			dev = NULL;
 			engine = NULL;
@@ -483,7 +525,7 @@ static int configure_json_value(struct accfg_ctx *ctx,
 		}
 	}
 
-	if (dev) {
+	if (dev && dev_state != ACCFG_DEVICE_ENABLED) {
 		rc = device_json_set_val(dev, jobj, key);
 		if (rc < 0) {
 			fprintf(stderr, "device set %s value failed\n",
@@ -497,7 +539,8 @@ static int configure_json_value(struct accfg_ctx *ctx,
 					key);
 			return rc;
 		}
-	} else if (wq) {
+	} else if (wq && wq_state != ACCFG_WQ_ENABLED &&
+			wq_state != ACCFG_WQ_LOCKED) {
 		rc = wq_json_set_val(wq, jobj, key);
 		if (rc < 0) {
 			fprintf(stderr, "wq set %s value failed\n",
@@ -587,8 +630,7 @@ static int json_parse(struct accfg_ctx *ctx, json_object *jobj)
 				return -1;
 			break;
 		case json_type_object:
-			jobj = json_object_object_get(jobj, iter.key);
-			if (!jobj)
+			if (!json_object_object_get_ex(jobj, iter.key, &jobj))
 				return -1;
 			json_parse(ctx, jobj);
 			break;
@@ -617,8 +659,7 @@ static int json_parse_array(struct accfg_ctx *ctx, json_object *jobj,
 
 	jarray = jobj;
 	if (key) {
-		jarray = json_object_object_get(jobj, key);
-		if (!jarray)
+		if (!json_object_object_get_ex(jobj, key, &jarray))
 			return -1;
 	}
 
@@ -668,7 +709,7 @@ static int parse_config(struct accfg_ctx *ctx, struct config *conf)
 }
 
 static int read_config_file(struct accfg_ctx *ctx, struct config *conf,
-			    struct util_filter_params *util_param)
+			    struct util_filter_params *param)
 {
 	FILE *f;
 	char *config_file;
@@ -977,11 +1018,11 @@ int cmd_config(int argc, const char **argv, void *ctx)
 	fctx.list = &cfa;
 	cfa.flags = config_opts_to_flags();
 
-	rc = util_filter_walk(ctx, &fctx, &param);
+	rc = util_filter_walk(ctx, &fctx, &util_param);
 	if (rc)
 		return rc;
 
-	rc = read_config_file((struct accfg_ctx *)ctx, &config, &param);
+	rc = read_config_file((struct accfg_ctx *)ctx, &config, &util_param);
 	if (rc < 0)
 		fprintf(stderr, "Reading config file failed: %d\n", rc);
 

@@ -5,21 +5,35 @@ accel-config-create-mdev(1)
 
 NAME
 ----
-accel-config-create-mdev - create mdev to a specified workqueue by generating a
-random uuid and writing to workqueue sysfs. The workqueue has to be enabled
-before running this command and it has to be configured as "mdev" type. If the
-workqueue type is shared, this command can be issued multiple times. If the
-workqueue is dedicated, only one uuid is allowed to be created. If this command
-is issued to a dedicated wq with uuid already existing, it will trigger
-operation not permitted error.
+accel-config-create-mdev - create mdev to enabled workqueues of devices.
+A uuid is generated which is associated with the mdev and will be stored in
+/sys/class/mdev_bus under the device pcie bdf id. Creation of mdevs require
+enabled workqueues. For mdevs of the shared type, at least one shared
+mode workqueue needs to be enabled. Each dedicated type mdev require one
+dedicated mode workqueue to be enabled. Creation of dedicated type mdevs
+would set the state of workqueue used as "locked". Creation of shared
+type mdevs do not alter the state of workqueues.
 
 SYNOPSIS
 --------
 [verse]
-'accel-config create-mdev' <device name>/<workqueue name>
+'accel-config create-mdev <device-name> [<mdev-type>|<options>]'
 
 EXAMPLE
 -------
-accel-config create-mdev dsa0/wq0.0
+accel-config create-mdev dsa0 1dwq
+
+accel-config create-mdev dsa0 -l
+----
+Available mdev types:
+	1dwq
+	1swq
+----
+
+OPTIONS
+--------
+-l::
+--list-mdev-types::
+	list the available mdev types
 
 include::../copyright.txt[]

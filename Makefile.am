@@ -5,7 +5,9 @@ SUBDIRS = . accfg/lib accfg
 if ENABLE_DOCS
 SUBDIRS += Documentation/accfg
 endif
+if ENABLE_TEST
 SUBDIRS += test
+endif
 
 BUILT_SOURCES = version.m4
 version.m4: FORCE
@@ -13,7 +15,7 @@ version.m4: FORCE
 
 FORCE:
 
-noinst_SCRIPTS = rhel/accfg.spec
+noinst_SCRIPTS = rhel/accfg.spec rhel/accfg-test.spec
 CLEANFILES += $(noinst_SCRIPTS)
 
 do_rhel_subst = sed -e 's,VERSION,$(VERSION),g' \
@@ -24,6 +26,9 @@ do_rhel_subst = sed -e 's,VERSION,$(VERSION),g' \
 rhel/accfg.spec: accfg.spec.in Makefile.am version.m4
 	$(AM_V_GEN)$(MKDIR_P) rhel; $(do_rhel_subst) < $< > $@
 
+rhel/accfg-test.spec: accfg-test.spec.in Makefile.am version.m4
+	$(AM_V_GEN)$(MKDIR_P) rhel; $(do_rhel_subst) < $< > $@
+
 if ENABLE_BASH_COMPLETION
 bashcompletiondir = $(BASH_COMPLETION_DIR)
 endif
@@ -31,6 +36,8 @@ endif
 accfgconf_file = contrib/accel-config.conf.sample
 accfgconfdir = $(sysconfdir)/accel-config/
 accfgconf_DATA = $(accfgconf_file)
+
+EXTRA_DIST += $(accfgconf_file) accfg.spec.in accfg-test.spec.in
 
 noinst_LIBRARIES = libccan.a
 libccan_a_SOURCES = \
@@ -51,14 +58,26 @@ libccan_a_SOURCES = \
 
 noinst_LIBRARIES += libutil.a
 libutil_a_SOURCES = \
+	util/abspath.c \
+	util/bitmap.c \
+	util/bitmap.h \
+	util/filter.c \
+	util/filter.h \
+	util/help.c \
+	util/json.h \
+	util/list.h \
+	util/log.h \
+	util/main.c \
+	util/main.h \
 	util/parse-options.c \
 	util/parse-options.h \
-	util/usage.c \
 	util/size.c \
-	util/main.c \
-	util/help.c \
+	util/size.h \
 	util/strbuf.c \
+	util/strbuf.h \
+	util/sysfs.h \
+	util/usage.c \
+	util/util.h \
 	util/wrapper.c \
-	util/filter.c \
-	util/bitmap.c \
-	util/abspath.c
+	builtin.h \
+	test.h

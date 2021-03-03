@@ -20,8 +20,7 @@
 static const char *wq_type_str[] = {
 	"none",
 	"kernel",
-	"user",
-	"mdev"
+	"user"
 };
 
 /* adapted from mdadm::human_size_brief() */
@@ -150,6 +149,16 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	struct json_object *jobj;
 	struct accfg_error *error;
 	enum accfg_device_state dev_state;
+	int int_val;
+	unsigned long ulong_val;
+	unsigned long long ullong_val;
+	bool new_bool;
+	struct accfg_device_mdev *mdev;
+	struct json_object *json_uuid;
+	struct json_object *json_mtype;
+	char uuid_string[UUID_STR_LEN];
+	int mdev_found = 0;
+	struct json_object *json_mdev;
 
 	if (!jdevice)
 		return NULL;
@@ -175,34 +184,45 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	jobj = json_object_new_int(accfg_device_get_token_limit(device));
 	if (!jobj)
 		goto err;
-	json_object_object_add(jdevice, "token_limit", jobj);
+	if (accfg_device_get_type(device) != ACCFG_DEVICE_IAX)
+		json_object_object_add(jdevice, "token_limit", jobj);
 
 	if (flags & UTIL_JSON_SAVE) {
 		free(error);
 		return jdevice;
 	}
 
-	jobj = json_object_new_int(accfg_device_get_max_groups(device));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jdevice, "max_groups", jobj);
+	int_val = accfg_device_get_max_groups(device);
+	if (int_val >= 0) {
+		jobj = json_object_new_int(int_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "max_groups", jobj);
+	}
 
-	jobj = json_object_new_int(accfg_device_get_max_work_queues(device));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jdevice, "max_work_queues", jobj);
+	int_val = accfg_device_get_max_work_queues(device);
+	if (int_val >= 0) {
+		jobj = json_object_new_int(int_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "max_work_queues", jobj);
+	}
 
-	jobj = json_object_new_int(accfg_device_get_max_engines(device));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jdevice, "max_engines", jobj);
+	int_val = accfg_device_get_max_engines(device);
+	if (int_val >= 0) {
+		jobj = json_object_new_int(int_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "max_engines", jobj);
+	}
 
-	jobj =
-	    json_object_new_int(accfg_device_get_max_work_queues_size
-				(device));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jdevice, "work_queue_size", jobj);
+	int_val = accfg_device_get_max_work_queues_size(device);
+	if (int_val >= 0) {
+		jobj = json_object_new_int(int_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "work_queue_size", jobj);
+	}
 
 	jobj = json_object_new_int(accfg_device_get_numa_node(device));
 	if (!jobj)
@@ -225,11 +245,24 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		json_object_object_add(jdevice, "errors", jobj);
 	}
 
-	jobj = util_json_object_hex(accfg_device_get_op_cap(device),
+	ulong_val = accfg_device_get_op_cap(device);
+	if (ulong_val > 0) {
+		jobj = util_json_object_hex(ulong_val, flags);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "op_cap", jobj);
+	}
+
+	jobj = util_json_object_hex(accfg_device_get_gen_cap(device), flags);
+	if (!jobj)
+		goto err;
+	json_object_object_add(jdevice, "gen_cap", jobj);
+
+	jobj = util_json_object_hex(accfg_device_get_version(device),
 			flags);
 	if (!jobj)
 		goto err;
-	json_object_object_add(jdevice, "op_cap", jobj);
+	json_object_object_add(jdevice, "version", jobj);
 
 	dev_state = accfg_device_get_state(device);
 	switch (dev_state) {
@@ -251,32 +284,100 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	jobj = json_object_new_int(accfg_device_get_max_tokens(device));
 	if (!jobj)
 		goto err;
-	json_object_object_add(jdevice, "max_tokens", jobj);
+	if (accfg_device_get_type(device) != ACCFG_DEVICE_IAX)
+		json_object_object_add(jdevice, "max_tokens", jobj);
 
-	jobj = json_object_new_int(accfg_device_get_max_batch_size(device));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jdevice, "max_batch_size", jobj);
+	ulong_val = accfg_device_get_max_batch_size(device);
+	if (ulong_val > 0) {
+		jobj = json_object_new_int(ulong_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "max_batch_size", jobj);
+	}
 
-	jobj = json_object_new_int(accfg_device_get_max_batch_size(device));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jdevice, "max_batch_size", jobj);
+	int_val = accfg_device_get_ims_size(device);
+	if (int_val >= 0) {
+		jobj = json_object_new_int(int_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "ims_size", jobj);
+	}
 
-	jobj = json_object_new_int64(accfg_device_get_max_transfer_size(device));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jdevice, "max_transfer_size", jobj);
+	int_val = accfg_device_get_max_batch_size(device);
+	if (int_val >= 0) {
+		jobj = json_object_new_int(int_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "max_batch_size", jobj);
+	}
 
-	jobj = json_object_new_int(accfg_device_get_configurable(device));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jdevice, "configurable", jobj);
+	ullong_val = accfg_device_get_max_transfer_size(device);
+	if (ullong_val > 0) {
+		jobj = json_object_new_int64(ullong_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "max_transfer_size", jobj);
+	}
+
+	int_val = accfg_device_get_configurable(device);
+	if (int_val >= 0) {
+		jobj = json_object_new_int(int_val);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "configurable", jobj);
+	}
+
+	new_bool = accfg_device_get_pasid_enabled(device);
+	if (new_bool) {
+		jobj = json_object_new_int(new_bool);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "pasid_enabled", jobj);
+	}
 
 	jobj = json_object_new_int(accfg_device_get_cdev_major(device));
 	if (!jobj)
 		goto err;
 	json_object_object_add(jdevice, "cdev_major", jobj);
+
+	jobj = json_object_new_int(accfg_device_get_clients(device));
+	if (!jobj)
+		goto err;
+	json_object_object_add(jdevice, "clients", jobj);
+
+	jobj = json_object_new_array();
+	accfg_device_mdev_foreach(device, mdev) {
+		uuid_t uuid;
+		const char *mdev_type;
+
+		accfg_mdev_get_uuid(mdev, uuid);
+		uuid_unparse(uuid, uuid_string);
+		json_uuid = json_object_new_string(uuid_string);
+		if (!json_uuid)
+			break;
+		mdev_type = accfg_mdev_basenames[accfg_mdev_get_type(mdev)];
+		json_mtype = json_object_new_string(mdev_type);
+		if (!json_mtype) {
+			json_object_put(json_uuid);
+			break;
+		}
+		json_mdev = json_object_new_object();
+		if (!json_mdev) {
+			json_object_put(json_uuid);
+			json_object_put(json_mtype);
+			break;
+		}
+		json_object_object_add(json_mdev, "uuid", json_uuid);
+		json_object_object_add(json_mdev, "type", json_mtype);
+		json_object_array_add(jobj, json_mdev);
+		mdev_found++;
+	}
+	if (mdev_found)
+		json_object_object_add(jdevice, "mdevs", jobj);
+	else
+		json_object_put(jobj);
+
+	free(error);
 	return jdevice;
 err:
 	free(error);
@@ -292,16 +393,15 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	unsigned long size = ULLONG_MAX;
 	enum accfg_wq_mode wq_mode;
 	enum accfg_wq_state wq_state;
-	const uuid_t *wq_uuid;
-	struct json_object *json_uuid;
-	char uuid_string[UUID_STR_LEN];
+	int int_val;
 
 	if (!jaccfg)
 		return NULL;
 
 	wq_state = accfg_wq_get_state(wq);
 	/* Don't display idle wqs */
-	if (wq_state != ACCFG_WQ_ENABLED && !(flags & UTIL_JSON_IDLE))
+	if (wq_state != ACCFG_WQ_ENABLED && wq_state != ACCFG_WQ_LOCKED &&
+			!(flags & UTIL_JSON_IDLE))
 		goto err;
 
 	jobj = json_object_new_string(accfg_wq_get_devname(wq));
@@ -329,9 +429,24 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	if (jobj)
 		json_object_object_add(jaccfg, "group_id", jobj);
 
-	jobj = json_object_new_int(accfg_wq_get_priority(wq));
+	int_val = accfg_wq_get_priority(wq);
+	if (int_val >= 0) {
+		jobj = json_object_new_int(int_val);
+		if (jobj)
+			json_object_object_add(jaccfg, "priority", jobj);
+	}
+
+	jobj = json_object_new_int(accfg_wq_get_block_on_fault(wq));
 	if (jobj)
-		json_object_object_add(jaccfg, "priority", jobj);
+		json_object_object_add(jaccfg, "block_on_fault", jobj);
+
+	jobj = json_object_new_int(accfg_wq_get_max_batch_size(wq));
+	if (jobj)
+		json_object_object_add(jaccfg, "max_batch_size", jobj);
+
+	jobj = json_object_new_int64(accfg_wq_get_max_transfer_size(wq));
+	if (jobj)
+		json_object_object_add(jaccfg, "max_transfer_size", jobj);
 
 	if (!(flags & UTIL_JSON_SAVE)) {
 		jobj = json_object_new_int(accfg_wq_get_cdev_minor(wq));
@@ -352,7 +467,6 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 		json_object_object_add(jaccfg, "threshold", jobj);
 
 	if (!(flags & UTIL_JSON_SAVE)) {
-		int uuid_found = 0;
 
 		switch (wq_state) {
 		case ACCFG_WQ_DISABLED:
@@ -364,6 +478,9 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 		case ACCFG_WQ_QUIESCING:
 			jobj = json_object_new_string("quiescing");
 			break;
+		case ACCFG_WQ_LOCKED:
+			jobj = json_object_new_string("locked");
+			break;
 		case ACCFG_WQ_UNKNOWN:
 		default:
 			jobj = json_object_new_string("unknown");
@@ -372,21 +489,9 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 		if (jobj)
 			json_object_object_add(jaccfg, "state", jobj);
 
-		/* UUID can't be programmed through config file */
-		jobj = json_object_new_array();
-		accfg_wq_uuid_foreach(wq, wq_uuid) {
-			uuid_unparse(*wq_uuid, uuid_string);
-			json_uuid = json_object_new_string(uuid_string);
-			if (json_uuid)
-				json_object_array_add(jobj, json_uuid);
-			else
-				break;
-			uuid_found++;
-		}
-		if (uuid_found)
-			json_object_object_add(jaccfg, "uuid", jobj);
-		else
-			json_object_put(jobj);
+		jobj = json_object_new_int(accfg_wq_get_clients(wq));
+		if (jobj)
+			json_object_object_add(jaccfg, "clients", jobj);
 	}
 
 	return jaccfg;

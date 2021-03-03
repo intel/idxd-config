@@ -19,8 +19,11 @@ Documentation/accfg/asciidoctor-extensions.rb
 *.a
 accfg/lib/libaccfg.pc
 accfg/accfg
+accfg/accel-config
 rhel/
 sles/accfg.spec
+test/dsa_test
+test/libaccfg
 util/log.lo
 util/sysfs.lo
 version.m4
@@ -36,3 +39,9 @@ tags
 *.?~
 m4
 log
+*.log
+*.trs
+*.la
+*.lo
+*.pc
+config.h

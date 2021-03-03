@@ -33,6 +33,23 @@ man1_MANS = \
 	accel-config-remove-mdev.1 \
 	accel-config-create-mdev.1
 
+EXTRA_DIST = \
+	$(man1_MANS) \
+	accel-config.txt \
+	accel-config-list.txt \
+	accel-config-load-config.txt \
+	accel-config-save-config.txt \
+	accel-config-config-device.txt \
+	accel-config-config-engine.txt \
+	accel-config-config-group.txt \
+	accel-config-config-wq.txt \
+	accel-config-disable-device.txt \
+	accel-config-disable-wq.txt \
+	accel-config-enable-wq.txt \
+	accel-config-enable-device.txt \
+	accel-config-remove-mdev.txt \
+	accel-config-create-mdev.txt
+
 CLEANFILES = $(man1_MANS)
 
 XML_DEPS = \

@@ -18,6 +18,12 @@ accel-config disable-wq dsa0/wq0.0
 
 include::../copyright.txt[]
 
+OPTIONS
+-------
+-f::
+--force::
+	Force the disabling of the wq even if there are clients using the wq.
+
 SEE ALSO
 --------
 linkaccel-config:accel-config-enable-wq[1]

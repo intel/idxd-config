@@ -2,7 +2,7 @@
 set -e
 
 NAME=accel-config
-REFDIR="$HOME/git/accel-config"  # for faster cloning, if available
+REFDIR=$(pwd)
 UPSTREAM=$REFDIR #TODO update once we have a public upstream
 OUTDIR=$HOME/rpmbuild/SOURCES
 

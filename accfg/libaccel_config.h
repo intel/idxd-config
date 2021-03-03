@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.0 */
+// SPDX-License-Identifier: LGPL-2.1
 /* Copyright(c) 2019 Intel Corporation. All rights reserved. */
 
 #ifndef _LIBACCFG_H_
@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <uuid/uuid.h>
+#include <util/filter.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,6 +29,12 @@ extern "C" {
 #define UUID_ZERO "00000000-0000-0000-0000-000000000000"
 
 /* no need to save device state */
+enum accfg_device_type {
+	ACCFG_DEVICE_DSA = 0,
+	ACCFG_DEVICE_IAX = 1,
+	ACCFG_DEVICE_TYPE_UNKNOWN = -1,
+};
+
 enum accfg_device_state {
 	ACCFG_DEVICE_DISABLED = 0,
 	ACCFG_DEVICE_ENABLED = 1,
@@ -41,17 +48,17 @@ enum accfg_wq_mode {
 };
 
 enum accfg_wq_state {
-	ACCFG_WQ_DISABLED = 0,
-	ACCFG_WQ_ENABLED = 1,
-	ACCFG_WQ_QUIESCING = 2,
+	ACCFG_WQ_DISABLED,
+	ACCFG_WQ_ENABLED,
+	ACCFG_WQ_QUIESCING,
+	ACCFG_WQ_LOCKED,
 	ACCFG_WQ_UNKNOWN = -1,
 };
 
 enum accfg_wq_type {
 	ACCFG_WQT_NONE = 0,
 	ACCFG_WQT_KERNEL,
-	ACCFG_WQT_USER,
-	ACCFG_WQT_MDEV,
+	ACCFG_WQT_USER
 };
 
 enum accfg_control_flag {
@@ -59,6 +66,12 @@ enum accfg_control_flag {
 	ACCFG_DEVICE_ENABLE,
 	ACCFG_WQ_ENABLE,
 	ACCFG_WQ_DISABLE,
+};
+
+enum accfg_mdev_type {
+	ACCFG_MDEV_TYPE_1_DWQ,
+	ACCFG_MDEV_TYPE_1_SWQ,
+	ACCFG_MDEV_TYPE_UNKNOWN,
 };
 
 /* no need to save device error */
@@ -72,6 +85,7 @@ struct dev_parameters {
 };
 
 extern char *accfg_basenames[];
+extern char *accfg_mdev_basenames[];
 
 struct group_parameters {
 	unsigned int tokens_reserved;
@@ -87,10 +101,11 @@ struct wq_parameters {
 	unsigned int threshold;
 	unsigned int priority;
 	int block_on_fault;
+	unsigned int max_batch_size;
+	unsigned long max_transfer_size;
 	const char *mode;
 	const char *type;
 	const char *name;
-	const char *uuid_str;
 };
 
 struct engine_parameters {
@@ -126,7 +141,7 @@ void (*log_fn) (struct accfg_ctx * ctx,
 struct accfg_device;
 /* Helper function to enable/disable the part in device */
 int accfg_device_enable(struct accfg_device *device);
-int accfg_device_disable(struct accfg_device *device);
+int accfg_device_disable(struct accfg_device *device, bool force);
 
 /* Helper function to double check the state of the device/wq after enable/disable */
 struct accfg_device *accfg_device_get_first(struct accfg_ctx *ctx);
@@ -138,6 +153,8 @@ struct accfg_device *accfg_device_get_next(struct accfg_device *device);
 struct accfg_ctx *accfg_device_get_ctx(struct accfg_device *);
 const char *accfg_device_get_devname(struct accfg_device *device);
 int accfg_device_type_validate(const char *dev_name);
+enum accfg_device_type accfg_device_get_type(struct accfg_device *device);
+char *accfg_device_get_type_str(struct accfg_device *device);
 int accfg_device_get_id(struct accfg_device *device);
 struct accfg_device *accfg_ctx_device_get_by_id(struct accfg_ctx *ctx,
 		int id);
@@ -152,16 +169,36 @@ unsigned int accfg_device_get_ims_size(struct accfg_device *device);
 unsigned int accfg_device_get_max_batch_size(struct accfg_device *device);
 unsigned long accfg_device_get_max_transfer_size(struct accfg_device *device);
 unsigned long accfg_device_get_op_cap(struct accfg_device *device);
+unsigned long accfg_device_get_gen_cap(struct accfg_device *device);
 unsigned int accfg_device_get_configurable(struct accfg_device *device);
 bool accfg_device_get_pasid_enabled(struct accfg_device  *device);
+bool accfg_device_get_mdev_enabled(struct accfg_device *device);
 int accfg_device_get_errors(struct accfg_device *device, struct accfg_error *error);
 enum accfg_device_state accfg_device_get_state(struct accfg_device *device);
 unsigned int accfg_device_get_max_tokens(struct accfg_device *device);
 unsigned int accfg_device_get_max_batch_size(struct accfg_device *device);
 unsigned int accfg_device_get_token_limit(struct accfg_device *device);
 unsigned int accfg_device_get_cdev_major(struct accfg_device *device);
+unsigned int accfg_device_get_version(struct accfg_device *device);
+int accfg_device_get_clients(struct accfg_device *device);
 int accfg_device_set_token_limit(struct accfg_device *dev, int val);
 int accfg_device_is_active(struct accfg_device *device);
+int accfg_device_get_cmd_status(struct accfg_device *device);
+const char * accfg_device_get_cmd_status_str(struct accfg_device *device);
+
+struct accfg_device_mdev;
+struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device);
+struct accfg_device_mdev *accfg_device_next_mdev(struct accfg_device_mdev *mdev);
+void accfg_mdev_get_uuid(struct accfg_device_mdev *mdev, uuid_t uuid);
+enum accfg_mdev_type accfg_mdev_get_type(struct accfg_device_mdev *mdev);
+int accfg_create_mdev(struct accfg_device *device, enum accfg_mdev_type type,
+		uuid_t uuid);
+int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid);
+
+#define accfg_device_mdev_foreach(device, mdev) \
+	for (mdev = accfg_device_first_mdev(device); \
+		mdev != NULL; \
+		mdev = accfg_device_next_mdev(mdev))
 
 /* libaccfg function for group */
 struct accfg_group;
@@ -195,19 +232,12 @@ int accfg_group_set_traffic_class_b(struct accfg_group *group, int val);
 struct accfg_wq;
 struct accfg_wq *accfg_wq_get_first(struct accfg_device *device);
 struct accfg_wq *accfg_wq_get_next(struct accfg_wq *wq);
-uuid_t *accfg_wq_first_uuid(struct accfg_wq *wq);
-uuid_t *accfg_wq_next_uuid(struct accfg_wq *wq);
 
 
 #define accfg_wq_foreach(device, wq) \
         for (wq = accfg_wq_get_first(device); \
              wq != NULL; \
              wq = accfg_wq_get_next(wq))
-
-#define accfg_wq_uuid_foreach(wq, uuid) \
-        for (uuid = accfg_wq_first_uuid(wq); \
-             uuid != NULL; \
-             uuid = accfg_wq_next_uuid(wq))
 
 struct accfg_ctx *accfg_wq_get_ctx(struct accfg_wq *wq);
 struct accfg_device *accfg_wq_get_device(struct accfg_wq *wq);
@@ -226,23 +256,26 @@ enum accfg_wq_state accfg_wq_get_state(struct accfg_wq *wq);
 int accfg_wq_get_cdev_minor(struct accfg_wq *wq);
 const char *accfg_wq_get_type_name(struct accfg_wq *wq);
 enum accfg_wq_type accfg_wq_get_type(struct accfg_wq *wq);
+unsigned int accfg_wq_get_max_batch_size(struct accfg_wq *wq);
+unsigned long accfg_wq_get_max_transfer_size(struct accfg_wq *wq);
 int accfg_wq_get_threshold(struct accfg_wq *wq);
+int accfg_wq_get_clients(struct accfg_wq *wq);
 int accfg_wq_is_enabled(struct accfg_wq *wq);
 int accfg_wq_set_size(struct accfg_wq *wq, int val);
 int accfg_wq_set_priority(struct accfg_wq *wq, int val);
 int accfg_wq_set_group_id(struct accfg_wq *wq, int val);
 int accfg_wq_set_threshold(struct accfg_wq *wq, int val);
 int accfg_wq_set_block_on_fault(struct accfg_wq *wq, int val);
+int accfg_wq_set_max_batch_size(struct accfg_wq *wq, int val);
+int accfg_wq_set_max_transfer_size(struct accfg_wq *wq, unsigned long val);
 int accfg_wq_set_str_mode(struct accfg_wq *wq, const char* val);
 int accfg_wq_set_mode(struct accfg_wq *wq, enum accfg_wq_mode mode);
 int accfg_wq_set_str_type(struct accfg_wq *wq, const char* val);
 int accfg_wq_set_str_name(struct accfg_wq *wq, const char *val);
 int accfg_wq_enable(struct accfg_wq *wq);
-int accfg_wq_disable(struct accfg_wq *wq);
+int accfg_wq_disable(struct accfg_wq *wq, bool force);
 int accfg_wq_priority_boundary(struct accfg_wq *wq);
 int accfg_wq_size_boundary(struct accfg_device *device, int wq_num);
-int accfg_wq_create_mdev(struct accfg_wq *wq, uuid_t uuid);
-int accfg_wq_remove_mdev(struct accfg_wq *wq, uuid_t uuid);
 
 /* libaccfg function for engine */
 struct accfg_engine;

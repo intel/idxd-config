@@ -60,10 +60,10 @@ int accfg_test_result(struct accfg_test *test, int rc)
 		fprintf(stderr, "attempted: %d skipped: %d\n",
 				accfg_test_get_attempted(test),
 				accfg_test_get_skipped(test));
-	if (rc && rc != 77)
+	if (rc && rc != EXIT_SKIP)
 		return rc;
 	if (accfg_test_get_skipped(test) >= accfg_test_get_attempted(test))
-		return 77;
+		return EXIT_SKIP;
 	/* return success if no failures and at least one test not skipped */
 	return 0;
 }

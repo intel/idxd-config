@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: LGPL-2.1
 /* Copyright(c) 2019 Intel Corporation. All rights reserved. */
 
 #ifndef _LIBACCFG_PRIVATE_H_
@@ -30,9 +30,12 @@ struct accfg_device {
         struct list_node list;
 	int group_init;
         char *device_path;
+	char *mdev_path;
         char *device_buf;
-	char *device_type;
+	char *device_type_str;
+	enum accfg_device_type type;
         size_t buf_len;
+	struct list_head mdev_list;
 
 	/* Device Attributes */
 	struct accfg_error errors;
@@ -47,9 +50,18 @@ struct accfg_device {
 	int max_tokens;
 	unsigned int token_limit;
 	unsigned int cdev_major;
+	unsigned int version;
 	unsigned long max_transfer_size;
 	unsigned long opcap;
+	unsigned long gencap;
 	char *pasid_enabled;
+};
+
+struct accfg_device_mdev {
+	struct accfg_device *device;
+	uuid_t uuid;
+	enum accfg_mdev_type type;
+	struct list_node list;
 };
 
 struct accfg_group {
@@ -94,8 +106,6 @@ struct accfg_wq {
 	struct accfg_device *device;
         struct accfg_group *group;
 	struct list_node list;
-	struct list_head uuid_list;
-	struct accfg_wq_uuid *iter;
 	char *wq_path;
         char *wq_buf;
         int id, buf_len;
@@ -108,17 +118,13 @@ struct accfg_wq {
 	int priority;
 	int block_on_fault;
 	int cdev_minor;
-	int uuids;
 	unsigned int threshold;
 	char *mode;
 	char *name;
 	enum accfg_wq_type type;
 	char *state;
-};
-
-struct accfg_wq_uuid {
-	uuid_t uuid;
-	struct list_node list;
+	unsigned int max_batch_size;
+	unsigned long max_transfer_size;
 };
 
 #define ACCFG_EXPORT __attribute__ ((visibility("default")))

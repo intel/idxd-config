@@ -14,6 +14,7 @@
 #define __TEST_H__
 #include <stdbool.h>
 
+#define EXIT_SKIP 77
 struct accfg_test;
 struct accfg_ctx;
 struct util_filter_ctx;

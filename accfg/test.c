@@ -9,7 +9,7 @@
 
 static char *result(int rc)
 {
-	if (rc == 77)
+	if (rc == EXIT_SKIP)
 		return "SKIP";
 	else if (rc)
 		return "FAIL";
@@ -25,12 +25,9 @@ int cmd_test(int argc, const char **argv, struct accfg_ctx *ctx)
 		"accel-config test [<options>]",
 		NULL
 	};
-	bool force = false;
 	const struct option options[] = {
 	OPT_INTEGER('l', "loglevel", &loglevel,
 		"set the log level (default LOG_DEBUG)"),
-	OPT_BOOLEAN('f', "force", &force,
-		"force run all tests regardless of required kernel"),
 	OPT_END(),
 	};
 
@@ -42,8 +39,6 @@ int cmd_test(int argc, const char **argv, struct accfg_ctx *ctx)
 	if (argc)
 		usage_with_options(u, options);
 
-	if (force)
-		test = accfg_test_new(UINT_MAX);
 	else
 		test = accfg_test_new(0);
 	if (!test)
@@ -52,7 +47,7 @@ int cmd_test(int argc, const char **argv, struct accfg_ctx *ctx)
 	printf("run test_libaccfg\n");
 	rc = test_libaccfg(loglevel, test, ctx);
 	fprintf(stderr, "test-libaccfg: %s\n", result(rc));
-	if (rc && rc != 77)
+	if (rc)
 		return rc;
 	printf("SUCCESS!\n");
 

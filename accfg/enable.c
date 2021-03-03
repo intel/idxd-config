@@ -32,10 +32,17 @@ enum wq_action {
 
 static struct {
 	bool verbose;
+	bool force;
 } param;
 
 static const struct option device_options[] = {
 	OPT_BOOLEAN('v', "verbose", &param.verbose, "turn on debug"),
+	OPT_END(),
+};
+
+static const struct option device_disable_options[] = {
+	OPT_BOOLEAN('v', "verbose", &param.verbose, "turn on debug"),
+	OPT_BOOLEAN('f', "force", &param.force, "force action"),
 	OPT_END(),
 };
 
@@ -47,7 +54,7 @@ static int action_disable_device(struct accfg_device *device)
 		return -EBUSY;
 	}
 
-	return accfg_device_disable(device);
+	return accfg_device_disable(device, param.force);
 }
 
 static int action_enable_device(struct accfg_device *device)
@@ -127,8 +134,14 @@ static int device_action(int argc, const char **argv, const char *usage,
 				else
 					fail++;
 			} else if (!fail) {
+				const char *status;
+
 				fail_reason = rc;
 				fprintf(stderr, "failed in %s\n", argv[i]);
+
+				status = accfg_device_get_cmd_status_str(device);
+				if (status)
+					fprintf(stderr, "device cmd err: %s.\n", status);
 			}
 		}
 
@@ -181,16 +194,16 @@ static int action_disable_wq(struct accfg_wq *wq, const char *wq_name)
 			wq_name);
 		return -EBUSY;
 	}
-	return accfg_wq_disable(wq);
+	return accfg_wq_disable(wq, param.force);
 }
 
 static int action_enable_wq(struct accfg_wq *wq, const char *wq_name)
 {
 	enum accfg_wq_state wq_state = accfg_wq_get_state(wq);
 
-	if (wq_state == ACCFG_WQ_ENABLED) {
+	if (wq_state == ACCFG_WQ_ENABLED || wq_state == ACCFG_WQ_LOCKED) {
 		fprintf(stderr,
-			"%s is in enabled mode already, skipping...\n",
+			"%s is in enabled or locked mode, skipping...\n",
 			wq_name);
 		return -ENXIO;
 	} else if (wq_state == ACCFG_WQ_QUIESCING) {
@@ -283,9 +296,13 @@ static int wq_action(int argc, const char **argv, const char *usage,
 					else
 						fail++;
 				} else if (!fail) {
+					const char *status;
+
 					fail_reason = rc;
-					fprintf(stderr, "failed in %s\n",
-						wq_name);
+					fprintf(stderr, "failed in %s\n", wq_name);
+					status = accfg_device_get_cmd_status_str(device);
+					if (status)
+						fprintf(stderr, "device cmd err: %s.\n", status);
 				}
 			}
 		}
@@ -328,7 +345,7 @@ int cmd_disable_device(int argc, const char **argv, void *ctx)
 {
 	char *usage =
 	    "accel-config disable-device <accel_basename0> [<accel_basename1>..<accel_basenameN>] [<options>]";
-	int count = device_action(argc, argv, usage, device_options,
+	int count = device_action(argc, argv, usage, device_disable_options,
 				  DEV_ACTION_DISABLE, ctx);
 	return count >= 0 ? 0 : EXIT_FAILURE;
 }
@@ -346,7 +363,7 @@ int cmd_disable_wq(int argc, const char **argv, void *ctx)
 {
 	char *usage =
 	    "accel-config disable-wq <accel_basenameX>/<wqX.0> [<wqX.1>..<wqX.N>] [<options>] X is the device number where wq belongs to";
-	int count = wq_action(argc, argv, usage, device_options,
+	int count = wq_action(argc, argv, usage, device_disable_options,
 			      WQ_ACTION_DISABLE, ctx);
 	return count >= 0 ? 0 : EXIT_FAILURE;
 }

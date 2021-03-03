@@ -13,6 +13,7 @@ accel_config_SOURCES = accel-config.c \
 		 ../util/log.c \
 		list.c \
 		../util/json.c \
+		../util/json.h \
 		enable.c \
 		config_attr.c \
 		config.c \

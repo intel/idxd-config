@@ -59,9 +59,30 @@ OPTIONS
 	user case to request wq, "mdev" for mediated device driver use case to
 	request wq or "user" for regular character device driver use case to wq.
 
+-n::
+--name::
+	configure the name for the wq. This can be any string defined by the user.
+	Typically it is used for identifying the wq in some unique way. A possible
+	suggestion would be using a uuid string.
+
 -m::
 --mode::
 	configure the mode for the wq. The wq mode can be set as "dedicated" or
 	"shared".
+
+-c::
+--max-batch-size::
+	specify the max batch size used by a work queue. The value should be
+	between 1 and the device maximum batch size found in the
+	max_batch_size attribute under device. If the value is not a power
+	of 2, it will be rounded up to the next power of 2.
+
+-x::
+--max-transfer-size::
+	specify the max transfer size used by a work queue. The value should be
+	between 1 and the device maximum transfer size found in the
+	max_transfer_size attribute under device. If the value is not a power
+	of 2, it will be rounded up to the next power of 2.
+
 
 include::../copyright.txt[]

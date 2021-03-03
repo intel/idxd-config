@@ -34,6 +34,8 @@
 #define PORTAL_SIZE	4096
 #define BUF_SIZE	4096
 
+static bool mdev_disabled;
+
 struct accfg_wq_ctx {
 	int major;
 	int minor;
@@ -52,7 +54,7 @@ static struct dev_parameters device1_param = {
 
 static struct group_parameters group00_param = {
 	.tokens_reserved = 1,
-	.tokens_allowed = 1,
+	.tokens_allowed = 8,
 	.use_token_limit = 1,
 	.traffic_class_a = 2,
 	.traffic_class_b = 3
@@ -60,7 +62,7 @@ static struct group_parameters group00_param = {
 
 static struct group_parameters group01_param = {
 	.tokens_reserved = 1,
-	.tokens_allowed = 1,
+	.tokens_allowed = 8,
 	.use_token_limit = 0,
 	.traffic_class_a = 4,
 	.traffic_class_b = 5
@@ -68,7 +70,7 @@ static struct group_parameters group01_param = {
 
 static struct group_parameters group13_param = {
 	.tokens_reserved = 1,
-	.tokens_allowed = 1,
+	.tokens_allowed = 8,
 	.use_token_limit = 0,
 	.traffic_class_a = 7,
 	.traffic_class_b = 7
@@ -78,7 +80,11 @@ static struct wq_parameters wq00_param = {
 	.group_id = 0,
 	.wq_size = 16,
 	.priority = 10,
-	.mode = "dedicated",
+	.block_on_fault = 1,
+	.threshold = 15,
+	.max_batch_size = 1,
+	.max_transfer_size = 1,
+	.mode = "shared",
 	.type = "user",
 	.name = "myapp1"
 };
@@ -87,6 +93,9 @@ static struct wq_parameters wq01_param = {
 	.group_id = 1,
 	.wq_size = 8,
 	.priority = 10,
+	.block_on_fault = 0,
+	.max_batch_size = (1 << 4),
+	.max_transfer_size = (1l << 16),
 	.mode = "dedicated",
 	.type = "user",
 	.name = "myapp2"
@@ -97,8 +106,12 @@ static struct wq_parameters wq02_param = {
 	.group_id = 0,
 	.wq_size = 16,
 	.priority = 10,
-	.mode = "dedicated",
-	.type = "mdev",
+	.block_on_fault = 1,
+	.threshold = 8,
+	.max_batch_size = (1 << 8),
+	.max_transfer_size = (1l << 30),
+	.mode = "shared",
+	.type = "user",
 	.name = "guest1"
 };
 
@@ -106,8 +119,11 @@ static struct wq_parameters wq03_param = {
 	.group_id = 1,
 	.wq_size = 7,
 	.priority = 10,
+	.block_on_fault = 0,
+	.max_batch_size = (1 << 9),
+	.max_transfer_size = (1l << 31),
 	.mode = "dedicated",
-	.type = "mdev",
+	.type = "user",
 	.name = "guest2"
 
 };
@@ -118,7 +134,11 @@ static struct wq_parameters wq12_param = {
 	.group_id = 3,
 	.wq_size = 64,
 	.priority = 15,
-	.mode = "dedicated",
+	.block_on_fault = 1,
+	.threshold = 50,
+	.max_batch_size = 1,
+	.max_transfer_size = 1,
+	.mode = "shared",
 	.type = "user",
 	.name = "myapp3"
 };
@@ -127,7 +147,11 @@ static struct wq_parameters wq13_param = {
 	.group_id = 3,
 	.wq_size = 64,
 	.priority = 15,
-	.mode = "dedicated",
+	.block_on_fault = 1,
+	.threshold = 50,
+	.max_batch_size = 1,
+	.max_transfer_size = 1,
+	.mode = "shared",
 	.type = "user",
 	.name = "myapp3"
 };
@@ -136,7 +160,11 @@ static struct wq_parameters wq14_param = {
 	.group_id = 3,
 	.wq_size = 64,
 	.priority = 15,
-	.mode = "dedicated",
+	.block_on_fault = 1,
+	.threshold = 50,
+	.max_batch_size = 1,
+	.max_transfer_size = 1,
+	.mode = "shared",
 	.type = "user",
 	.name = "myapp3"
 };
@@ -308,8 +336,10 @@ static int config_wq(struct accfg_ctx *ctx, int dev_id, int wq_id,
 
 			/* check if wq is disabled before configuration */
 			wstate = accfg_wq_get_state(wq);
-			if (wstate == ACCFG_WQ_ENABLED) {
-				fprintf(stderr, "wq%d in %s is in enabled mode and can not be configured\n", wq_id, dev_name);
+			if (wstate == ACCFG_WQ_ENABLED || wstate == ACCFG_WQ_LOCKED) {
+				fprintf(stderr,
+					"wq%d in %s is in enabled or locked mode and cannot be configured\n",
+					wq_id, dev_name);
 				continue;
 			}
 
@@ -319,6 +349,9 @@ static int config_wq(struct accfg_ctx *ctx, int dev_id, int wq_id,
 			accfg_wq_set_size(wq, wq_param.wq_size);
 			accfg_wq_set_group_id(wq, wq_param.group_id);
 			accfg_wq_set_priority(wq, wq_param.priority);
+			accfg_wq_set_block_on_fault(wq, wq_param.block_on_fault);
+			accfg_wq_set_max_batch_size(wq, wq_param.max_batch_size);
+			accfg_wq_set_max_transfer_size(wq, wq_param.max_transfer_size);
 			if (wq_param.threshold)
 				accfg_wq_set_threshold(wq, wq_param.threshold);
 		}
@@ -354,6 +387,26 @@ static int check_wq(struct accfg_ctx *ctx, int dev_id, int wq_id,
 			if (wq_param.priority !=
 					(unsigned int)accfg_wq_get_priority(wq)) {
 				fprintf(stderr, "check_wq failed on priority\n");
+				return -EINVAL;
+			}
+			if (wq_param.block_on_fault !=
+					accfg_wq_get_block_on_fault(wq)) {
+				fprintf(stderr, "check_wq failed on block_on_fault\n");
+				return -EINVAL;
+			}
+			if (wq_param.threshold !=
+					(unsigned int)accfg_wq_get_threshold(wq)) {
+				fprintf(stderr, "check_wq failed on threshold\n");
+				return -EINVAL;
+			}
+			if (wq_param.max_batch_size !=
+					accfg_wq_get_max_batch_size(wq)) {
+				fprintf(stderr, "%s failed on max_batch_size\n", __func__);
+				return -EINVAL;
+			}
+			if (wq_param.max_transfer_size !=
+					accfg_wq_get_max_transfer_size(wq)) {
+				fprintf(stderr, "%s failed on max_transfer_size\n", __func__);
 				return -EINVAL;
 			}
 			if (strcmp(wq_param.name, accfg_wq_get_type_name(wq)) != 0) {
@@ -424,41 +477,67 @@ static int check_engine(struct accfg_ctx *ctx, int dev_id, int engine_id,
 	return 0;
 }
 
-static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name)
+static int device_test_reset(struct accfg_ctx *ctx, const char *dev_name,
+		bool forced)
 {
 	int rc = 0;
 	struct accfg_device *device;
 	struct accfg_wq *wq;
 	enum accfg_wq_state wq_state;
+	uuid_t uuid;
 
 	device = accfg_ctx_device_get_by_name(ctx, dev_name);
+	if (!device)
+		return -EINVAL;
+
 	/* make sure device is disabled before configuration */
 	if (accfg_device_is_active(device)) {
+
+		if (!mdev_disabled) {
+			/* Remove all mdevs */
+			uuid_clear(uuid);
+			rc = accfg_remove_mdev(device, uuid);
+			if (rc && !forced) {
+				fprintf(stderr, "mdev removal failed\n");
+				return rc;
+			}
+		}
+
 		/* make sure each wq is disabled */
 		accfg_wq_foreach(device, wq) {
 			wq_state = accfg_wq_get_state(wq);
 
 			if (wq_state == ACCFG_WQ_DISABLED ||
 					wq_state == ACCFG_WQ_QUIESCING) {
-				fprintf(stderr, "%s is disabled already\n", accfg_wq_get_devname(wq));
 				continue;
 			}
 
-			rc = accfg_wq_disable(wq);
-			if (rc < 0) {
-				fprintf(stderr, "wq under %s disabled failed\n", dev_name);
+			rc = accfg_wq_disable(wq, true);
+			if (rc < 0 && !forced) {
+				fprintf(stderr, "wq under %s disable failed\n", dev_name);
 				return rc;
 			}
 		}
-		rc = accfg_device_disable(device);
+		rc = accfg_device_disable(device, true);
 		if (rc < 0) {
-			fprintf(stderr, "%s should be disabled before config but failed\n", dev_name);
+			fprintf(stderr, "%s disabling failed\n", dev_name);
 			return rc;
 		}
 	}
 
 	return 0;
 
+}
+
+static void test_cleanup(struct accfg_ctx *ctx)
+{
+	struct accfg_device *device;
+
+	accfg_device_foreach(ctx, device) {
+		const char *dev_name = accfg_device_get_devname(device);
+
+		device_test_reset(ctx, dev_name, true);
+	}
 }
 
 static int set_config(struct accfg_ctx *ctx, const char *dev_name)
@@ -669,12 +748,65 @@ static int set_exceed_config(struct accfg_ctx *ctx, const char *dev_name)
 	return 0;
 }
 
+static int wq_bounds_test(struct accfg_ctx *ctx, const char *dev_name)
+{
+	struct accfg_device *device;
+	int rc = 0;
+
+	printf("configure device 0, group 0.0, wq0.0 for bounds test\n");
+	rc = config_device(ctx, 0, device0_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config device %s failed\n", dev_name);
+		return rc;
+	}
+
+	device = accfg_ctx_device_get_by_name(ctx, dev_name);
+	if (!device)
+		return -EINVAL;
+
+	rc = config_group(ctx, 0, 0, group00_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config group group0.0 failed\n");
+		return rc;
+	}
+
+	/* should not be 0  */
+	wq00_param.max_batch_size = 0;
+	wq00_param.max_transfer_size = 0;
+	rc = config_wq(ctx, 0, 0, wq00_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config wq wq0.0 failed\n");
+		return rc;
+	}
+	/* should not be greater device max_batch_size/max_transfer_size */
+	wq00_param.max_batch_size =
+		(accfg_device_get_max_batch_size(device) << 1);
+	wq00_param.max_transfer_size =
+		(accfg_device_get_max_transfer_size(device) << 1);
+	rc = config_wq(ctx, 0, 0, wq00_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config wq wq0.0 failed\n");
+		return rc;
+	}
+
+	/* reset to valid values for following tests */
+	wq00_param.max_batch_size = 1;
+	wq00_param.max_transfer_size = 1;
+	rc = config_wq(ctx, 0, 0, wq00_param, dev_name);
+	if (rc != 0) {
+		fprintf(stderr, "config wq wq0.0 failed\n");
+		return rc;
+	}
+
+	return 0;
+}
+
 /* test the set and get libaccfg functions for all components in dsa0 */
-static int do_test0(struct accfg_ctx *ctx)
+static int test_config(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
-	rc = device_test_reset(ctx, "dsa0");
+	rc = device_test_reset(ctx, "dsa0", false);
 	if (rc != 0)
 		return rc;
 
@@ -685,51 +817,239 @@ static int do_test0(struct accfg_ctx *ctx)
 
 	/* get configuration to see if match */
 	rc = check_config(ctx, "dsa0");
-	if (rc != 0) {
-		fprintf(stderr, "test 0: test the set and get libaccfg functions for components failed\n");
-		return rc;
-	}
-
-	rc = device_test_reset(ctx, "dsa0");
 	if (rc != 0)
 		return rc;
 
-	fprintf(stderr, "test 0: test the set and get libaccfg functions for components passed successfully\n");
+	rc = device_test_reset(ctx, "dsa0", false);
+	if (rc != 0)
+		return rc;
 
 	return 0;
 }
 
 /* set large wq to exceed max total size in dsa */
-static int do_test1(struct accfg_ctx *ctx)
+static int test_max_wq_size(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
-	rc = device_test_reset(ctx, "dsa1");
+	rc = device_test_reset(ctx, "dsa1", false);
 	if (rc != 0)
 		return rc;
 
 	rc = set_exceed_config(ctx, "dsa1");
-	if (rc != 0) {
-		fprintf(stderr, "test 1: set large wq to exceed max total size in dsa failed\n");
-		return rc;
-	}
-
-	rc = device_test_reset(ctx, "dsa1");
 	if (rc != 0)
 		return rc;
 
-	fprintf(stderr, "test 1: set large wq to exceed max total size in dsa passed successfully\n");
+	rc = device_test_reset(ctx, "dsa1", false);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
+/* test the boundary conditions for wq max_batch_size and max_transfer_size */
+static int test_wq_boundary_conditions(struct accfg_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = device_test_reset(ctx, "dsa0", false);
+	if (rc != 0)
+		return rc;
+
+	rc = wq_bounds_test(ctx, "dsa0");
+	if (rc != 0)
+		return rc;
+
+	rc = device_test_reset(ctx, "dsa0", false);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
+static int mdev_test(struct accfg_ctx *ctx, const char *dev_name,
+		char *mdev_type_str, int num_mdevs)
+{
+	struct accfg_device *device;
+	enum accfg_mdev_type type;
+	int rc, i;
+	char **m;
+	uuid_t uuid;
+
+	device = accfg_ctx_device_get_by_name(ctx, dev_name);
+	if (!device) {
+		fprintf(stderr, "Device %s not found\n", dev_name);
+		return -EINVAL;
+	}
+
+	for (m = accfg_mdev_basenames, type = 0; *m; m++, type++)
+		if (!strcmp(*m, mdev_type_str))
+			break;
+
+	if (!*m) {
+		fprintf(stderr, "Invalid mdev type\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_mdevs; i++) {
+		rc = accfg_create_mdev(device, type, uuid);
+		if (rc) {
+			fprintf(stderr, "mdev creation failed\n");
+			return rc;
+		}
+	}
+
+	/* Remove all mdevs */
+	uuid_clear(uuid);
+	rc = accfg_remove_mdev(device, uuid);
+	if (rc) {
+		fprintf(stderr, "mdev removal failed\n");
+		return rc;
+	}
+
+	return rc;
+}
+
+static int enable_wq(struct accfg_ctx *ctx, const char *dev_name, int wq_id)
+{
+	struct accfg_device *device;
+	struct accfg_wq *wq;
+	enum accfg_wq_state wq_state;
+	int rc;
+
+	device = accfg_ctx_device_get_by_name(ctx, dev_name);
+	if (!device) {
+		fprintf(stderr, "Device %s not found\n", dev_name);
+		return -EINVAL;
+	}
+	if (!accfg_device_is_active(device)) {
+		rc = accfg_device_enable(device);
+		if (rc < 0) {
+			fprintf(stderr, "device enable of %s failed\n",
+					dev_name);
+			return rc;
+		}
+	}
+
+	wq = accfg_device_wq_get_by_id(device, wq_id);
+	if (!wq) {
+		fprintf(stderr, "wq with id %d not found for device %s\n",
+				wq_id, dev_name);
+		return -EINVAL;
+	}
+
+	wq_state = accfg_wq_get_state(wq);
+	if (wq_state == ACCFG_WQ_ENABLED || wq_state == ACCFG_WQ_LOCKED)
+		return 0;
+
+	return accfg_wq_enable(wq);
+}
+
+/* test 1swq type mdev creation and removal */
+static int test_mdev_1swq(struct accfg_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = device_test_reset(ctx, "dsa0", false);
+	if (rc)
+		return rc;
+
+	rc = set_config(ctx, "dsa0");
+	if (rc != 0)
+		return rc;
+
+	rc = enable_wq(ctx, "dsa0", 2);
+	if (rc) {
+		fprintf(stderr, "enable wq wq0.2 failed");
+		return rc;
+	}
+
+	/* create and remove 5 1swq mdevs */
+	rc = mdev_test(ctx, "dsa0", "1swq", 5);
+	if (rc)
+		return rc;
+
+	rc = device_test_reset(ctx, "dsa0", false);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+/* test 1dwq type mdev creation and removal */
+static int test_mdev_1dwq(struct accfg_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = device_test_reset(ctx, "dsa0", false);
+	if (rc)
+		return rc;
+
+	rc = set_config(ctx, "dsa0");
+	if (rc != 0)
+		return rc;
+
+	rc = enable_wq(ctx, "dsa0", 3);
+	if (rc) {
+		fprintf(stderr, "enable wq wq0.3 failed");
+		return rc;
+	}
+
+	/* create and remove 1 1dwq mdev */
+	rc = mdev_test(ctx, "dsa0", "1dwq", 1);
+	if (rc)
+		return rc;
+
+	rc = device_test_reset(ctx, "dsa0", false);
+	if (rc)
+		return rc;
+
 	return 0;
 }
 
 typedef int (*do_test_fn)(struct accfg_ctx *ctx);
-static do_test_fn do_test[] = {
-	do_test0,
-	do_test1
+struct _test_case {
+	do_test_fn test_fn;
+	char *desc;
+	bool enabled;
+	bool mdev;
+};
+
+static struct _test_case test_cases[] = {
+	{
+		.test_fn = test_config,
+		.desc = "set and get configurations",
+		.enabled = true,
+		.mdev = false,
+	},
+	{
+		.test_fn = test_max_wq_size,
+		.desc = "max wq size",
+		.enabled = true,
+		.mdev = false,
+	},
+	{
+		.test_fn = test_wq_boundary_conditions,
+		.desc = "wq boundary conditions",
+		.enabled = true,
+		.mdev = false,
+	},
+	{
+		.test_fn = test_mdev_1swq,
+		.desc = "1swq type mdev creation and removal",
+		.enabled = true,
+		.mdev = true,
+	},
+	{
+		.test_fn = test_mdev_1dwq,
+		.desc = "1dwq type mdev creation and removal",
+		.enabled = true,
+		.mdev = true,
+	},
 };
 
 static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
-		int log_level)
+		struct kmod_module **mdev_mod, int log_level)
 {
 	struct log_ctx log_ctx;
 	int rc;
@@ -747,8 +1067,30 @@ static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
 		kmod_unref(*ctx);
 		return rc;
 	}
-
+	rc = kmod_module_new_from_name(*ctx, "idxd_mdev", mdev_mod);
+	if (rc < 0) {
+		kmod_module_unref(*mod);
+		kmod_unref(*ctx);
+		return rc;
+	}
+	rc = kmod_module_get_initstate(*mdev_mod);
+	if (rc == -ENOENT)
+		rc = kmod_module_probe_insert_module(*mdev_mod, 0, NULL, NULL, NULL,
+				NULL);
+	if (rc < 0) {
+		kmod_module_unref(*mdev_mod);
+		*mdev_mod = NULL;
+		mdev_disabled = true;
+	}
 	rc = kmod_module_get_initstate(*mod);
+	if (rc == -ENOENT)
+		rc = kmod_module_probe_insert_module(*mod, 0, NULL, NULL, NULL,
+				NULL);
+	if (rc < 0) {
+		kmod_module_unref(*mod);
+		kmod_unref(*ctx);
+	}
+
 	return rc;
 }
 
@@ -758,18 +1100,18 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 	unsigned int i;
 	int err, result = EXIT_FAILURE;
 	struct kmod_ctx *kmod_ctx;
-	struct kmod_module *mod;
+	struct kmod_module *mod, *mdev_mod;
 	struct accfg_device *device;
 
 	if (!accfg_test_attempt(test, KERNEL_VERSION(5, 6, 0)))
-		return 77;
+		return EXIT_SKIP;
 
 	accfg_set_log_priority(ctx, loglevel);
-	err = idxd_kmod_init(&kmod_ctx, &mod, loglevel);
+	err = idxd_kmod_init(&kmod_ctx, &mod, &mdev_mod, loglevel);
 	if (err < 0) {
 		accfg_test_skip(test);
 		fprintf(stderr, "idxd kmod unavailable skipping tests\n");
-		return 77;
+		return EXIT_SKIP;
 	}
 
 	/*
@@ -780,23 +1122,50 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 		if (accfg_device_is_active(device)) {
 			accfg_test_skip(test);
 			fprintf(stderr, "device is active, skipping tests\n");
-			return 77;
+			return EXIT_SKIP;
+		}
+
+		/*
+		 * Skip tests if pasid not enabled as there's no good support for
+		 * when pasid support isn't there.
+		 */
+		if (!accfg_device_get_pasid_enabled(device)) {
+			accfg_test_skip(test);
+			fprintf(stderr, "device has no pasid support, skipping tests\n");
+			return EXIT_SKIP;
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(do_test); i++) {
-		err = do_test[i](ctx);
+	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
+		if (!test_cases[i].enabled) {
+			fprintf(stderr, "\naccfg-test%d *disabled*\n", i);
+			continue;
+		}
+
+		if (test_cases[i].mdev && mdev_disabled)
+			continue;
+
+		printf("\nRunning accfg-test%d: %s\n", i, test_cases[i].desc);
+		err = test_cases[i].test_fn(ctx);
 		if (err < 0) {
-			fprintf(stderr, "accfg-test%d failed: %d\n", i, err);
+			fprintf(stderr, "accfg-test%d *failed*: %d\n", i, err);
 			break;
 		}
+		printf("accfg-test%d passed!\n", i);
 	}
 
-	if (i >= ARRAY_SIZE(do_test))
+	if (i >= ARRAY_SIZE(test_cases))
 		result = EXIT_SUCCESS;
 
+	test_cleanup(ctx);
+
+	if (mdev_mod) {
+		kmod_module_remove_module(mdev_mod, 0);
+		kmod_module_unref(mdev_mod);
+	}
 	kmod_module_remove_module(mod, 0);
 	kmod_module_probe_insert_module(mod, 0, NULL, NULL, NULL, NULL);
+	kmod_module_unref(mod);
 	kmod_unref(kmod_ctx);
 
 	return result;

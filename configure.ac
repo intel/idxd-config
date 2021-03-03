@@ -8,7 +8,6 @@ AC_INIT([accel-config],
 AC_CONFIG_SRCDIR([accfg/lib/libaccfg.c])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([
-	check-news
 	foreign
 	1.11
 	-Wall
@@ -99,6 +98,7 @@ PKG_CHECK_MODULES([UUID], [uuid],
         [AC_DEFINE([HAVE_UUID], [1], [Define to 1 if using libuuid])])
 PKG_CHECK_MODULES([JSON], [json-c])
 PKG_CHECK_MODULES([KMOD], [libkmod])
+PKG_CHECK_MODULES([UDEV], [libudev])
 
 AC_ARG_WITH([bash-completion-dir],
 	AS_HELP_STRING([--with-bash-completion-dir[=PATH]],
@@ -169,7 +169,7 @@ AC_CONFIG_FILES([
         accfg/lib/Makefile
         accfg/Makefile
         test/Makefile
-	Documentation/accfg/Makefile
+        Documentation/accfg/Makefile
 ])
 
 AC_OUTPUT

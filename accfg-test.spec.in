@@ -41,13 +41,21 @@ Group:		System Environment/Libraries
 %description -n LNAME
 Libraries for %{name}.
 
+%package -n %{name}-test
+Summary:	Unit tests for %{name}.
+License:	GPLv2
+Group:		Unspecified
+
+%description -n %{name}-test
+Unit tests for %{name}
+
 %prep
 %setup -q accel-config-%{version}
 
 %build
 echo %{version} > version
 ./autogen.sh
-%configure --disable-static --disable-silent-rules
+%configure --disable-static --disable-silent-rules --enable-test
 make %{?_smp_mflags}
 
 %install
@@ -79,5 +87,10 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %{_includedir}/accel-config/
 %{_libdir}/libaccel-config.so
 %{_libdir}/pkgconfig/libaccel-config.pc
+
+%files -n %{name}-test
+%defattr(-,root,root)
+%license Documentation/COPYING LICENSE_GPL_2_0
+%{_datadir}/accel-config/test/*
 
 %changelog

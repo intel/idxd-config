@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.0
+// SPDX-License-Identifier: LGPL-2.1
 /* Copyright(c) 2019 Intel Corporation. All rights reserved. */
 
 #include <poll.h>
@@ -38,9 +38,54 @@ static char *filename_prefix;
 static int filename_prefix_len;
 
 ACCFG_EXPORT char *accfg_basenames[] = {
-	"dsa",
-	"iax",
+        [ACCFG_DEVICE_DSA]      = "dsa",
+	[ACCFG_DEVICE_IAX]      = "iax",
 	NULL
+};
+
+ACCFG_EXPORT char *accfg_mdev_basenames[] = {
+	[ACCFG_MDEV_TYPE_1_DWQ]      = "1dwq",
+	[ACCFG_MDEV_TYPE_1_SWQ]      = "1swq",
+	NULL
+};
+
+enum {
+	ACCFG_CMD_STATUS_MAX = 0x45,
+};
+
+const char *accfg_device_cmd_status[] = {
+	[0x1]	= "Invalid command code",
+	[0x2]	= "Invalid WQ index",
+	[0x3]	= "Internal or platform hardware error",
+	[0x4]	= "Non-zero reserved field in comand",
+	[0x10]	= "Device not disabled",
+	[0x11]	= "Unspecified error in config for device enable",
+	[0x12]	= "Bus master enable is 0",
+	[0x13]	= "PRSREQALLOC value unsupported",
+	[0x14]	= "Sum of WQCFG size fields out of range",
+	[0x15]	= "Invalid group config: lack of wq or engines",
+	[0x16]	= "Invalid group config: wq misconfigured",
+	[0x17]	= "Invalid group config: engine misconfigured",
+	[0x18]	= "Invalid group config: invalid bandwith tokens config",
+	[0x20]	= "Device not enabled",
+	[0x21]	= "WQ is not disabled",
+	[0x22]	= "WQ size is 0",
+	[0x23]	= "WQ priority is 0",
+	[0x24]	= "Invalid WQ mode",
+	[0x25]	= "Invalid block on fault setting",
+	[0x26]	= "Invalid value for WQ pasid enable",
+	[0x27]	= "Invalid WQ max batch size",
+	[0x28]	= "Invalid WQ max transfer size",
+	[0x2a]	= "PCIe pasid cap Priv mode enable = 0",
+	[0x2b]	= "Invalid WQ Occupancy Interrupt table or handle",
+	[0x2c]	= "WQ ATS config mismatched",
+	[0x31]	= "Device is not enabled",
+	[0x32]	= "WQ(s) not enabled",
+	[0x41]	= "Invalid interrupt table index",
+	[0x42]	= "No interrupt handle available",
+	[0x43]	= "No interrupt handles associated with the index",
+	[0x44]	= "No revoked handles associted with the index",
+	[ACCFG_CMD_STATUS_MAX]	= "",
 };
 
 static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
@@ -49,11 +94,9 @@ static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 	char buf[MAX_PARAM_LEN + 1];
 	int n;
 
-	if (fd == -1) {
-		err(ctx, "%s open %s failed: %s\n", __func__,
-				name, strerror(errno));
+	if (fd == -1)
 		return -errno;
-	}
+
 	n = read(fd, buf, MAX_PARAM_LEN);
 	close(fd);
 	if (n <= 0)
@@ -73,11 +116,8 @@ static unsigned long long accfg_get_param_unsigned_llong(
 	char buf[MAX_PARAM_LEN + 1];
 	int n;
 
-	if (fd == -1) {
-		err(ctx, "%s open %s failed: %s\n", __func__,
-				name, strerror(errno));
+	if (fd == -1)
 		return -errno;
-	}
 
 	n = read(fd, buf, MAX_PARAM_LEN);
 	close(fd);
@@ -97,11 +137,8 @@ static char *accfg_get_param_str(struct accfg_ctx *ctx, int dfd, char *name)
 	char buf[MAX_PARAM_LEN + 1];
 	int n;
 
-	if (fd == -1) {
-		err(ctx, "%s open %s failed: %s\n", __func__,
-				name, strerror(errno));
+	if (fd == -1)
 		return NULL;
-	}
 
 	n = read(fd, buf, MAX_PARAM_LEN);
 	close(fd);
@@ -114,6 +151,16 @@ static char *accfg_get_param_str(struct accfg_ctx *ctx, int dfd, char *name)
 		buf[n] = '\0';
 
 	return strdup(buf);
+}
+
+static void free_mdevs(struct accfg_device *device)
+{
+	struct accfg_device_mdev *mdev, *next;
+
+	list_for_each_safe(&device->mdev_list, mdev, next, list) {
+		list_del_from(&device->mdev_list, &mdev->list);
+		free(mdev);
+	}
 }
 
 static void free_engine(struct accfg_engine *engine)
@@ -158,11 +205,13 @@ static void free_device(struct accfg_device *device, struct list_head *head)
 		free_wq(wq);
 	list_for_each_safe(&device->engines, engine, engine_next, list)
 		free_engine(engine);
+	free_mdevs(device);
 
 	if (head)
 		list_del_from(head, &device->list);
 	free(device->device_path);
 	free(device->device_buf);
+	free(device->mdev_path);
 	free(device);
 }
 
@@ -206,7 +255,12 @@ ACCFG_EXPORT const char *accfg_engine_get_devname(
 static int is_enabled(struct accfg_device *device, const char *drvpath)
 {
 	struct stat st;
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_ctx *ctx;
+
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
 
 	if (lstat(drvpath, &st) < 0) {
 		err(ctx, "find symbolic link of device failed\n");
@@ -355,12 +409,95 @@ static int device_parse(struct accfg_ctx *ctx, const char *base_path,
 			filter, parent, add_dev);
 }
 
+static int device_parse_type(struct accfg_device *device)
+{
+	char **b;
+	int i;
+
+	for (b = accfg_basenames, i = 0; *b != NULL; b++, i++) {
+		if (!strcmp(device->device_type_str, *b)) {
+			device->type = i;
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+
+static int mdev_str_to_type(char *mdev_type_str)
+{
+	char **b;
+	int i;
+
+	for (b = accfg_mdev_basenames, i = 0; *b != NULL; b++, i++)
+		if (strstr(mdev_type_str, *b))
+			return i;
+
+	return ACCFG_MDEV_TYPE_UNKNOWN;
+}
+
+static int add_device_mdevs(struct accfg_ctx *ctx, struct accfg_device *dev)
+{
+	struct accfg_device_mdev *dev_mdev;
+	uuid_t uu;
+	struct dirent **d;
+	char *f, *mdev_type_str;
+	char p[PATH_MAX];
+	char mdev_path[PATH_MAX];
+	int n, n1, rc = 0;
+
+	n1 = n = scandir(dev->mdev_path, &d, NULL, alphasort);
+	if (n < 0) {
+		err(ctx, "scandir failed\n");
+		return -ENOENT;
+	}
+
+	while (n--) {
+		f = &d[n]->d_name[0];
+		if (*f == '.' || uuid_parse(f, uu))
+			continue;
+		sprintf(p, "%s/%s/mdev_type", dev->mdev_path, f);
+		if (!realpath(p, mdev_path))
+			continue;
+		dev_mdev = calloc(1,
+			sizeof(struct accfg_device_mdev));
+		if (!dev_mdev) {
+			err(ctx, "allocation failed\n");
+			rc = -ENOMEM;
+			goto exit_add_mdev;
+		}
+		uuid_copy(dev_mdev->uuid, uu);
+		mdev_type_str = strrchr(mdev_path, '/') + 1;
+		dev_mdev->device = dev;
+		dev_mdev->type = mdev_str_to_type(mdev_type_str);
+		if (dev_mdev->type == ACCFG_MDEV_TYPE_UNKNOWN) {
+			err(ctx, "mdev type error\n");
+			free(dev_mdev);
+			rc = -EINVAL;
+			goto exit_add_mdev;
+		}
+		list_add_tail(&dev->mdev_list, &dev_mdev->list);
+	}
+
+exit_add_mdev:
+	while (n1--)
+		free(d[n1]);
+	free(d);
+
+	if (rc)
+		free_mdevs(dev);
+
+	return rc;
+}
+
 static void *add_device(void *parent, int id, const char *ctl_base, char *dev_prefix)
 {
 	struct accfg_ctx *ctx = parent;
 	struct accfg_device *device;
 	char *path;
 	int dfd;
+	int rc;
+	char *p;
 
 	path = calloc(1, strlen(ctl_base) + MAX_PARAM_LEN);
 	if (!path) {
@@ -385,6 +522,7 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	list_head_init(&device->groups);
 	list_head_init(&device->wqs);
 	list_head_init(&device->engines);
+	list_head_init(&device->mdev_list);
 
 	device->ctx = ctx;
 	device->id = id;
@@ -396,22 +534,45 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	device->max_work_queues_size =
 		accfg_get_param_long(ctx, dfd, "max_work_queues_size");
 	device->numa_node = accfg_get_param_long(ctx, dfd, "numa_node");
+	device->ims_size = accfg_get_param_long(ctx, dfd, "ims_size");
 	device->max_batch_size = accfg_get_param_long(ctx, dfd,
 			"max_batch_size");
 	device->max_transfer_size =
 	    accfg_get_param_unsigned_llong(ctx, dfd, "max_transfer_size");
 	device->opcap = accfg_get_param_unsigned_llong(ctx, dfd, "op_cap");
+	device->gencap = accfg_get_param_unsigned_llong(ctx, dfd, "gen_cap");
 	device->configurable = accfg_get_param_unsigned_llong(ctx, dfd,
 			"configurable");
+	device->pasid_enabled = accfg_get_param_str(ctx, dfd,
+			"pasid_enabled");
 	device->max_tokens = accfg_get_param_long(ctx, dfd, "max_tokens");
 	device->token_limit = accfg_get_param_long(ctx, dfd, "token_limit");
 	device->cdev_major = accfg_get_param_long(ctx, dfd, "cdev_major");
+	device->version = accfg_get_param_unsigned_llong(ctx, dfd, "version");
 	device->device_path = realpath(ctl_base, NULL);
 	close(dfd);
 	if (!device->device_path) {
 		err(ctx, "get realpath of device_path failed\n");
 		goto err_dev_path;
 	}
+
+	device->mdev_path = strdup(device->device_path);
+	if (!device->mdev_path) {
+		err(ctx, "strdup of device_path failed\n");
+		goto err_dev_path;
+	}
+
+	if (asprintf(&p, "%s/%s", MDEV_BUS,
+			basename(dirname(device->mdev_path))) < 0) {
+		err(ctx, "device mdev_path allocation failed\n");
+		goto err_dev_path;
+	}
+	free(device->mdev_path);
+	if (access(p, R_OK)) {
+		free(p);
+		device->mdev_path = NULL;
+	} else
+		device->mdev_path = p;
 
 	device->device_buf = calloc(1, strlen(device->device_path) +
 			MAX_PARAM_LEN);
@@ -421,7 +582,14 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	}
 
 	device->buf_len = strlen(device->device_path) + MAX_BUF_LEN;
-	device->device_type = dev_prefix;
+	device->device_type_str = dev_prefix;
+	rc = device_parse_type(device);
+	if (rc < 0)
+		goto err_dev_path;
+
+	if (device->mdev_path && add_device_mdevs(ctx, device))
+		goto err_dev_path;
+
 	list_add_tail(&ctx->devices, &device->list);
 	free(path);
 
@@ -430,6 +598,7 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 err_dev_path:
 err_read:
 	free(device->device_buf);
+	free(device->mdev_path);
 	free(device);
 err_device:
 	free(path);
@@ -456,8 +625,6 @@ static int wq_parse_type(struct accfg_wq *wq, char *wq_type)
 		wq->type = ACCFG_WQT_KERNEL;
 	else if (strcmp(ptype, "user") == 0)
 		wq->type = ACCFG_WQT_USER;
-	else if (strcmp(ptype, "mdev") == 0)
-		wq->type = ACCFG_WQT_MDEV;
 	else
 		wq->type = ACCFG_WQT_NONE;
 
@@ -471,20 +638,19 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 {
 	struct accfg_wq *wq;
 	struct accfg_device *device = parent;
-	struct accfg_group *group = device->group;
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
-	struct accfg_wq_uuid *wq_uuid;
+	struct accfg_group *group;
+	struct accfg_ctx *ctx;
 	char *path;
 	char *wq_base_string;
-	char *read_uuid = NULL;
 	unsigned long device_id, wq_id;
 	int dfd;
-	int fd;
-	size_t len = 0;
-	ssize_t nread;
-	FILE *uuid_fd;
 	char *wq_type;
 
+	if (!device)
+		return NULL;
+
+	group = device->group;
+	ctx = accfg_device_get_ctx(device);
 	dfd = open(wq_base, O_PATH);
 	if (dfd < 0)
 		return NULL;
@@ -504,7 +670,6 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 		return NULL;
 	}
 
-	list_head_init(&wq->uuid_list);
 	wq_base_string = strdup(wq_base);
 	if (!wq_base_string) {
 		err(ctx, "conversion of wq_base_string failed\n");
@@ -524,46 +689,19 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	wq->group_id = accfg_get_param_long(ctx, dfd, "group_id");
 	wq->size = accfg_get_param_long(ctx, dfd, "size");
 	wq->priority = accfg_get_param_long(ctx, dfd, "priority");
+	wq->block_on_fault = accfg_get_param_long(ctx, dfd,
+			"block_on_fault");
 	wq->mode = accfg_get_param_str(ctx, dfd, "mode");
 	wq->state = accfg_get_param_str(ctx, dfd, "state");
 	wq->cdev_minor = accfg_get_param_long(ctx, dfd, "cdev_minor");
 	wq_type = accfg_get_param_str(ctx, dfd, "type");
 	wq->name = accfg_get_param_str(ctx, dfd, "name");
+	wq->threshold =  accfg_get_param_long(ctx, dfd, "threshold");
+	wq->max_batch_size =  accfg_get_param_long(ctx, dfd, "max_batch_size");
+	wq->max_transfer_size =  accfg_get_param_long(ctx, dfd, "max_transfer_size");
 
 	wq_parse_type(wq, wq_type);
 	free(wq_type);
-
-	/* pull uuid entry and add the uuid in sysfs */
-	fd = openat(dfd, "uuid", O_RDONLY);
-	if (fd > 0) {
-		uuid_fd = fdopen(fd, "r");
-		if (!uuid_fd) {
-			err(ctx, "fopen of uuid path for wq failed: %s\n",
-				strerror(errno));
-			close(fd);
-		} else {
-			while ((nread = getline(&read_uuid,
-					&len, uuid_fd) != -1)) {
-				/* add '\0' to terminate the read_uuid */
-				read_uuid[36] = '\0';
-				wq_uuid = calloc(1, sizeof(struct accfg_wq_uuid));
-				if (!wq_uuid) {
-					err(ctx, "allocation of wq_uuid failed\n");
-					close(fd);
-					break;
-				}
-
-				if (uuid_parse(read_uuid, wq_uuid->uuid) != 0) {
-					err(ctx, "uuid_parse failed: %s\n",
-							strerror(errno));
-					close(fd);
-					free(wq_uuid);
-					break;
-				}
-				list_add_tail(&wq->uuid_list, &wq_uuid->list);
-			}
-		}
-	}
 
 	close(dfd);
 	wq->wq_path = strdup(wq_base);
@@ -597,11 +735,15 @@ static void *add_group(void *parent, int id, const char *group_base,
 {
 	struct accfg_group *group;
 	struct accfg_device *device = parent;
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_ctx *ctx;
 	char *path;
 	char *group_base_string;
 	int dfd;
 	unsigned long device_id, group_id;
+
+	if (!device)
+		return NULL;
+	ctx = accfg_device_get_ctx(device);
 
 	dfd = open(group_base, O_PATH);
 	if (dfd < 0)
@@ -681,13 +823,18 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 {
 	struct accfg_engine *engine;
 	struct accfg_device *device = parent;
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
-	struct accfg_group *group = device->group;
+	struct accfg_ctx *ctx;
+	struct accfg_group *group;
 	char *path;
 	char *engine_base_string;
 	int dfd;
 	unsigned long device_id, engine_id;
 
+	if (!device)
+		return NULL;
+
+	group = device->group;
+	ctx = accfg_device_get_ctx(device);
 	dfd = open(engine_base, O_PATH);
 	if (dfd < 0)
 		return NULL;
@@ -821,6 +968,141 @@ static void engines_init(struct accfg_device *device)
 			add_engine);
 }
 
+ACCFG_EXPORT struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device)
+{
+	return list_top(&device->mdev_list, struct accfg_device_mdev, list);
+}
+
+ACCFG_EXPORT struct accfg_device_mdev *accfg_device_next_mdev(struct accfg_device_mdev *mdev)
+{
+	struct accfg_device *device = mdev->device;
+
+	return list_next(&device->mdev_list, mdev, list);
+}
+
+ACCFG_EXPORT void accfg_mdev_get_uuid(struct accfg_device_mdev *mdev, uuid_t uuid)
+{
+	uuid_copy(uuid, mdev->uuid);
+}
+
+ACCFG_EXPORT enum accfg_mdev_type accfg_mdev_get_type(struct accfg_device_mdev *mdev)
+{
+	return mdev->type;
+}
+
+static void accfg_gen_uuid(struct accfg_device *device, uuid_t uuid)
+{
+	struct accfg_device_mdev *entry, *next;
+
+	uuid_clear(uuid);
+	while (1) {
+		uuid_generate(uuid);
+		if (list_empty(&device->mdev_list))
+			return;
+		list_for_each_safe(&device->mdev_list, entry, next, list) {
+			if (uuid_compare(uuid, entry->uuid) != 0)
+				return;
+		}
+	}
+}
+
+ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
+		enum accfg_mdev_type type, uuid_t uuid)
+{
+	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_device_mdev *mdev;
+	char uuid_str[UUID_STR_LEN];
+	char mdev_path[PATH_MAX];
+	unsigned int version;
+	int rc;
+
+	if (!device->mdev_path)
+		return -ENOENT;
+
+	if (type >= ACCFG_MDEV_TYPE_UNKNOWN || type < 0)
+		return -EINVAL;
+
+	mdev = calloc(1, sizeof(struct accfg_device_mdev));
+	if (!mdev) {
+		err(ctx, "mdev allocation failed\n");
+		return -ENOMEM;
+	}
+	accfg_gen_uuid(device, mdev->uuid);
+	mdev->type = type;
+
+	uuid_unparse(mdev->uuid, uuid_str);
+	version = device->version  >> 8;
+	sprintf(mdev_path, "%s/%s/idxd-%s-%s-v%d/create", device->mdev_path,
+			MDEV_POSTFIX, device->device_type_str,
+			accfg_mdev_basenames[type], version);
+	rc = sysfs_write_attr(ctx, mdev_path, uuid_str);
+	if (rc < 0) {
+		err(ctx, "create mdev failed %d\n", rc);
+		goto create_err;
+	}
+
+	list_add_tail(&device->mdev_list, &mdev->list);
+	uuid_copy(uuid, mdev->uuid);
+	return 0;
+
+create_err:
+	free(mdev);
+	return rc;
+}
+
+static int accfg_device_mdev_remove(struct accfg_device *device,
+		struct accfg_device_mdev *mdev)
+{
+	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	char uuid_str[UUID_STR_LEN];
+	char mdev_path[PATH_MAX];
+	int rc;
+
+	uuid_unparse(mdev->uuid, uuid_str);
+	sprintf(mdev_path, "%s/%s/remove", device->mdev_path, uuid_str);
+	rc = sysfs_write_attr(ctx, mdev_path, "1");
+	if (rc < 0)
+		return rc;
+
+	list_del(&mdev->list);
+	free(mdev);
+
+	return 0;
+}
+
+ACCFG_EXPORT int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid)
+{
+	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_device_mdev *entry, *next;
+	int rc, all;
+
+	if (!device->mdev_path)
+		return -ENOENT;
+
+	/* remove all mdevs if null uuid is passed */
+	all = uuid_is_null(uuid);
+	list_for_each_safe(&device->mdev_list, entry, next, list) {
+		if (all || !uuid_compare(entry->uuid, uuid)) {
+			rc = accfg_device_mdev_remove(device, entry);
+			if (rc < 0)
+				goto remove_err;
+			if (!all)
+				return 0;
+		}
+	}
+
+	if (!all) {
+		err(ctx, "mdev uuid not found\n");
+		return -EINVAL;
+	}
+
+	return 0;
+
+remove_err:
+	err(ctx, "remove mdev failed %d\n", rc);
+	return rc;
+}
+
 /**
  * accfg_device_get_first - retrieve first device in the system
  * @ctx: context established by accfg_new
@@ -930,6 +1212,11 @@ ACCFG_EXPORT unsigned long accfg_device_get_op_cap(
 	return device->opcap;
 }
 
+ACCFG_EXPORT unsigned long accfg_device_get_gen_cap(struct accfg_device *device)
+{
+	return device->gencap;
+}
+
 ACCFG_EXPORT unsigned int accfg_device_get_configurable(
 		struct accfg_device *device)
 {
@@ -942,14 +1229,24 @@ ACCFG_EXPORT bool accfg_device_get_pasid_enabled(
 	return device->pasid_enabled;
 }
 
+ACCFG_EXPORT bool accfg_device_get_mdev_enabled(
+		struct accfg_device *device)
+{
+	return device->mdev_path != NULL;
+}
+
 ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
 		struct accfg_error *error)
 {
 	char *read_error;
 	int dfd;
 	int rc;
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_ctx *ctx;
 
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
 	dfd = open(device->device_path, O_PATH);
 	if (dfd < 0)
 		return -errno;
@@ -974,10 +1271,17 @@ ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
 ACCFG_EXPORT enum accfg_device_state accfg_device_get_state(
 		struct accfg_device *device)
 {
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_ctx *ctx;
 	char read_state[SYSFS_ATTR_SIZE];
-	char *path = device->device_buf;
-	int len = device->buf_len;
+	char *path;
+	int len;
+
+	if (!device)
+		return ACCFG_DEVICE_UNKNOWN;
+
+	ctx = accfg_device_get_ctx(device);
+	path = device->device_buf;
+	len = device->buf_len;
 
 	if (snprintf(path, len, "%s/state", device->device_path) >= len) {
 		err(ctx, "%s: buffer too small!\n", __func__);
@@ -1017,11 +1321,53 @@ ACCFG_EXPORT unsigned int accfg_device_get_cdev_major(
 	return device->cdev_major;
 }
 
+ACCFG_EXPORT unsigned int accfg_device_get_version(
+		struct accfg_device *device)
+{
+	return device->version;
+}
+
+ACCFG_EXPORT int accfg_device_get_clients(struct accfg_device *device)
+{
+	struct accfg_ctx *ctx;
+	char buf[SYSFS_ATTR_SIZE];
+	char *path;
+	int len;
+	int rc;
+
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
+	path = device->device_buf;
+	len = device->buf_len;
+
+	rc = snprintf(path, len, "%s/clients", device->device_path);
+	if (rc >= len || rc < 0) {
+		err(ctx, "%s: snprintf error: %d\n", __func__, -errno);
+		return -errno;
+	}
+
+	if (sysfs_read_attr(ctx, path, buf) < 0) {
+		err(ctx, "%s: retrieve clients failed '%s': %s\n",
+				__func__, path, strerror(errno));
+		return -errno;
+	}
+
+	return atoi(buf);
+}
+
 ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 {
-	struct accfg_ctx *ctx = accfg_device_get_ctx(dev);
-	char *path = dev->device_buf;
+	struct accfg_ctx *ctx;
+	char *path;
 	char buf[SYSFS_ATTR_SIZE];
+
+	if (!dev)
+		return -EINVAL;
+
+	path = dev->device_buf;
+	ctx = accfg_device_get_ctx(dev);
 
 	if (sprintf(path, "%s/token_limit", dev->device_path) >=
 			(int)dev->buf_len) {
@@ -1049,10 +1395,17 @@ ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 
 ACCFG_EXPORT int accfg_device_is_active(struct accfg_device *device)
 {
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
-	char *path = device->device_buf;
-	int len = device->buf_len;
+	struct accfg_ctx *ctx;
+	char *path;
+	int len;
 	char buf[SYSFS_ATTR_SIZE];
+
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
+	path = device->device_buf;
+	len = device->buf_len;
 
 	if (snprintf(path, len, "%s/state", device->device_path) >= len) {
 		err(ctx, "%s: buffer too small!\n",
@@ -1067,6 +1420,61 @@ ACCFG_EXPORT int accfg_device_is_active(struct accfg_device *device)
 		return 1;
 
 	return 0;
+}
+
+ACCFG_EXPORT int accfg_device_get_cmd_status(struct accfg_device *device)
+{
+	struct accfg_ctx *ctx;
+	long status;
+	char *path;
+	int len;
+	char buf[SYSFS_ATTR_SIZE], *end_ptr;
+
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
+	path = device->device_buf;
+	len = device->buf_len;
+
+	if (snprintf(path, len, "%s/cmd_status", device->device_path) >= len) {
+		err(ctx, "%s: buffer too small!\n",
+				accfg_device_get_devname(device));
+		return 0;
+	}
+
+	if (sysfs_read_attr(ctx, path, buf) < 0)
+		return 0;
+
+	status = strtol(buf, &end_ptr, 0);
+	if ((errno == ERANGE && (status == LONG_MAX || status == LONG_MIN)) ||
+	    (errno != 0 && status == 0))
+		return -ERANGE;
+
+	/* Nothing was found */
+	if (end_ptr == buf)
+		return -ENXIO;
+
+	return (int)status;
+}
+
+ACCFG_EXPORT const char * accfg_device_get_cmd_status_str(struct accfg_device *device)
+{
+	int status;
+	const char *stat_str;
+
+	status = accfg_device_get_cmd_status(device);
+	if (status < 0)
+		return NULL;
+
+	if (status > ACCFG_CMD_STATUS_MAX)
+		return NULL;
+
+	stat_str = accfg_device_cmd_status[status];
+	if (strlen(stat_str) == 0)
+		return NULL;
+
+	return stat_str;
 }
 
 /* Helper function to validate device type in the defined device array based on
@@ -1090,25 +1498,54 @@ ACCFG_EXPORT int accfg_device_type_validate(const char *dev_name)
 	return 0;
 }
 
+/* Helper function to retrieve device_type */
+ACCFG_EXPORT enum accfg_device_type accfg_device_get_type(struct accfg_device *device)
+{
+	return device->type;
+}
+
+/* Helper function to retrieve device_type_str */
+ACCFG_EXPORT char *accfg_device_get_type_str(struct accfg_device *device)
+{
+	return device->device_type_str;
+}
+
 /* Helper function to parse the device enable flag */
 static int accfg_device_control(struct accfg_device *device,
-		enum accfg_control_flag flag)
+		enum accfg_control_flag flag, bool force)
 {
 	int rc = 0;
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_ctx *ctx;
 	char *path = NULL;
+
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
 
 	if (flag == ACCFG_DEVICE_ENABLE) {
 		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/bind",
-				device->device_type, device->device_type);
+				device->device_type_str, device->device_type_str);
 		if (rc < 0)
 			return rc;
-	}
-	else if (flag == ACCFG_DEVICE_DISABLE) {
+	} else if (flag == ACCFG_DEVICE_DISABLE) {
+		int clients;
+
 		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/unbind",
-				device->device_type, device->device_type);
+				device->device_type_str, device->device_type_str);
 		if (rc < 0)
 			return rc;
+
+		clients = accfg_device_get_clients(device);
+		if (clients > 0) {
+			err(ctx, "Device has clients: %d.\n", clients);
+			if (force) {
+				err(ctx, "\n");
+			} else {
+				err(ctx, "Device disable refused.\n");
+				return -EPERM;
+			}
+		}
 	}
 
 	if (path) {
@@ -1124,12 +1561,12 @@ static int accfg_device_control(struct accfg_device *device,
 
 ACCFG_EXPORT int accfg_device_enable(struct accfg_device *device)
 {
-	return accfg_device_control(device, ACCFG_DEVICE_ENABLE);
+	return accfg_device_control(device, ACCFG_DEVICE_ENABLE, false);
 }
 
-ACCFG_EXPORT int accfg_device_disable(struct accfg_device *device)
+ACCFG_EXPORT int accfg_device_disable(struct accfg_device *device, bool force)
 {
-	return accfg_device_control(device, ACCFG_DEVICE_DISABLE);
+	return accfg_device_control(device, ACCFG_DEVICE_DISABLE, force);
 }
 
 ACCFG_EXPORT struct accfg_device *accfg_group_get_device(
@@ -1362,6 +1799,39 @@ ACCFG_EXPORT unsigned long accfg_wq_get_size(struct accfg_wq *wq)
 	return wq->size;
 }
 
+ACCFG_EXPORT unsigned int accfg_wq_get_max_batch_size(struct accfg_wq *wq)
+{
+	return wq->max_batch_size;
+}
+
+ACCFG_EXPORT unsigned long accfg_wq_get_max_transfer_size(struct accfg_wq *wq)
+{
+	return wq->max_transfer_size;
+}
+
+ACCFG_EXPORT int accfg_wq_get_clients(struct accfg_wq *wq)
+{
+	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
+	char *path = wq->wq_buf;
+	char buf[SYSFS_ATTR_SIZE];
+	int len = wq->buf_len;
+	int rc;
+
+	rc = snprintf(wq->wq_buf, len, "%s/%s", wq->wq_path, "clients");
+	if (rc < 0 || rc >= len) {
+		err(ctx, "%s: snprintf error: %d\n", __func__, -errno);
+		return -errno;
+	}
+
+	if (sysfs_read_attr(ctx, path, buf) < 0) {
+		err(ctx, "%s: retrieve clients failed: '%s': %s\n",
+				__func__, wq->wq_path, strerror(errno));
+		return -errno;
+	}
+
+	return atoi(buf);
+}
+
 ACCFG_EXPORT int accfg_wq_priority_boundary(struct accfg_wq *wq)
 {
 	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
@@ -1454,7 +1924,8 @@ static bool accfg_wq_state_expected(struct accfg_wq *wq,
 }
 
 /* Helper function to parse the wq enable flag */
-static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag)
+static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
+		bool force)
 {
 	int rc = 0;
 	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
@@ -1464,15 +1935,25 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag)
 
 	if (flag == ACCFG_WQ_ENABLE) {
 		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/bind",
-				device->device_type, device->device_type);
+				device->device_type_str, device->device_type_str);
 		if (rc < 0)
 			return rc;
-	}
-	else if (flag == ACCFG_WQ_DISABLE) {
+	} else if (flag == ACCFG_WQ_DISABLE) {
+		int clients;
+
 		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/unbind",
-				device->device_type, device->device_type);
+				device->device_type_str, device->device_type_str);
 		if (rc < 0)
 			return rc;
+
+		clients = accfg_wq_get_clients(wq);
+		if (clients > 0) {
+			err(ctx, "wq has clients: %d.\n", clients);
+			if (!force) {
+				err(ctx, " wq disable refused.\n");
+				return -EPERM;
+			}
+		}
 	}
 
 	if (path) {
@@ -1487,7 +1968,7 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag)
 
 	/* verify state */
 	if (!accfg_wq_state_expected(wq, flag)) {
-		err(ctx, "WQ not in expected state.");
+		err(ctx, "WQ not in expected state\n");
 		return -ENXIO;
 	}
 
@@ -1501,12 +1982,12 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag)
 
 ACCFG_EXPORT int accfg_wq_enable(struct accfg_wq *wq)
 {
-	return accfg_wq_control(wq, ACCFG_WQ_ENABLE);
+	return accfg_wq_control(wq, ACCFG_WQ_ENABLE, false);
 }
 
-ACCFG_EXPORT int accfg_wq_disable(struct accfg_wq *wq)
+ACCFG_EXPORT int accfg_wq_disable(struct accfg_wq *wq, bool force)
 {
-	return accfg_wq_control(wq, ACCFG_WQ_DISABLE);
+	return accfg_wq_control(wq, ACCFG_WQ_DISABLE, force);
 }
 
 ACCFG_EXPORT enum accfg_wq_state accfg_wq_get_state(struct accfg_wq *wq)
@@ -1533,6 +2014,8 @@ ACCFG_EXPORT enum accfg_wq_state accfg_wq_get_state(struct accfg_wq *wq)
 		return ACCFG_WQ_ENABLED;
 	else if (strcmp(read_state, "quiescing") == 0)
 		return ACCFG_WQ_QUIESCING;
+	else if (strcmp(read_state, "locked") == 0)
+		return ACCFG_WQ_LOCKED;
 
 	return ACCFG_WQ_UNKNOWN;
 }
@@ -1542,7 +2025,11 @@ ACCFG_EXPORT int accfg_wq_size_boundary(struct accfg_device *device,
 {
 	int max_wqs, total_wq_size = 0;
 	struct accfg_wq *wq, *next;
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
+	struct accfg_ctx *ctx;
+
+	if (!device)
+		return -EINVAL;
+	ctx = accfg_device_get_ctx(device);
 
 	max_wqs = accfg_device_get_max_work_queues(device);
 	if (wq_num > max_wqs) {
@@ -1600,6 +2087,40 @@ accfg_wq_set_field(wq, val, priority)
 accfg_wq_set_field(wq, val, group_id)
 accfg_wq_set_field(wq, val, block_on_fault)
 accfg_wq_set_field(wq, val, threshold)
+accfg_wq_set_field(wq, val, max_batch_size)
+
+#define accfg_wq_set_long_field(wq, val, field) \
+ACCFG_EXPORT int accfg_wq_set_##field( \
+		struct accfg_wq *wq, unsigned long val) \
+{ \
+	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq); \
+	char *path = wq->wq_buf; \
+	char buf[SYSFS_ATTR_SIZE]; \
+	int rc; \
+	rc = sprintf(wq->wq_buf, "%s/%s", wq->wq_path, #field); \
+	if (rc < 0) \
+		return -errno; \
+	if (sprintf(buf, "%ld", val) < 0) { \
+		err(ctx, "%s: sprintf to buf failed: %s\n", \
+				accfg_wq_get_devname(wq), \
+				strerror(errno)); \
+		return -errno; \
+	} \
+	if (!accfg_device_get_configurable(wq->device)) { \
+		err(ctx, "device is not configurable\n"); \
+		return -errno; \
+	} \
+	if (sysfs_write_attr(ctx, path, buf) < 0) { \
+		err(ctx, "%s: write failed: %s\n", \
+				accfg_wq_get_devname(wq), \
+				strerror(errno)); \
+		return -errno; \
+	} \
+	wq->field = val; \
+	return 0; \
+}
+
+accfg_wq_set_long_field(wq, val, max_transfer_size)
 
 #define accfg_wq_set_str_field(wq, val, field) \
 ACCFG_EXPORT int accfg_wq_set_str_##field( \
@@ -1623,10 +2144,6 @@ ACCFG_EXPORT int accfg_wq_set_str_##field( \
 			err(ctx, "device is not configurable\n"); \
 			return -errno; \
 		} \
-	} \
-	if (!strcmp(#field, "mode") && !list_empty(&wq->uuid_list)) { \
-		err(ctx, "change wq mode in mdev is not allowed\n"); \
-		return -errno; \
 	} \
 	if (sysfs_write_attr(ctx, path, buf) < 0) { \
 		err(ctx, "%s: write failed: %s\n", \
@@ -1703,266 +2220,6 @@ ACCFG_EXPORT int accfg_wq_set_mode(struct accfg_wq *wq,
 	if (wq_mode >= ACCFG_WQ_MODE_UNKNOWN)
 		return -EINVAL;
 	return accfg_wq_set_str_mode(wq, accfg_wq_mode_str[wq_mode]);
-}
-
-static char *accfg_wq_get_pcie_path(struct accfg_wq *wq)
-{
-	char *buf, *dup_string;
-	struct accfg_device *dev = accfg_wq_get_device(wq);
-	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-
-	dup_string = strdup(dev->device_path);
-	if (!dup_string) {
-		err(ctx, "duplicating device path failed\n");
-		return NULL;
-	}
-
-	buf = basename(dirname(dup_string));
-	buf = strdup(buf);
-	if (!buf) {
-		err(ctx, "duplicate basename failed\n");
-		return NULL;
-	}
-
-	free(dup_string);
-
-	return buf;
-}
-
-ACCFG_EXPORT uuid_t *accfg_wq_first_uuid(struct accfg_wq *wq)
-{
-	struct accfg_wq_uuid *wq_uuid;
-
-	wq_uuid = list_top(&wq->uuid_list, struct accfg_wq_uuid, list);
-	wq->iter = wq_uuid;
-
-	return (uuid_t *)wq_uuid->uuid;
-}
-
-ACCFG_EXPORT uuid_t *accfg_wq_next_uuid(struct accfg_wq *wq)
-{
-	struct accfg_wq_uuid *wq_uuid;
-
-	if (!wq->iter)
-		return NULL;
-	wq_uuid = list_next(&wq->uuid_list, wq->iter, list);
-	if (!wq_uuid)
-		return NULL;
-	wq->iter = wq_uuid;
-
-	return (uuid_t *)wq_uuid->uuid;
-}
-
-ACCFG_EXPORT int accfg_wq_create_mdev(struct accfg_wq *wq, uuid_t uuid)
-{
-	char *pcie_path;
-	char *mdev_create_path;
-	char *wq_uuid_path;
-	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-	struct accfg_wq_uuid *wq_uuid, *entry, *next;
-	char uuid_string[UUID_STR_LEN];
-	int rc = 0;
-
-	uuid_clear(uuid);
-	wq_uuid = calloc(1, sizeof(struct accfg_wq_uuid));
-	if (!wq_uuid) {
-		err(ctx, "allocation of wq_uuid failed\n");
-		return -ENOMEM;
-	}
-
-	/* generate uuid */
-	uuid_generate(wq_uuid->uuid);
-
-	/* extract pcie path name by parsing symbolic link */
-	pcie_path = accfg_wq_get_pcie_path(wq);
-	if (!pcie_path) {
-		err(ctx, "getting pcie path failed\n");
-		free(wq_uuid);
-		return -ENOMEM;
-	}
-
-	/* create mdev via sysfs using uuid */
-	mdev_create_path = malloc(PATH_MAX);
-	if (!mdev_create_path) {
-		err(ctx, "malloc of mdev_create_path failed\n");
-		rc = -ENOMEM;
-		goto create_err;
-	}
-
-	wq_uuid_path = malloc(PATH_MAX);
-	if (!wq_uuid_path) {
-		err(ctx, "malloc of wq_uuid_path failed\n");
-		rc = -ENOMEM;
-		goto wq_err;
-	}
-
-	/* convert uuid into string format */
-	uuid_unparse(wq_uuid->uuid, uuid_string);
-
-	list_for_each_safe(&wq->uuid_list, entry, next, list) {
-		if (uuid_compare(wq_uuid->uuid, entry->uuid) == 0) {
-			err(ctx, "uuid %s already exists for wq %s\n",
-					uuid_string,
-					accfg_wq_get_devname(wq));
-			rc = -EINVAL;
-			goto out_err;
-		}
-	}
-
-	/* add uuid onto linked list if it does not exist */
-	list_add_tail(&wq->uuid_list, &wq_uuid->list);
-
-	/* write uuid to wq/uuid */
-	if (sprintf(wq_uuid_path, "%s/%s", wq->wq_path, "uuid") < 0) {
-		err(ctx, "create wq_uuid_path failed with %s\n",
-				strerror(errno));
-		rc = -errno;
-		goto out_err;
-	}
-
-	rc = sysfs_write_attr(ctx, wq_uuid_path, uuid_string);
-	if (rc < 0) {
-		err(ctx, "write uuid into wq/uuid failed: %d\n", rc);
-		goto out_err;
-	}
-
-	/* create mdev via sysfs using uuid */
-	if (sprintf(mdev_create_path, "%s/%s/%s/idxd-wq/create", MDEV_BUS, pcie_path,
-                                MDEV_POSTFIX) < 0) {
-		err(ctx, "create mdev_create_path failed with %s\n",
-				strerror(errno));
-		rc = -errno;
-		goto out_err;
-	}
-
-	rc = sysfs_write_attr(ctx, mdev_create_path, uuid_string);
-	if (rc < 0) {
-		err(ctx, "create mdev failed %d\n", rc);
-		goto out_err;
-	}
-
-	uuid_copy(uuid, wq_uuid->uuid);
-	free(wq_uuid_path);
-	free(pcie_path);
-	free(mdev_create_path);
-	return 0;
- out_err:
-	free(wq_uuid_path);
- wq_err:
-	free(mdev_create_path);
- create_err:
-	free(pcie_path);
-
-	free(wq_uuid);
-	return rc;
-}
-
-static int accfg_wq_uuid_remove(struct accfg_wq *wq, uuid_t uuid)
-{
-	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-	char *wq_uuid_path;
-	char *mdev_remove_path;
-	char uuid_str[UUID_STR_LEN];
-	int rc = 0;
-
-	uuid_unparse(uuid, uuid_str);
-
-	/* write 1 into /remove to remove it */
-	mdev_remove_path = malloc(PATH_MAX);
-	if (!mdev_remove_path) {
-		err(ctx, "malloc of mdev_remove_path failed\n");
-		return -ENOMEM;
-	}
-
-	if (sprintf(mdev_remove_path, "%s/%s/%s",
-			MDEV_PREFIX, uuid_str, "remove") < 0) {
-		err(ctx, "mdev_remove_path creation failed with %s\n",
-				strerror(errno));
-		free(mdev_remove_path);
-		rc = -errno;
-		goto err_remove_path;
-	}
-
-	rc = sysfs_write_attr(ctx, mdev_remove_path, "1");
-	if (rc < 0) {
-		err(ctx, "remove mdev when write 1 failed with %d\n", rc);
-		goto err_remove_path;
-	}
-
-	/* write same uuid into sysfs to remove it */
-	wq_uuid_path = malloc(PATH_MAX);
-	if (!wq_uuid_path) {
-		err(ctx, "malloc of wq_uuid_path failed\n");
-		rc = -ENOMEM;
-		goto err_remove_path;
-	}
-
-	/* write uuid to wq/uuid */
-	if (sprintf(wq_uuid_path, "%s/%s", wq->wq_path, "uuid") < 0) {
-		err(ctx, "remove wq_uuid_path failed with %s\n",
-				strerror(errno));
-		rc = -errno;
-		goto err_uuid_path;
-	}
-
-	rc = sysfs_write_attr(ctx, wq_uuid_path, uuid_str);
-	if (rc < 0) {
-		err(ctx, "write uuid into wq/uuid failed with %d\n", rc);
-		goto err_uuid_path;
-	}
-
- err_uuid_path:
-	free(wq_uuid_path);
- err_remove_path:
-	free(mdev_remove_path);
-
-	return rc;
-}
-
-ACCFG_EXPORT int accfg_wq_remove_mdev(struct accfg_wq *wq, uuid_t uuid)
-{
-	struct accfg_wq_uuid *entry, *next;
-	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-	uuid_t uuid_zero;
-	int rc;
-
-	/* generate null uuid */
-	uuid_generate(uuid_zero);
-	uuid_clear(uuid_zero);
-
-	/* If user writes null, erase entire list. */
-	if (uuid_compare(uuid, uuid_zero) == 0) {
-		list_for_each_safe(&wq->uuid_list, entry, next, list) {
-			rc = accfg_wq_uuid_remove(wq, entry->uuid);
-			if (rc != 0) {
-				err(ctx, "remove uuid failed: %d\n", rc);
-				return rc;
-			}
-
-			list_del(&entry->list);
-			free(entry);
-			wq->uuids--;
-		}
-		return 0;
-	}
-
-	/* If uuid already exists, remove the old uuid. */
-	list_for_each_safe(&wq->uuid_list, entry, next, list) {
-		if (uuid_compare(uuid, entry->uuid) == 0) {
-			list_del(&entry->list);
-			wq->uuids--;
-			rc = accfg_wq_uuid_remove(wq, entry->uuid);
-			free(entry);
-			if (rc != 0) {
-				err(ctx, "remove uuid failed: %d\n", rc);
-				return rc;
-			}
-			return 0;
-		}
-	}
-
-	err(ctx, "could not find matched uuid\n");
-	return -EINVAL;
 }
 
 ACCFG_EXPORT struct accfg_engine *accfg_engine_get_first(

@@ -59,8 +59,6 @@ LIBACCFG_1 {
 	accfg_device_wq_get_by_id;
 	accfg_wq_get_first;
 	accfg_wq_get_next;
-	accfg_wq_first_uuid;
-	accfg_wq_next_uuid;
 	accfg_wq_get_ctx;
 	accfg_wq_get_device;
 	accfg_wq_get_group;
@@ -76,7 +74,6 @@ LIBACCFG_1 {
 	accfg_wq_get_cdev_minor;
 	accfg_wq_get_type;
 	accfg_wq_get_threshold;
-	accfg_wq_get_uuid;
 	accfg_wq_set_size;
 	accfg_wq_set_priority;
 	accfg_wq_set_group_id;
@@ -89,8 +86,6 @@ LIBACCFG_1 {
 	accfg_wq_disable;
 	accfg_wq_priority_boundary;
 	accfg_wq_size_boundary;
-	accfg_wq_create_mdev;
-	accfg_wq_remove_mdev;
 	accfg_engine_get_first;
 	accfg_engine_get_next;
 	accfg_engine_get_ctx;
@@ -109,4 +104,40 @@ LIBACCFG_3 {
 global:
 	accfg_wq_set_mode;
 	accfg_wq_get_type_name;
+	accfg_device_get_clients;
+	accfg_wq_get_clients;
 } LIBACCFG_1;
+
+LIBACCFG_4 {
+global:
+	accfg_device_get_version;
+	accfg_device_get_gen_cap;
+} LIBACCFG_3;
+
+LIBACCFG_5 {
+global:
+	accfg_device_get_type;
+	accfg_device_get_type_str;
+} LIBACCFG_4;
+
+LIBACCFG_6 {
+global:
+	accfg_device_get_cmd_status;
+	accfg_device_get_cmd_status_str;
+} LIBACCFG_5;
+
+LIBACCFG_7 {
+global:
+	accfg_wq_get_max_batch_size;
+	accfg_wq_get_max_transfer_size;
+	accfg_wq_set_max_batch_size;
+	accfg_wq_set_max_transfer_size;
+	accfg_device_first_mdev;
+	accfg_device_next_mdev;
+	accfg_mdev_get_uuid;
+	accfg_mdev_get_type;
+	accfg_mdev_basenames;
+	accfg_create_mdev;
+	accfg_remove_mdev;
+	accfg_device_get_mdev_enabled;
+} LIBACCFG_6;

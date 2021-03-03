@@ -19,6 +19,7 @@
 #define DSA_COMPL_RING_SIZE 64
 
 unsigned int ms_timeout = 5000;
+int debug_logging;
 static int umwait_support;
 
 static inline void cpuid(unsigned int *eax, unsigned int *ebx,
@@ -47,7 +48,7 @@ struct dsa_context *dsa_init(void)
 	waitpkg = 0;
 	cpuid(&leaf, unused, &waitpkg, unused+1);
 	if (waitpkg & 0x20) {
-		printf("umwait supported\n");
+		dbg("umwait supported\n");
 		umwait_support = 1;
 	}
 
@@ -64,66 +65,6 @@ struct dsa_context *dsa_init(void)
 
 	dctx->ctx = ctx;
 	return dctx;
-}
-
-static void dsa_free_buffers(struct dsa_context *ctx)
-{
-	free(ctx->comp_ring_buf);
-	free(ctx->ring);
-}
-
-static void dsa_alloc_buffers(struct dsa_context *ctx)
-{
-	struct dsa_ring_ent *ring;
-	int buf_size;
-	int i;
-
-	ctx->head = 0;
-	ctx->tail = 0;
-	ctx->issued = 0;
-	ctx->dmacount = 0;
-	ctx->completed = 0;
-
-	if (ctx->dedicated)
-		ctx->num_entries = ctx->wq_size;
-	else
-		ctx->num_entries = DSA_COMPL_RING_SIZE;
-
-	buf_size = ctx->num_entries * sizeof(*ring);
-
-	/* allocate the array to hold the software ring */
-	ring = malloc(buf_size);
-	if (!ring)
-		return;
-
-	memset(ring, 0, buf_size);
-
-	buf_size = (ctx->num_entries + 1) *
-		sizeof(struct dsa_completion_record);
-
-	ctx->comp_ring_buf = malloc(buf_size);
-
-	if (!ctx->comp_ring_buf) {
-		free(ring);
-		return;
-	}
-
-	memset((void *)ctx->comp_ring_buf, 0, buf_size);
-
-	ctx->comp_aligned =
-		(struct dsa_completion_record *)ctx->comp_ring_buf;
-
-	if ((unsigned long)ctx->comp_aligned & 0x1F)
-		ctx->comp_aligned = (struct dsa_completion_record *)
-			(((unsigned long)(ctx->comp_aligned + 1)) & ~0x1FUL);
-
-	ctx->ring = ring;
-
-	for (i = 0; i < ctx->num_entries; i++) {
-		ring[i].idx = i;
-		ring[i].comp = &ctx->comp_aligned[i];
-		ring[i].hw.completion_addr = (uint64_t)ring[i].comp;
-	}
 }
 
 static int dsa_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
@@ -226,32 +167,198 @@ int dsa_alloc(struct dsa_context *ctx, int shared)
 		return 0;
 
 	ctx->wq = dsa_get_wq(ctx, -1, shared);
+	if (!ctx->wq) {
+		err("No usable wq found\n");
+		return -ENODEV;
+	}
 	dev = accfg_wq_get_device(ctx->wq);
 
 	ctx->dedicated = !shared;
 	ctx->wq_size = accfg_wq_get_size(ctx->wq);
 	ctx->wq_idx = accfg_wq_get_id(ctx->wq);
+	ctx->bof = accfg_wq_get_block_on_fault(ctx->wq);
+	ctx->wq_max_batch_size = accfg_wq_get_max_batch_size(ctx->wq);
+	ctx->wq_max_xfer_size = accfg_wq_get_max_transfer_size(ctx->wq);
 
-	ctx->opcap = accfg_device_get_op_cap(dev);
 	ctx->max_batch_size = accfg_device_get_max_batch_size(dev);
 	ctx->max_xfer_size = accfg_device_get_max_transfer_size(dev);
 	ctx->max_xfer_bits = bsr(ctx->max_xfer_size);
 
-	printf("alloc wq %d shared %d size %d addr %p batch sz %x xfer sz %x\n",
+	info("alloc wq %d shared %d size %d addr %p batch sz %#x xfer sz %#x\n",
 			ctx->wq_idx, shared, ctx->wq_size, ctx->wq_reg,
 			ctx->max_batch_size, ctx->max_xfer_size);
 
-	dsa_alloc_buffers(ctx);
+	return 0;
+}
 
-	if (ctx->comp_ring_buf == NULL) {
-		if (munmap(ctx->wq_reg, 0x1000))
-			printf("munmap failed %d\n", errno);
-		close(ctx->fd);
-		ctx->wq_reg = NULL;
+int alloc_task(struct dsa_context *ctx)
+{
+	ctx->single_task = __alloc_task();
+	if (!ctx->single_task)
 		return -ENOMEM;
+
+	dbg("single task allocated, desc %#lx comp %#lx\n",
+			ctx->single_task->desc, ctx->single_task->comp);
+
+	return DSA_STATUS_OK;
+}
+
+struct task *__alloc_task(void)
+{
+	struct task *tsk;
+
+	tsk = malloc(sizeof(struct task));
+	if (!tsk)
+		return NULL;
+	memset(tsk, 0, sizeof(struct task));
+
+	tsk->desc = malloc(sizeof(struct dsa_hw_desc));
+	if (!tsk->desc) {
+		free_task(tsk);
+		return NULL;
+	}
+	memset(tsk->desc, 0, sizeof(struct dsa_hw_desc));
+
+	/* completion record need to be 32bits aligned */
+	tsk->comp = aligned_alloc(32, sizeof(struct dsa_completion_record));
+	if (!tsk->comp) {
+		free_task(tsk);
+		return NULL;
+	}
+	memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
+
+	return tsk;
+}
+
+/* this function is re-used by batch task */
+int init_task(struct task *tsk, int tflags, int opcode,
+		unsigned long xfer_size)
+{
+	dbg("initilizing single task %#lx\n", tsk);
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	/* allocate memory: src1*/
+	switch (opcode) {
+	case DSA_OPCODE_MEMMOVE: /* intentionally empty */
+	case DSA_OPCODE_COMPARE: /* intentionally empty */
+	case DSA_OPCODE_COMPVAL: /* intentionally empty */
+	case DSA_OPCODE_DUALCAST:
+		tsk->src1 = malloc(xfer_size);
+		if (!tsk->src1)
+			return -ENOMEM;
+		memset_pattern(tsk->src1, tsk->pattern, xfer_size);
 	}
 
-	return 0;
+	/* allocate memory: src2*/
+	switch (opcode) {
+	case DSA_OPCODE_COMPARE:
+		tsk->src2 = malloc(xfer_size);
+		if (!tsk->src2)
+			return -ENOMEM;
+		memset_pattern(tsk->src2, tsk->pattern, xfer_size);
+	}
+
+	/* allocate memory: dst1*/
+	switch (opcode) {
+	case DSA_OPCODE_MEMMOVE: /* intentionally empty */
+	case DSA_OPCODE_MEMFILL: /* intentionally empty */
+	case DSA_OPCODE_DUALCAST:
+		/* DUALCAST: dst1/dst2 lower 12 bits must be same */
+		tsk->dst1 = aligned_alloc(1<<12, xfer_size);
+		if (!tsk->dst1)
+			return -ENOMEM;
+		if (tflags & TEST_FLAGS_PREF)
+			memset(tsk->dst1, 0, xfer_size);
+	}
+
+	/* allocate memory: dst2*/
+	switch (opcode) {
+	case DSA_OPCODE_DUALCAST:
+		/* DUALCAST: dst1/dst2 lower 12 bits must be same */
+		tsk->dst2 = aligned_alloc(1<<12, xfer_size);
+		if (!tsk->dst2)
+			return -ENOMEM;
+		if (tflags & TEST_FLAGS_PREF)
+			memset(tsk->dst2, 0, xfer_size);
+	}
+
+	dbg("Mem allocated: s1 %#lx s2 %#lx d1 %#lx d2 %#lx\n",
+			tsk->src1, tsk->src2, tsk->dst1, tsk->dst2);
+
+	return DSA_STATUS_OK;
+}
+
+int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num)
+{
+	struct batch_task *btsk;
+
+	if (!ctx->is_batch) {
+		err("%s is valid only if 'is_batch' is enabled", __func__);
+		return -EINVAL;
+	}
+
+	ctx->batch_task = malloc(sizeof(struct batch_task));
+	if (!ctx->batch_task)
+		return -ENOMEM;
+	memset(ctx->batch_task, 0, sizeof(struct batch_task));
+
+	btsk = ctx->batch_task;
+
+	btsk->core_task = __alloc_task();
+	if (!btsk->core_task)
+		return -ENOMEM;
+
+	btsk->sub_tasks = malloc(task_num * sizeof(struct task));
+	if (!btsk->sub_tasks)
+		return -ENOMEM;
+	memset(btsk->sub_tasks, 0, task_num * sizeof(struct task));
+
+	btsk->sub_descs = aligned_alloc(64,
+			task_num * sizeof(struct dsa_hw_desc));
+	if (!btsk->sub_descs)
+		return -ENOMEM;
+	memset(btsk->sub_descs, 0, task_num * sizeof(struct dsa_hw_desc));
+
+	btsk->sub_comps = aligned_alloc(32,
+			task_num * sizeof(struct dsa_completion_record));
+	if (!btsk->sub_comps)
+		return -ENOMEM;
+	memset(btsk->sub_comps, 0,
+			task_num * sizeof(struct dsa_completion_record));
+
+	dbg("batch task allocated %#lx, ctask %#lx, sub_tasks %#lx\n",
+			btsk, btsk->core_task, btsk->sub_tasks);
+	dbg("sub_descs %#lx, sub_comps %#lx\n",
+			btsk->sub_descs, btsk->sub_comps);
+
+	return DSA_STATUS_OK;
+}
+
+int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
+		int opcode, unsigned long xfer_size, unsigned long dflags)
+{
+	int i, rc;
+
+	btsk->task_num = task_num;
+	btsk->test_flags = tflags;
+
+	for (i = 0; i < task_num; i++) {
+		btsk->sub_tasks[i].desc = &(btsk->sub_descs[i]);
+		btsk->sub_tasks[i].comp = &(btsk->sub_comps[i]);
+		btsk->sub_tasks[i].dflags = dflags;
+		rc = init_task(&(btsk->sub_tasks[i]), tflags, opcode,
+				xfer_size);
+		if (rc != DSA_STATUS_OK) {
+			err("batch: init sub-task failed\n");
+			return rc;
+		}
+	}
+
+	return DSA_STATUS_OK;
 }
 
 int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw)
@@ -263,7 +370,7 @@ int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw)
 		if (!enqcmd(hw, ctx->wq_reg))
 			break;
 
-		printf("retry\n");
+		info("retry\n");
 		retry_count++;
 	}
 
@@ -272,7 +379,7 @@ int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw)
 
 static inline unsigned long rdtsc(void)
 {
-	uint32_t  a, d;
+	uint32_t a, d;
 
 	asm volatile("rdtsc" : "=a"(a), "=d"(d));
 	return ((uint64_t)d << 32) | (uint64_t)a;
@@ -299,11 +406,10 @@ static inline int umwait(unsigned long timeout, unsigned int state)
 	return r;
 }
 
-static int dsa_wait_on_desc_timeout(struct dsa_ring_ent *entry,
+static int dsa_wait_on_desc_timeout(struct dsa_completion_record *comp,
 		unsigned int msec_timeout)
 {
 	unsigned int j = 0;
-	struct dsa_completion_record *comp = entry->comp;
 
 	if (!umwait_support) {
 		while (j < msec_timeout && comp->status == 0) {
@@ -320,7 +426,7 @@ static int dsa_wait_on_desc_timeout(struct dsa_ring_ent *entry,
 			if (!r) {
 				t = rdtsc();
 				if (t >= timeout) {
-					printf("umwait timeout %lx\n", t);
+					err("umwait timeout %#lx\n", t);
 					break;
 				}
 			}
@@ -334,1349 +440,501 @@ static int dsa_wait_on_desc_timeout(struct dsa_ring_ent *entry,
 			j = msec_timeout;
 	}
 
-	return (j == msec_timeout) ? -EAGAIN: 0;
+	dump_compl_rec(comp);
+
+	return (j == msec_timeout) ? -EAGAIN : 0;
 }
 
-/* This function can be called out of order */
-void dsa_free_desc(struct dsa_context *ctx, struct dsa_ring_ent *desc)
+/* the pattern is 8 bytes long while the dst can with any length */
+void memset_pattern(void *dst, uint64_t pattern, size_t len)
 {
-	if (desc->idx == ctx->tail) {
-		ctx->tail = dsa_add_idx(ctx, ctx->tail, desc->n);
-		desc->n = 0;
-		desc++;
-		while(desc->n == 0 && ctx->tail != ctx->head) {
-			ctx->tail = dsa_inc_idx(ctx, ctx->tail);
-			desc++;
-		}
-	} else
-		desc->n = 0;
+	size_t len_8_aligned, len_remainding, mask = 0x7;
+	uint64_t *aligned_end, *tmp_64;
+
+	/* 8 bytes aligned part */
+	len_8_aligned = len & ~mask;
+	aligned_end = (uint64_t *)((uint8_t *)dst + len_8_aligned);
+	tmp_64 = (uint64_t *)dst;
+	while (tmp_64 < aligned_end) {
+		*tmp_64 = pattern;
+		tmp_64++;
+	}
+
+	/* non-aligned part */
+	len_remainding = len & mask;
+	memcpy(aligned_end, &pattern, len_remainding);
 }
 
-struct dsa_ring_ent * dsa_reserve_space(struct dsa_context *ctx, int n)
+/* return 0 if src is a repeatation of pattern, -1 otherwise */
+/* the pattern is 8 bytes long and the src could be with any length */
+int memcmp_pattern(const void *src, const uint64_t pattern, size_t len)
 {
-	struct dsa_ring_ent *desc = NULL;
+	size_t len_8_aligned, len_remainding, mask = 0x7;
+	uint64_t *aligned_end, *tmp_64;
 
-        if (n <= dsa_ring_space(ctx)) {
-                desc = dsa_get_ring_ent(ctx, ctx->head);
-                ctx->head = dsa_add_idx(ctx, ctx->head, n);
-		desc->n = n;
-        }
+	/* 8 bytes aligned part */
+	len_8_aligned = len & ~mask;
+	aligned_end = (void *)((uint8_t *)src + len_8_aligned);
+	tmp_64 = (uint64_t *)src;
+	while (tmp_64 < aligned_end) {
+		if (*tmp_64 != pattern)
+			return -1;
+		tmp_64++;
+	}
 
-        return desc;
+	/* non-aligned part */
+	len_remainding = len & mask;
+	if (memcmp(aligned_end, &pattern, len_remainding))
+		return -1;
+
+	return 0;
 }
 
 void dsa_free(struct dsa_context *ctx)
 {
 	if (munmap(ctx->wq_reg, 0x1000))
-		printf("munmap failed %d\n", errno);
+		err("munmap failed %d\n", errno);
 
 	close(ctx->fd);
 
-	dsa_free_buffers(ctx);
 	accfg_unref(ctx->ctx);
+	dsa_free_task(ctx);
 	free(ctx);
 }
 
-
-struct dsa_batch *dsa_alloc_batch_buffers(struct dsa_context *ctx,
-		int num_descs)
+void dsa_free_task(struct dsa_context *ctx)
 {
-	struct dsa_batch *batch;
-	int batch_size, cr_size, i;
-
-	batch_size = sizeof(struct dsa_batch) +
-		sizeof(struct dsa_hw_desc) * (num_descs + 1);
-	/* batch descriptors need to be 64B aligned */
-	batch = malloc(batch_size);
-	if (!batch)
-		return NULL;
-	memset(batch, 0, batch_size);
-
-	batch->ctx = ctx;
-	batch->num_descs = num_descs;
-	batch->descs = batch->descs_unaligned;
-
-	if ((unsigned long)batch->descs & 0x3F)
-		batch->descs = (struct dsa_hw_desc *)
-			(((unsigned long)(batch->descs + 1)) & ~0x3FUL);
-
-	cr_size = sizeof(struct dsa_completion_record) * (num_descs + 1);
-	batch->comp_unaligned = malloc(cr_size);
-	if (!batch->comp_unaligned) {
-		free(batch);
-		return NULL;
-	}
-	memset(batch->comp_unaligned, 0, cr_size);
-
-	batch->comp = batch->comp_unaligned;
-
-	if ((unsigned long)batch->comp & 0x1F)
-		batch->comp = (struct dsa_completion_record *)
-			(((unsigned long)(batch->comp + 1)) & ~0x1FUL);
-
-	for (i = 0; i < num_descs; i++)
-		batch->descs[i].completion_addr = (uint64_t)&batch->comp[i];
-
-	return batch;
+	if (!ctx->is_batch)
+		free_task(ctx->single_task);
+	else
+		free_batch_task(ctx->batch_task);
 }
 
-void dsa_free_batch_buffers(struct dsa_batch *batch)
+void free_task(struct task *tsk)
 {
-	free(batch->comp_unaligned);
-	free(batch);
+	__clean_task(tsk);
+	free(tsk);
 }
 
-int dsa_wait_batch(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-		dsa_completion_t *c, int idx, int num_descs)
+/* The components of task is free but not the struct task itself */
+/* This function is re-used by free_batch_task() */
+void __clean_task(struct task *tsk)
 {
-	int i, j;
-	struct dsa_batch *batch = desc->batch;
-	struct dsa_hw_desc *hw = batch->descs;
-	int n = desc->n, ret = DSA_STATUS_OK;
-	struct dsa_completion_record *comp = NULL;
-	struct dsa_ring_ent *orig = desc;
+	if (!tsk)
+		return;
 
-	desc->batch = NULL;
-	printf("wait %d, %d %d\n", n, idx, num_descs);
-	for (i = 0; i < n; i++, desc++) {
-		comp = desc->comp;
-
-		j = dsa_wait_on_desc_timeout(desc, ms_timeout);
-		if (j < 0) {
-			printf("batch desc timeout out\n");
-			return DSA_STATUS_TIMEOUT;
-		}
-
-		if (comp->status == DSA_COMP_BATCH_FAIL) {
-			printf("batch failed %d %d\n",
-					i, comp->bytes_completed);
-			ret = DSA_STATUS_FAIL;
-			break;
-		} else if (comp->status == DSA_COMP_BATCH_PAGE_FAULT) {
-			printf("Unrecoverable PF on batch\n");
-			ret = DSA_STATUS_URPF;
-			break;
-		} else if (comp->status != DSA_COMP_SUCCESS) {
-			printf("Batch invalid status %d\n", comp->status);
-			ret = DSA_STATUS_FAIL;
-			break;
-		}
-	}
-
-	if (!comp)
-		return -ENXIO;
-
-	c->status = comp->status;
-
-	comp = &batch->comp[idx];
-	for (i = 0; i < num_descs; i++, hw++) {
-		if (comp[i].status == DSA_COMP_PAGE_FAULT_NOBOF) {
-			printf("%d: batch page fault at addr %lx\n",
-					i, comp[i].fault_addr);
-			if (hw->flags & IDXD_OP_FLAG_BOF)
-				return DSA_STATUS_URPF;
-			else
-				return DSA_STATUS_RPF;
-		} else if (comp[i].status != DSA_COMP_SUCCESS) {
-			printf("batch op %d %d failure %x\n",
-					i, hw->opcode, comp[i].status);
-			return DSA_STATUS_FAIL;
-		}
-	}
-
-	dsa_free_desc(ctx, orig);
-	return ret;
+	free(tsk->desc);
+	free(tsk->comp);
+	free(tsk->src1);
+	free(tsk->src2);
+	free(tsk->dst1);
+	free(tsk->dst2);
 }
 
-int dsa_wait_memcpy(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-		dsa_completion_t *c)
+void free_batch_task(struct batch_task *btsk)
 {
-	struct dsa_ring_ent *orig = desc, *orig1 = desc;
-	int i = 0, j, retry;
-	int n = desc->n, start;
+	int i;
 
-again:
-	retry = 0;
-	start = 0;
-	for (; i < n; i++, desc++) {
-		struct dsa_completion_record *comp = desc->comp;
+	if (!btsk)
+		return;
 
-		j = dsa_wait_on_desc_timeout(desc, ms_timeout);
+	free_task(btsk->core_task);
 
-		if (j < 0) {
-			printf("memcpy desc %d timeout out\n", i);
-			return DSA_STATUS_TIMEOUT;
-		}
-		if (comp->status == DSA_COMP_PAGE_FAULT_NOBOF) {
-			if (!(desc->hw.flags & IDXD_OP_FLAG_BOF)) {
-				dsa_reprep_memcpy(ctx, desc);
-				retry = 1;
-			} else {
-				printf("%d: invalid page fault at addr %lx\n",
-					i, comp->fault_addr);
-				return DSA_STATUS_URPF;
-			}
-			if (!start) {
-				orig = desc;
-				start = i;
-			}
-		} else if (comp->status != DSA_COMP_SUCCESS) {
-			printf("operation %d failure %x\n", desc->hw.opcode,
-						comp->status);
-			return DSA_STATUS_FAIL;
-		}
+	for (i = 0; i < btsk->task_num; i++) {
+		/* pointing to part of the 'btsk->sub_descs/comps', need to */
+		/* free the buffer as a whole out of the loop. Set to NULL */
+		/* to avoid being free in __clean_task()*/
+		btsk->sub_tasks[i].desc = NULL;
+		btsk->sub_tasks[i].comp = NULL;
+		/* sub_tasks is an array "btsk->sub_tasks", we don't free */
+		/* btsk->sub_tasks[i] itself here */
+		__clean_task(&(btsk->sub_tasks[i]));
 	}
 
-	if (retry) {
-		desc = orig;
-		i = start;
-		goto again;
+	free(btsk->sub_tasks);
+	free(btsk->sub_descs);
+	free(btsk->sub_comps);
+	free(btsk);
+}
+
+int dsa_wait_batch(struct dsa_context *ctx)
+{
+	int rc;
+
+	struct batch_task *btsk = ctx->batch_task;
+	struct task *ctsk = btsk->core_task;
+
+	info("wait batch\n");
+
+	rc = dsa_wait_on_desc_timeout(ctsk->comp, ms_timeout);
+	if (rc < 0) {
+		err("batch desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
 	}
 
-	c->status = DSA_COMP_SUCCESS;
-
-	dsa_free_desc(ctx, orig1);
+	dump_sub_compl_rec(btsk);
 	return DSA_STATUS_OK;
 }
 
-int dsa_batch_memcpy(struct dsa_context *ctx, void *dest, void *src,
-		size_t len, unsigned int flags, dsa_completion_t *c)
+int dsa_wait_memcpy(struct dsa_context *ctx)
 {
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, num_batch_descs = 1;
-	int ret = DSA_STATUS_OK;
-	struct dsa_batch *batch;
-	unsigned int desc_idx, num, i;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
-	}
-
-	desc = dsa_reserve_space(ctx, num_batch_descs);
-	if (!desc)
-		return DSA_STATUS_RETRY;
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch)
-		return DSA_STATUS_FAIL;
-
-	desc->batch = batch;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		size_t copy = len;
-
-		desc_idx = i * ctx->max_batch_size;
-		num = num_descs;
-
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (copy > (num * ctx->max_xfer_size))
-			copy = num * ctx->max_xfer_size;
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_memcpy(batch, desc_idx, num,
-				(uint64_t)dest, (uint64_t)src, copy, dflags);
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, &desc[i], dflags);
-
-		num_descs -= num;
-		len -= copy;
-		src = (char *)src + copy;
-		dest = (char *)dest + copy;
-	}
-
-	ret = dsa_wait_batch(ctx, desc, c, 0, batch->num_descs);
-
-	dsa_free_batch_buffers(batch);
-
-	return ret;
-}
-
-
-int dsa_memcpy(struct dsa_context *ctx, void *dest, void *src, size_t len,
-		unsigned int flags, dsa_completion_t *c)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs, ret = DSA_STATUS_OK;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	desc = dsa_reserve_space(ctx, num_descs);
-	if (!desc)
-		return dsa_batch_memcpy(ctx, dest, src, len, flags, c);
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_memcpy(ctx, desc, dest, src, len, dflags);
-
-	ret = dsa_wait_memcpy(ctx, desc, c);
-
-	return ret;
-}
-
-struct dsa_ring_ent *dsa_batch_memcpy_nb(struct dsa_context *ctx, void *dest,
-		void *src, size_t len, unsigned int flags)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, i, num_batch_descs = 1;
-	struct dsa_batch *batch;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
-	}
-
-	desc = dsa_reserve_space(ctx, num_batch_descs);
-	if (!desc)
-		return NULL;
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch) {
-		dsa_free_desc(ctx, desc);
-		return NULL;
-	}
-
-	desc->batch = batch;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		int desc_idx = i * ctx->max_batch_size;
-		unsigned int num = num_descs;
-		size_t  copy = len;
-
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (copy > (num * ctx->max_xfer_size))
-			copy = num * ctx->max_xfer_size;
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_memcpy(batch, desc_idx, num, (uint64_t)dest,
-						(uint64_t)src, copy, dflags);
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, &desc[i], dflags);
-
-		num_descs -= num;
-		len -= copy;
-		src = (char *)src + copy;
-		dest = (char*)dest + copy;
-	}
-	return desc;
-}
-
-struct dsa_ring_ent *dsa_memcpy_nb(struct dsa_context *ctx, void *dest,
-		void *src, size_t len, unsigned int flags)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	desc = dsa_reserve_space(ctx, num_descs);
-	if (!desc)
-		return NULL;
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_memcpy(ctx, desc, dest, src, len, dflags);
-
-	return desc;
-}
-
-int dsa_wait_memset(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-		dsa_completion_t *c)
-{
-	struct dsa_ring_ent *orig = desc, *orig1 = desc;
-	int i = 0, j, retry;
-	int n = desc->n, start;
+	struct dsa_hw_desc *desc = ctx->single_task->desc;
+	struct dsa_completion_record *comp = ctx->single_task->comp;
+	int rc;
 
 again:
-	retry = 0;
-	start = 0;
-	for (; i < n; i++, desc++) {
-		struct dsa_completion_record *comp = desc->comp;
-
-		j = dsa_wait_on_desc_timeout(desc, ms_timeout);
-
-		if (j < 0) {
-			printf("memset desc %d timeout out\n", i);
-			return DSA_STATUS_TIMEOUT;
-		}
-		if (comp->status == DSA_COMP_PAGE_FAULT_NOBOF) {
-			if (!(desc->hw.flags & IDXD_OP_FLAG_BOF)) {
-				dsa_reprep_memset(ctx, desc);
-				retry = 1;
-			} else {
-				printf("%d: invalid page fault at addr %lx\n",
-					i, comp->fault_addr);
-				return DSA_STATUS_URPF;
-			}
-			if (!start) {
-				start = i;
-				orig = desc;
-			}
-		} else if (comp->status != DSA_COMP_SUCCESS) {
-			printf("operation %d failure %x\n", desc->hw.opcode,
-						comp->status);
-			return DSA_STATUS_FAIL;
-		}
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("memcpy desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
 	}
-	if (retry) {
-		i = start;
-		desc = orig;
+
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+			!(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_memcpy(ctx);
 		goto again;
 	}
 
-	c->status = DSA_COMP_SUCCESS;
-
-	dsa_free_desc(ctx, orig1);
 	return DSA_STATUS_OK;
 }
 
-int dsa_batch_memset(struct dsa_context *ctx, void *dest, uint64_t val,
-		size_t len, unsigned int flags, dsa_completion_t *c)
+int dsa_memcpy(struct dsa_context *ctx)
 {
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, num_batch_descs = 1;
+	struct task *tsk = ctx->single_task;
 	int ret = DSA_STATUS_OK;
-	struct dsa_batch *batch;
-	unsigned int i, desc_idx, num;
 
-	num_descs = dsa_xferlen_to_descs(ctx, len);
+	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+		tsk->dflags |= IDXD_OP_FLAG_BOF;
 
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
-	}
-
-	desc = dsa_reserve_space(ctx, num_batch_descs);
-	if (!desc)
-		return DSA_STATUS_RETRY;
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch)
-		return DSA_STATUS_FAIL;
-
-	desc->batch = batch;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		size_t fill = len;
-
-		desc_idx = i * ctx->max_batch_size;
-		num = num_descs;
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (fill > (num * ctx->max_xfer_size))
-			fill = num * ctx->max_xfer_size;
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_memset(batch, desc_idx, num, (uint64_t)dest,
-				val, fill, dflags);
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, &desc[i], dflags);
-
-		num_descs -= num;
-		len -= fill;
-		dest = (char *)dest + fill;
-	}
-
-	ret = dsa_wait_batch(ctx, desc, c, 0, batch->num_descs);
-
-	dsa_free_batch_buffers(batch);
+	dsa_prep_memcpy(tsk);
+	dsa_desc_submit(ctx, tsk->desc);
+	ret = dsa_wait_memcpy(ctx);
 
 	return ret;
 }
 
-
-int dsa_memset(struct dsa_context *ctx, void *dest, uint64_t val, size_t len,
-		unsigned int flags, dsa_completion_t *c)
+int dsa_wait_memfill(struct dsa_context *ctx)
 {
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs, ret = DSA_STATUS_OK;
+	struct dsa_hw_desc *desc = ctx->single_task->desc;
+	struct dsa_completion_record *comp = ctx->single_task->comp;
+	int rc;
 
-	num_descs = dsa_xferlen_to_descs(ctx, len);
+again:
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
 
-	desc = dsa_reserve_space(ctx, num_descs);
-	if (!desc)
-		return dsa_batch_memset(ctx, dest, val, len, flags, c);
+	if (rc < 0) {
+		err("memfill desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
 
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+			!(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_memfill(ctx);
+		goto again;
+	}
 
-	dsa_prep_memset(ctx, desc, dest, val, len, dflags);
+	return DSA_STATUS_OK;
+}
 
-	ret = dsa_wait_memset(ctx, desc, c);
+int dsa_memfill(struct dsa_context *ctx)
+{
+	struct task *tsk = ctx->single_task;
+	int ret = DSA_STATUS_OK;
+
+	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+		tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+	dsa_prep_memfill(tsk);
+	dsa_desc_submit(ctx, tsk->desc);
+	ret = dsa_wait_memfill(ctx);
 
 	return ret;
 }
 
-struct dsa_ring_ent *dsa_batch_memset_nb(struct dsa_context *ctx, void *dest,
-		uint64_t val, size_t len, unsigned int flags)
+int dsa_wait_compare(struct dsa_context *ctx)
 {
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, i, num_batch_descs = 1;
-	struct dsa_batch *batch;
+	struct dsa_hw_desc *desc = ctx->single_task->desc;
+	struct dsa_completion_record *comp = ctx->single_task->comp;
+	int rc;
 
-	num_descs = dsa_xferlen_to_descs(ctx, len);
+again:
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
 
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
+	if (rc < 0) {
+		err("compare desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
 	}
 
-	desc = dsa_reserve_space(ctx, num_batch_descs);
-	if (!desc)
-		return NULL;
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch) {
-		dsa_free_desc(ctx, desc);
-		return NULL;
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+			!(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_compare(ctx);
+		goto again;
 	}
 
-	desc->batch = batch;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		int desc_idx = i * ctx->max_batch_size;
-		unsigned int num = num_descs;
-		unsigned int fill = len;
-
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (fill > (num * ctx->max_xfer_size))
-			fill = num * ctx->max_xfer_size;
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_memset(batch, desc_idx, num, (uint64_t)dest,
-						val, fill, dflags);
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, &desc[i], dflags);
-
-		num_descs -= num;
-		len -= fill;
-		dest = (char *)dest + fill;
-	}
-
-	return desc;
+	return DSA_STATUS_OK;
 }
 
-struct dsa_ring_ent *dsa_memset_nb(struct dsa_context *ctx, void *dest,
-		uint64_t val, size_t len, unsigned int flags)
+int dsa_compare(struct dsa_context *ctx)
 {
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs;
+	struct task *tsk = ctx->single_task;
+	int ret = DSA_STATUS_OK;
 
-	num_descs = dsa_xferlen_to_descs(ctx, len);
+	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+		tsk->dflags |= IDXD_OP_FLAG_BOF;
 
-	desc = dsa_reserve_space(ctx, num_descs);
-	if (!desc)
-		return NULL;
+	dsa_prep_compare(tsk);
+	dsa_desc_submit(ctx, tsk->desc);
+	ret = dsa_wait_compare(ctx);
 
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_memset(ctx, desc, dest, val, len, dflags);
-
-	return desc;
+	return ret;
 }
 
-int dsa_wait_compare(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-		dsa_completion_t *c)
+int dsa_wait_compval(struct dsa_context *ctx)
 {
-	struct dsa_ring_ent *orig = desc;
-	int i = 0, j;
-	int n = desc->n, ret = DSA_STATUS_OK;
-	size_t completed = 0;
-	struct dsa_completion_record *comp = NULL;
+	struct dsa_hw_desc *desc = ctx->single_task->desc;
+	struct dsa_completion_record *comp = ctx->single_task->comp;
+	int rc;
 
-	while (i < n) {
-		comp = desc->comp;
+again:
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
 
-		j = dsa_wait_on_desc_timeout(desc, ms_timeout);
-
-		if (j < 0) {
-			printf("compare desc %d timeout out\n", i);
-			return DSA_STATUS_TIMEOUT;
-		}
-		if (comp->status == DSA_COMP_SUCCESS) {
-			if (comp->result == 0) {
-				completed += desc->hw.xfer_size;
-			} else {
-				completed += comp->bytes_completed;
-				break;
-			}
-			i++;
-			desc++;
-		} else if (comp->status == DSA_COMP_PAGE_FAULT_NOBOF) {
-			if (!(desc->hw.flags & IDXD_OP_FLAG_BOF)) {
-				dsa_reprep_compare(ctx, desc);
-			} else {
-				printf("%d: invalid page fault at addr %lx\n",
-					i, comp->fault_addr);
-				ret = DSA_STATUS_URPF;
-				break;
-			}
-		} else if (comp->status != DSA_COMP_SUCCESS) {
-			printf("operation %d failure %x\n", desc->hw.opcode,
-						comp->status);
-			ret = DSA_STATUS_FAIL;
-			break;
-		}
+	if (rc < 0) {
+		err("compval desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
 	}
 
-	if (!comp)
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+			!(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_compval(ctx);
+		goto again;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_compval(struct dsa_context *ctx)
+{
+	struct task *tsk = ctx->single_task;
+	int ret = DSA_STATUS_OK;
+
+	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+		tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+	dsa_prep_compval(tsk);
+	dsa_desc_submit(ctx, tsk->desc);
+	ret = dsa_wait_compval(ctx);
+
+	return ret;
+}
+
+int dsa_wait_dualcast(struct dsa_context *ctx)
+{
+	struct dsa_hw_desc *desc = ctx->single_task->desc;
+	struct dsa_completion_record *comp = ctx->single_task->comp;
+	int rc;
+
+again:
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("dualcast desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
+
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+			!(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_dualcast(ctx);
+		goto again;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_dualcast(struct dsa_context *ctx)
+{
+	struct task *tsk = ctx->single_task;
+	int ret = DSA_STATUS_OK;
+
+	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+		tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+	dsa_prep_dualcast(tsk);
+	dsa_desc_submit(ctx, tsk->desc);
+	ret = dsa_wait_dualcast(ctx);
+
+	return ret;
+}
+
+/* mismatch_expected: expect mismatched buffer with success status 0x1 */
+int task_result_verify(struct task *tsk, int mismatch_expected)
+{
+	int rc;
+
+	info("verifying task result for %#lx\n", tsk);
+
+	if (tsk->comp->status != DSA_COMP_SUCCESS)
+		return tsk->comp->status;
+
+	switch (tsk->opcode) {
+	case DSA_OPCODE_MEMMOVE:
+		rc = task_result_verify_memcpy(tsk, mismatch_expected);
+		return rc;
+	case DSA_OPCODE_MEMFILL:
+		rc = task_result_verify_memfill(tsk, mismatch_expected);
+		return rc;
+	case DSA_OPCODE_COMPARE:
+		rc = task_result_verify_compare(tsk, mismatch_expected);
+		return rc;
+	case DSA_OPCODE_COMPVAL:
+		rc = task_result_verify_compval(tsk, mismatch_expected);
+		return rc;
+	case DSA_OPCODE_DUALCAST:
+		rc = task_result_verify_dualcast(tsk, mismatch_expected);
+		return rc;
+	}
+
+	info("test with op %d passed\n", tsk->opcode);
+
+	return DSA_STATUS_OK;
+}
+
+int task_result_verify_memcpy(struct task *tsk, int mismatch_expected)
+{
+	int rc;
+
+	if (mismatch_expected)
+		warn("invalid arg mismatch_expected for %d\n", tsk->opcode);
+
+	rc = memcmp(tsk->src1, tsk->dst1, tsk->xfer_size);
+	if (rc) {
+		err("memcpy mismatch, memcmp rc %d\n", rc);
 		return -ENXIO;
+	}
 
-	c->status = comp->status;
-	c->result = comp->result;
-	c->bytes_completed = completed;
-
-	dsa_free_desc(ctx, orig);
-	return ret;
+	return DSA_STATUS_OK;
 }
 
-int dsa_batch_compare(struct dsa_context *ctx, void *src1, void *src2,
-		size_t len, unsigned int flags, dsa_completion_t *c)
+int task_result_verify_memfill(struct task *tsk, int mismatch_expected)
 {
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, num_batch_descs = 1;
-	int ret = DSA_STATUS_OK;
-	struct dsa_batch *batch;
-	struct dsa_hw_desc *hw;
-	struct dsa_completion_record *compl;
-	dsa_completion_t batch_c;
-	size_t completed = 0;
-	unsigned int i, j = 0, num = 0, desc_idx;
+	if (mismatch_expected)
+		warn("invalid arg mismatch_expected for %d\n", tsk->opcode);
 
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
-	}
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch)
-		return DSA_STATUS_FAIL;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		size_t comp = len;
-
-		desc = dsa_reserve_space(ctx, 1);
-		if (!desc)
-			return DSA_STATUS_RETRY;
-
-		desc_idx = i * ctx->max_batch_size;
-		num = num_descs;
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (comp > (num * ctx->max_xfer_size))
-			comp = num * ctx->max_xfer_size;
-
-		desc->batch = batch;
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-
-		if (ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_compare(batch, desc_idx, num, (uint64_t)src1,
-						(uint64_t)src2, comp, dflags);
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, desc, dflags);
-
-		ret = dsa_wait_batch(ctx, desc, &batch_c, desc_idx, num);
-		if (ret != DSA_STATUS_OK)
-			goto error;
-
-		compl = &batch->comp[desc_idx];
-		hw = &batch->descs[desc_idx];
-		for (j = 0; j < num; j++) {
-			if (compl[j].status == DSA_COMP_SUCCESS) {
-				if (compl[j].result == 0) {
-					completed += hw[j].xfer_size;
-				} else {
-					completed += compl[j].bytes_completed;
-					break;
-				}
-			} else if (compl[j].status ==
-					DSA_COMP_PAGE_FAULT_NOBOF) {
-				printf("%d: batch page fault at addr %lx\n",
-						j, compl[j].fault_addr);
-				if (hw[j].flags & IDXD_OP_FLAG_BOF)
-					ret = DSA_STATUS_URPF;
-				else
-					ret = DSA_STATUS_RPF;
-				goto error;
-			} else if (compl[j].status != DSA_COMP_SUCCESS) {
-				printf("batch op %d failure %x\n",
-						hw[j].opcode,
-						compl[j].status);
-				ret = DSA_STATUS_FAIL;
-				goto error;
-			}
-		}
-
-		if (j < num && compl[j].result != 0)
-			break;
-
-		num_descs -= num;
-		len -= comp;
-		src1 = (char *)src1 + comp;
-		src2 = (char *)src2 + comp;
-	}
-
-	if (j < num) {
-		c->status = compl->status;
-		c->result = compl->result;
-	} else {
-		c->status = DSA_COMP_SUCCESS;
-		c->result = 0;
-	}
-	c->bytes_completed = completed;
-error:
-	dsa_free_batch_buffers(batch);
-
-	return ret;
-}
-
-
-int dsa_compare(struct dsa_context *ctx, void *src1, void *src2, size_t len,
-		unsigned int flags, dsa_completion_t *c)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs, ret = DSA_STATUS_OK;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	desc = dsa_reserve_space(ctx, num_descs);
-	if (!desc)
-		return dsa_batch_compare(ctx, src1, src2, len, flags, c);
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_compare(ctx, desc, src1, src2, len, dflags);
-	ret = dsa_wait_compare(ctx, desc, c);
-
-	return ret;
-}
-
-struct dsa_ring_ent *dsa_batch_compare_nb(struct dsa_context *ctx, void *src1,
-		void *src2, size_t len, unsigned int flags)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, num_batch_descs = 1;
-	struct dsa_batch *batch;
-	unsigned int i, num;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
-	}
-
-	desc = dsa_reserve_space(ctx, num_batch_descs);
-	if (!desc)
-		return NULL;
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch) {
-		dsa_free_desc(ctx, desc);
-		return NULL;
-	}
-
-	desc->batch = batch;
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	desc->batch = batch;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		int desc_idx = i * ctx->max_batch_size;
-		unsigned int comp = len;
-
-		num = num_descs;
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (comp > (num * ctx->max_xfer_size))
-			comp = num * ctx->max_xfer_size;
-
-		if (ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_compare(batch, desc_idx, num, (uint64_t)src1,
-						(uint64_t)src2, comp, dflags);
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, &desc[i], dflags);
-
-		num_descs -= num;
-		len -= comp;
-		src1 = (char *)src1 + comp;
-		src2 = (char *)src2 + comp;
-	}
-
-	return desc;
-}
-
-struct dsa_ring_ent *dsa_compare_nb(struct dsa_context *ctx, void *src1,
-		void *src2, size_t len, unsigned int flags)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	desc = dsa_reserve_space(ctx, num_descs);
-	if (!desc)
-		return NULL;
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_compare(ctx, desc, src1, src2, len, dflags);
-
-	return desc;
-}
-
-int dsa_wait_compval(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-		dsa_completion_t *c)
-{
-	struct dsa_ring_ent *orig = desc;
-	int i = 0, j;
-	int n = desc->n, ret = DSA_STATUS_OK;
-	size_t completed = 0;
-	struct dsa_completion_record *comp = NULL;
-
-	while (i < n) {
-		comp = desc->comp;
-
-		j = dsa_wait_on_desc_timeout(desc, ms_timeout);
-
-		if (j < 0) {
-			printf("compval desc %d timeout out\n", i);
-			return DSA_STATUS_TIMEOUT;
-		}
-		if (comp->status == DSA_COMP_SUCCESS) {
-			if (comp->result == 0) {
-				completed += desc->hw.xfer_size;
-			} else {
-				completed += comp->bytes_completed;
-				break;
-			}
-			i++;
-			desc++;
-		} else if (comp->status == DSA_COMP_PAGE_FAULT_NOBOF) {
-			if (!(desc->hw.flags & IDXD_OP_FLAG_BOF)) {
-				dsa_reprep_compval(ctx, desc);
-			} else {
-				printf("%d: invalid page fault at addr %lx\n",
-					i, comp->fault_addr);
-				ret = DSA_STATUS_URPF;
-				break;
-			}
-		} else if (comp->status != DSA_COMP_SUCCESS) {
-			printf("operation %d failure %x\n", desc->hw.opcode,
-						comp->status);
-			ret = DSA_STATUS_FAIL;
-			break;
-		}
-	}
-
-	if (!comp)
+	if (memcmp_pattern(tsk->dst1, tsk->pattern, tsk->xfer_size)) {
+		err("memfill test failed\n");
 		return -ENXIO;
+	}
 
-	c->status = comp->status;
-	c->result = comp->result;
-	c->bytes_completed = completed;
-
-	dsa_free_desc(ctx, orig);
-	return ret;
+	return DSA_STATUS_OK;
 }
 
-int dsa_batch_compval(struct dsa_context *ctx, uint64_t val, void *src,
-		size_t len, unsigned int flags, dsa_completion_t *c)
+int task_result_verify_compare(struct task *tsk, int mismatch_expected)
 {
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, num_batch_descs = 1;
-	int ret = DSA_STATUS_OK;
-	struct dsa_batch *batch;
-	struct dsa_hw_desc *hw;
-	struct dsa_completion_record *compl = NULL;
-	dsa_completion_t batch_c;
-	size_t completed = 0;
-	unsigned int i, j = 0, num = 0, desc_idx = 0;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
-	}
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch)
-		return DSA_STATUS_FAIL;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		size_t comp = len;
-
-		desc = dsa_reserve_space(ctx, 1);
-		if (!desc)
-			return DSA_STATUS_RETRY;
-
-		desc_idx = i * ctx->max_batch_size;
-		num = num_descs;
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (comp > (num * ctx->max_xfer_size))
-			comp = num * ctx->max_xfer_size;
-
-		desc->batch = batch;
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-
-		if (ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_compval(batch, desc_idx, num, val,
-						(uint64_t)src, comp, dflags);
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, desc, dflags);
-
-		ret = dsa_wait_batch(ctx, desc, &batch_c, desc_idx, num);
-		if (ret != DSA_STATUS_OK)
-			goto error;
-
-		compl = &batch->comp[desc_idx];
-		hw = &batch->descs[desc_idx];
-		for (j = 0; j < num; j++) {
-			if (compl[j].status == DSA_COMP_SUCCESS) {
-				if (compl[j].result == 0) {
-					completed += hw[j].xfer_size;
-				} else {
-					completed += compl[j].bytes_completed;
-					break;
-				}
-			} else if (compl[j].status ==
-					DSA_COMP_PAGE_FAULT_NOBOF) {
-				printf("%d: batch page fault at addr %lx\n",
-						j, compl[j].fault_addr);
-				if (hw[j].flags & IDXD_OP_FLAG_BOF)
-					ret = DSA_STATUS_URPF;
-				else
-					ret = DSA_STATUS_RPF;
-				goto error;
-			} else if (compl[j].status != DSA_COMP_SUCCESS) {
-				printf("batch op %d failure %x\n",
-						hw[j].opcode,
-						compl[j].status);
-				ret = DSA_STATUS_FAIL;
-				goto error;
-			}
-		}
-
-		if (j < num && compl[j].status != DSA_COMP_SUCCESS)
-			break;
-
-		num_descs -= num;
-		len -= comp;
-		src = (char *)src + comp;
-	}
-
-	if (j < num) {
-		if (!compl)
+	if (!mismatch_expected) {
+		if (tsk->comp->result) {
+			err("compval failed at %#x\n",
+					tsk->comp->bytes_completed);
 			return -ENXIO;
-
-		c->status = compl->status;
-		c->result = compl->result;
-	} else {
-		c->status = DSA_COMP_SUCCESS;
-		c->result = 0;
-	}
-	c->bytes_completed = completed;
-error:
-	dsa_free_batch_buffers(batch);
-
-	return ret;
-}
-
-
-int dsa_compval(struct dsa_context *ctx, uint64_t val, void *src, size_t len,
-		unsigned int flags, dsa_completion_t *c)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs, ret = DSA_STATUS_OK;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if ((desc = dsa_reserve_space(ctx, num_descs)) == NULL)
-		return dsa_batch_compval(ctx, val, src, len, flags, c);
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_compval(ctx, desc, val, src, len, dflags);
-
-	ret = dsa_wait_compval(ctx, desc, c);
-
-	return ret;
-}
-
-struct dsa_ring_ent *dsa_batch_compval_nb(struct dsa_context *ctx,
-		uint64_t val, void *src, size_t len, unsigned int flags)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, num_batch_descs = 1;
-	struct dsa_batch *batch;
-	unsigned int i, num;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
-	}
-
-	desc = dsa_reserve_space(ctx, num_batch_descs);
-	if (!desc)
-		return NULL;
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch) {
-		dsa_free_desc(ctx, desc);
-		return NULL;
-	}
-
-	desc->batch = batch;
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	desc->batch = batch;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		int desc_idx = i * ctx->max_batch_size;
-		unsigned int comp = len;
-
-		num = num_descs;
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (comp > (num * ctx->max_xfer_size))
-			comp = num * ctx->max_xfer_size;
-
-		if (ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_compval(batch, desc_idx, num, val,
-						(uint64_t)src, comp, dflags);
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, &desc[i], dflags);
-
-		num_descs -= num;
-		len -= comp;
-		src = (char *)src + comp;
-	}
-
-	return desc;
-}
-
-struct dsa_ring_ent *dsa_compval_nb(struct dsa_context *ctx, uint64_t val,
-		void *src, size_t len, unsigned int flags)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if ((desc = dsa_reserve_space(ctx, num_descs)) == NULL)
-		return NULL;
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_compval(ctx, desc, val, src, len, dflags);
-
-	return desc;
-}
-
-int dsa_wait_dualcast(struct dsa_context *ctx, struct dsa_ring_ent *desc,
-		dsa_completion_t *c)
-{
-	struct dsa_ring_ent *orig = desc, *orig1 = desc;
-	int i = 0, j, retry;
-	int n = desc->n, start;
-
-again:
-	retry = 0;
-	start = 0;
-	for (; i < n; i++, desc++) {
-		struct dsa_completion_record *comp = desc->comp;
-
-		j = dsa_wait_on_desc_timeout(desc, ms_timeout);
-
-		if (j < 0) {
-			printf("dualcast desc %d timeout out\n", i);
-			return DSA_STATUS_TIMEOUT;
 		}
-		if (comp->status == DSA_COMP_PAGE_FAULT_NOBOF) {
-			if (!(desc->hw.flags & IDXD_OP_FLAG_BOF)) {
-				dsa_reprep_dualcast(ctx, desc);
-				retry = 1;
-			} else {
-				printf("%d: invalid page fault at addr %lx\n",
-					i, comp->fault_addr);
-				return DSA_STATUS_URPF;
-			}
-			if (!start) {
-				start = i;
-				orig = desc;
-			}
-		} else if (comp->status != DSA_COMP_SUCCESS) {
-			printf("operation %d failure %x\n", desc->hw.opcode,
-						comp->status);
-			return DSA_STATUS_FAIL;
+		return DSA_STATUS_OK;
+	}
+
+	/* mismatch_expected */
+	if (tsk->comp->result) {
+		info("expected mismatch at index %#x\n",
+				tsk->comp->bytes_completed);
+		return DSA_STATUS_OK;
+	}
+
+	err("DSA wrongly says matching buffers\n");
+	return -ENXIO;
+}
+
+int task_result_verify_compval(struct task *tsk, int mismatch_expected)
+{
+	if (!mismatch_expected) {
+		if (tsk->comp->result) {
+			err("compval failed at %#x\n",
+					tsk->comp->bytes_completed);
+			return -ENXIO;
 		}
-	}
-	if (retry) {
-		i = start;
-		desc = orig;
-		goto again;
+		return DSA_STATUS_OK;
 	}
 
-	c->status = DSA_COMP_SUCCESS;
+	/* mismatch_expected */
+	if (tsk->comp->result) {
+		info("expected mismatch at index %#x\n",
+				tsk->comp->bytes_completed);
+		return DSA_STATUS_OK;
+	}
 
-	dsa_free_desc(ctx, orig1);
+	err("DSA wrongly says matching buffers\n");
+	return -ENXIO;
+}
+
+int task_result_verify_dualcast(struct task *tsk, int mismatch_expected)
+{
+	int rc;
+
+	if (mismatch_expected)
+		warn("invalid arg mismatch_expected for %d\n", tsk->opcode);
+
+	rc = memcmp(tsk->src1, tsk->dst1, tsk->xfer_size);
+	if (rc) {
+		err("ducalcast mismatch dst1, memcmp rc %d\n", rc);
+		return -ENXIO;
+	}
+
+	rc = memcmp(tsk->src1, tsk->dst2, tsk->xfer_size);
+	if (rc) {
+		err("ducalcast mismatch dst2, memcmp rc %d\n", rc);
+		return -ENXIO;
+	}
+
 	return DSA_STATUS_OK;
 }
 
-int dsa_batch_dualcast(struct dsa_context *ctx, void *dest1, void *dest2,
-		void *src, size_t len, unsigned int flags,
-		dsa_completion_t *c)
+int batch_result_verify(struct batch_task *btsk, int bof)
 {
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, num_batch_descs = 1;
-	int ret = DSA_STATUS_OK;
-	unsigned int i, desc_idx = 0, num = 0;
-	struct dsa_batch *batch;
+	uint8_t core_stat, sub_stat;
+	int i, rc;
+	struct task *tsk;
 
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
-	}
-	if ((desc = dsa_reserve_space(ctx, num_batch_descs)) == NULL)
-		return DSA_STATUS_RETRY;
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch)
+	core_stat = stat_val(btsk->core_task->comp->status);
+	if (core_stat == DSA_COMP_SUCCESS)
+		info("core task success, chekcing sub-tasks\n");
+	else if (!bof && core_stat == DSA_COMP_BATCH_FAIL)
+		info("partial complete with NBOF, checking sub-tasks\n");
+	else {
+		err("batch core task failed with status %d\n", core_stat);
 		return DSA_STATUS_FAIL;
-
-	desc->batch = batch;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		size_t copy = len;
-
-		desc_idx = i * ctx->max_batch_size;
-		num = num_descs;
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (copy > (num * ctx->max_xfer_size))
-			copy = num * ctx->max_xfer_size;
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_dualcast(batch, desc_idx, num, (uint64_t)dest1,
-				(uint64_t)dest2, (uint64_t)src, copy, dflags);
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, &desc[i], dflags);
-
-		num_descs -= num;
-		len -= copy;
-		src = (char *)src + copy;
-		dest1 = (char *)dest1 + copy;
-		dest2 = (char *)dest2 + copy;
 	}
 
-	ret = dsa_wait_batch(ctx, desc, c, 0, batch->num_descs);
+	for (i = 0; i < btsk->task_num; i++) {
+		tsk = &(btsk->sub_tasks[i]);
+		sub_stat = stat_val(tsk->comp->status);
 
-	dsa_free_batch_buffers(batch);
-
-	return ret;
-}
-
-
-int dsa_dualcast(struct dsa_context *ctx, void *dest1, void *dest2, void *src,
-		size_t len, unsigned int flags, dsa_completion_t *c)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs, ret = DSA_STATUS_OK;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	desc = dsa_reserve_space(ctx, num_descs);
-	if (!desc)
-		return dsa_batch_dualcast(ctx, dest1, dest2, src,
-				len, flags, c);
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_dualcast(ctx, desc, dest1, dest2, src, len, dflags);
-
-	ret = dsa_wait_dualcast(ctx, desc, c);
-
-	return ret;
-}
-
-struct dsa_ring_ent *dsa_batch_dualcast_nb(struct dsa_context *ctx,
-		void *dest1, void *dest2, void *src, size_t len,
-		unsigned int flags)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	unsigned int num_descs, i, num_batch_descs = 1;
-	struct dsa_batch *batch;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	if (num_descs > ctx->max_batch_size) {
-		num_batch_descs = num_descs / ctx->max_batch_size;
-		num_batch_descs += !!(num_descs % ctx->max_batch_size);
+		if (!bof && sub_stat == DSA_COMP_PAGE_FAULT_NOBOF)
+			dbg("PF in sub-task[%d], consider as passed\n", i);
+		else if (sub_stat == DSA_COMP_SUCCESS) {
+			rc = task_result_verify(tsk, 0);
+			if (rc != DSA_STATUS_OK) {
+				err("Sub-task[%d] failed with rc=%d", i, rc);
+				return rc;
+			}
+		} else {
+			err("Sub-task[%d] failed with stat=%d", i, sub_stat);
+			return DSA_STATUS_FAIL;
+		}
 	}
 
-	desc = dsa_reserve_space(ctx, num_batch_descs);
-	if (!desc)
-		return NULL;
-
-	batch = dsa_alloc_batch_buffers(ctx, num_descs);
-
-	if (!batch) {
-		dsa_free_desc(ctx, desc);
-		return NULL;
-	}
-
-	desc->batch = batch;
-
-	for (i = 0; i < num_batch_descs; i++) {
-		int desc_idx = i * ctx->max_batch_size;
-		unsigned int num = num_descs;
-		size_t  copy = len;
-
-		if (num > ctx->max_batch_size)
-			num = ctx->max_batch_size;
-
-		if (copy > (num * ctx->max_xfer_size))
-			copy = num * ctx->max_xfer_size;
-
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-			dflags |= IDXD_OP_FLAG_BOF;
-
-		dsa_prep_batch_dualcast(batch, desc_idx, num, (uint64_t)dest1,
-				(uint64_t)dest2, (uint64_t)src, copy, dflags);
-		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-		dsa_prep_submit_batch(batch, desc_idx, num, &desc[i], dflags);
-
-		num_descs -= num;
-		len -= copy;
-		src = (char *)src + copy;
-		dest1 = (char *)dest1 + copy;
-		dest2 = (char *)dest2 + copy;
-	}
-	return desc;
-}
-
-struct dsa_ring_ent *dsa_dualcast_nb(struct dsa_context *ctx, void *dest1,
-		void *dest2, void *src, size_t len, unsigned int flags)
-{
-	struct dsa_ring_ent *desc;
-	unsigned long dflags;
-	int num_descs;
-
-	num_descs = dsa_xferlen_to_descs(ctx, len);
-
-	desc = dsa_reserve_space(ctx, num_descs);
-	if (!desc)
-		return NULL;
-
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((flags & DSA_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
-
-	dsa_prep_dualcast(ctx, desc, dest1, dest2, src, len, dflags);
-
-	return desc;
+	return DSA_STATUS_OK;
 }
