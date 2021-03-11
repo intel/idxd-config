@@ -29,6 +29,17 @@
 
 #define MDEV_POSTFIX "mdev_supported_types"
 #define IDXD_DRIVER_BIND_PATH "/sys/bus/dsa/drivers/idxd"
+#define IDXD_DRIVER(d) ((d)->ctx->compat ? \
+		(d)->bus_type_str : "idxd")
+#define IDXD_WQ_DEVICE_PORTAL(d, w) ((d)->ctx->compat ? \
+		(d)->bus_type_str : accfg_wq_device_portals[(w)->type])
+
+char *accfg_wq_device_portals[] = {
+	[ACCFG_WQT_KERNEL] = "idxd-kernel-portal",
+	[ACCFG_WQT_USER] = "idxd-user-portal",
+	[ACCFG_WQT_MDEV] = "idxd-mdev-portal",
+	NULL
+};
 
 char *accfg_bus_types[] = {
 	"dsa",
@@ -640,6 +651,8 @@ static int wq_parse_type(struct accfg_wq *wq, char *wq_type)
 		wq->type = ACCFG_WQT_KERNEL;
 	else if (strcmp(ptype, "user") == 0)
 		wq->type = ACCFG_WQT_USER;
+	else if (strcmp(ptype, "mdev") == 0)
+		wq->type = ACCFG_WQT_MDEV;
 	else
 		wq->type = ACCFG_WQT_NONE;
 
@@ -1519,6 +1532,34 @@ ACCFG_EXPORT char *accfg_device_get_type_str(struct accfg_device *device)
 	return device->device_type_str;
 }
 
+static int get_driver_bind_path(char *bus_name, const char *drv_name,
+		char **path)
+{
+	char p[PATH_MAX];
+
+	sprintf(p, "/sys/bus/%s/drivers/%s/bind", bus_name, drv_name);
+
+	*path = strdup(p);
+	if (!*path)
+		return -errno;
+
+	return 0;
+}
+
+static int get_driver_unbind_path(char *bus_name, const char *dev_name,
+		char **path)
+{
+	char p[PATH_MAX];
+
+	sprintf(p, "/sys/bus/%s/devices/%s/driver/unbind", bus_name, dev_name);
+
+	*path = realpath(p, NULL);
+	if (!*path)
+		return -errno;
+
+	return 0;
+}
+
 /* Helper function to parse the device enable flag */
 static int accfg_device_control(struct accfg_device *device,
 		enum accfg_control_flag flag, bool force)
@@ -1533,15 +1574,15 @@ static int accfg_device_control(struct accfg_device *device,
 	ctx = accfg_device_get_ctx(device);
 
 	if (flag == ACCFG_DEVICE_ENABLE) {
-		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/bind",
-				device->device_type_str, device->device_type_str);
+		rc = get_driver_bind_path(device->bus_type_str,
+				IDXD_DRIVER(device), &path);
 		if (rc < 0)
 			return rc;
 	} else if (flag == ACCFG_DEVICE_DISABLE) {
 		int clients;
 
-		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/unbind",
-				device->device_type_str, device->device_type_str);
+		rc = get_driver_unbind_path(device->bus_type_str,
+				accfg_device_get_devname(device), &path);
 		if (rc < 0)
 			return rc;
 
@@ -1943,15 +1984,15 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 	const char *wq_name = accfg_wq_get_devname(wq);
 
 	if (flag == ACCFG_WQ_ENABLE) {
-		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/bind",
-				device->device_type_str, device->device_type_str);
+		rc = get_driver_bind_path(device->bus_type_str,
+				IDXD_WQ_DEVICE_PORTAL(device, wq), &path);
 		if (rc < 0)
 			return rc;
 	} else if (flag == ACCFG_WQ_DISABLE) {
 		int clients;
 
-		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/unbind",
-				device->device_type_str, device->device_type_str);
+		rc = get_driver_unbind_path(device->bus_type_str, wq_name,
+				&path);
 		if (rc < 0)
 			return rc;
 

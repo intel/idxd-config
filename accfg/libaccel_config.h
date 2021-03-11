@@ -57,7 +57,8 @@ enum accfg_wq_state {
 enum accfg_wq_type {
 	ACCFG_WQT_NONE = 0,
 	ACCFG_WQT_KERNEL,
-	ACCFG_WQT_USER
+	ACCFG_WQT_USER,
+	ACCFG_WQT_MDEV,
 };
 
 enum accfg_control_flag {
