@@ -75,7 +75,7 @@ enum accfg_mdev_type {
 
 /* no need to save device error */
 struct accfg_error {
-        uint64_t val[4];
+	uint64_t val[4];
 };
 
 /* parameters read from sysfs of accfg driver */
@@ -130,7 +130,7 @@ int accfg_new(struct accfg_ctx **ctx);
 
 /* override default log routine */
 void accfg_set_log_fn(struct accfg_ctx *ctx,
-void (*log_fn) (struct accfg_ctx * ctx,
+void (*log_fn)(struct accfg_ctx *ctx,
 	       int priority, const char *file,
 	       int line, const char *fn,
 	       const char *format,
@@ -146,9 +146,9 @@ int accfg_device_disable(struct accfg_device *device, bool force);
 struct accfg_device *accfg_device_get_first(struct accfg_ctx *ctx);
 struct accfg_device *accfg_device_get_next(struct accfg_device *device);
 #define accfg_device_foreach(ctx, device) \
-        for (device = accfg_device_get_first(ctx); \
-             device != NULL; \
-             device = accfg_device_get_next(device))
+	for (device = accfg_device_get_first(ctx); \
+	     device != NULL; \
+	     device = accfg_device_get_next(device))
 struct accfg_ctx *accfg_device_get_ctx(struct accfg_device *);
 const char *accfg_device_get_devname(struct accfg_device *device);
 int accfg_device_type_validate(const char *dev_name);
@@ -183,7 +183,7 @@ int accfg_device_get_clients(struct accfg_device *device);
 int accfg_device_set_token_limit(struct accfg_device *dev, int val);
 int accfg_device_is_active(struct accfg_device *device);
 int accfg_device_get_cmd_status(struct accfg_device *device);
-const char * accfg_device_get_cmd_status_str(struct accfg_device *device);
+const char *accfg_device_get_cmd_status_str(struct accfg_device *device);
 
 struct accfg_device_mdev;
 struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device);
@@ -204,9 +204,9 @@ struct accfg_group;
 struct accfg_group *accfg_group_get_first(struct accfg_device *device);
 struct accfg_group *accfg_group_get_next(struct accfg_group *group);
 #define accfg_group_foreach(device, group) \
-        for (group = accfg_group_get_first(device); \
-             group != NULL; \
-             group = accfg_group_get_next(group))
+	for (group = accfg_group_get_first(device); \
+	     group != NULL; \
+	     group = accfg_group_get_next(group))
 int accfg_group_get_id(struct accfg_group *group);
 struct accfg_group *accfg_device_group_get_by_id(struct accfg_device *device,
 						int id);
@@ -234,9 +234,9 @@ struct accfg_wq *accfg_wq_get_next(struct accfg_wq *wq);
 
 
 #define accfg_wq_foreach(device, wq) \
-        for (wq = accfg_wq_get_first(device); \
-             wq != NULL; \
-             wq = accfg_wq_get_next(wq))
+	for (wq = accfg_wq_get_first(device); \
+	     wq != NULL; \
+	     wq = accfg_wq_get_next(wq))
 
 struct accfg_ctx *accfg_wq_get_ctx(struct accfg_wq *wq);
 struct accfg_device *accfg_wq_get_device(struct accfg_wq *wq);
@@ -267,9 +267,9 @@ int accfg_wq_set_threshold(struct accfg_wq *wq, int val);
 int accfg_wq_set_block_on_fault(struct accfg_wq *wq, int val);
 int accfg_wq_set_max_batch_size(struct accfg_wq *wq, int val);
 int accfg_wq_set_max_transfer_size(struct accfg_wq *wq, uint64_t val);
-int accfg_wq_set_str_mode(struct accfg_wq *wq, const char* val);
+int accfg_wq_set_str_mode(struct accfg_wq *wq, const char *val);
 int accfg_wq_set_mode(struct accfg_wq *wq, enum accfg_wq_mode mode);
-int accfg_wq_set_str_type(struct accfg_wq *wq, const char* val);
+int accfg_wq_set_str_type(struct accfg_wq *wq, const char *val);
 int accfg_wq_set_str_name(struct accfg_wq *wq, const char *val);
 int accfg_wq_enable(struct accfg_wq *wq);
 int accfg_wq_disable(struct accfg_wq *wq, bool force);
@@ -281,9 +281,9 @@ struct accfg_engine;
 struct accfg_engine *accfg_engine_get_first(struct accfg_device *device);
 struct accfg_engine *accfg_engine_get_next(struct accfg_engine *engine);
 #define accfg_engine_foreach(device, engine) \
-        for (engine = accfg_engine_get_first(device); \
-             engine != NULL; \
-             engine = accfg_engine_get_next(engine))
+	for (engine = accfg_engine_get_first(device); \
+	     engine != NULL; \
+	     engine = accfg_engine_get_next(engine))
 struct accfg_ctx *accfg_engine_get_ctx(struct accfg_engine *engine);
 struct accfg_device *accfg_engine_get_device(struct accfg_engine *engine);
 struct accfg_group *accfg_engine_get_group(struct accfg_engine *engine);

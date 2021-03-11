@@ -20,32 +20,32 @@
 
 struct accfg_device {
 	struct accfg_ctx *ctx;
-        unsigned int id;
-	struct accfg_group* group;
-	struct accfg_wq* wq;
-	struct accfg_engine* engine;
+	unsigned int id;
+	struct accfg_group *group;
+	struct accfg_wq *wq;
+	struct accfg_engine *engine;
 	struct list_head groups;
 	struct list_head wqs;
 	struct list_head engines;
-        struct list_node list;
+	struct list_node list;
 	int group_init;
-        char *device_path;
+	char *device_path;
 	char *mdev_path;
-        char *device_buf;
+	char *device_buf;
 	char *device_type_str;
 	enum accfg_device_type type;
-        size_t buf_len;
+	size_t buf_len;
 	struct list_head mdev_list;
 
 	/* Device Attributes */
 	struct accfg_error errors;
 	int max_groups;
-        int max_work_queues;
-        int max_engines;
-        int max_work_queues_size;
-        int numa_node;
-        int ims_size;
-        int max_batch_size;
+	int max_work_queues;
+	int max_engines;
+	int max_work_queues_size;
+	int numa_node;
+	int ims_size;
+	int max_batch_size;
 	int configurable;
 	int max_tokens;
 	unsigned int token_limit;
@@ -65,9 +65,9 @@ struct accfg_device_mdev {
 };
 
 struct accfg_group {
-        struct accfg_device *device;
-        int id;
-        int buf_len;
+	struct accfg_device *device;
+	int id;
+	int buf_len;
 	int size;
 	char *group_path;
 	char *group_buf;
@@ -91,12 +91,12 @@ struct accfg_group {
 
 struct accfg_engine {
 	struct accfg_device *device;
-        struct accfg_group *group;
-        struct list_node list;
-        char *engine_path;
-        char *engine_buf;
-        int type, id, buf_len;
-        int numa_node;
+	struct accfg_group *group;
+	struct list_node list;
+	char *engine_path;
+	char *engine_buf;
+	int type, id, buf_len;
+	int numa_node;
 
 	/* Engine Attributes */
 	int group_id;
@@ -104,12 +104,12 @@ struct accfg_engine {
 
 struct accfg_wq {
 	struct accfg_device *device;
-        struct accfg_group *group;
+	struct accfg_group *group;
 	struct list_node list;
 	char *wq_path;
-        char *wq_buf;
-        int id, buf_len;
-        int numa_node;
+	char *wq_buf;
+	int id, buf_len;
+	int numa_node;
 
 	/* Workqueue Attributes */
 	int group_id;
@@ -138,23 +138,23 @@ struct accfg_wq {
  * @timeout: default library timeout in milliseconds
  */
 struct accfg_ctx {
-        /* log_ctx must be first member for accfg_set_log_fn compat */
-        struct log_ctx ctx;
-        int refcount;
-        int devices_init;
+	/* log_ctx must be first member for accfg_set_log_fn compat */
+	struct log_ctx ctx;
+	int refcount;
+	int devices_init;
 	int groups_init;
 	struct list_head devices;
 	uint64_t timeout;
-        void *private_data;
+	void *private_data;
 };
 
 static inline int check_udev(struct udev *udev)
 {
-        return udev ? 0 : -ENXIO;
+	return udev ? 0 : -ENXIO;
 }
 
 static inline int check_kmod(struct kmod_ctx *kmod_ctx)
 {
-        return kmod_ctx ? 0 : -ENXIO;
+	return kmod_ctx ? 0 : -ENXIO;
 }
 #endif /* _LIBACCFG_PRIVATE_H_ */
