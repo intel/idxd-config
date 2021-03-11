@@ -146,6 +146,7 @@ struct accfg_ctx {
 	struct list_head devices;
 	uint64_t timeout;
 	void *private_data;
+	bool compat;
 };
 
 static inline int check_udev(struct udev *udev)

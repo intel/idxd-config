@@ -28,6 +28,7 @@
 #include "private.h"
 
 #define MDEV_POSTFIX "mdev_supported_types"
+#define IDXD_DRIVER_BIND_PATH "/sys/bus/dsa/drivers/idxd"
 
 const char *accfg_wq_mode_str[] = {
 	[ACCFG_WQ_SHARED]	= "shared",
@@ -310,6 +311,9 @@ ACCFG_EXPORT int accfg_new(struct accfg_ctx **ctx)
 	c->refcount = 1;
 	log_init(&c->ctx, "libaccfg", "ACCFG_LOG");
 	c->timeout = 5000;
+	if (access(IDXD_DRIVER_BIND_PATH, R_OK))
+		c->compat = true;
+
 	list_head_init(&c->devices);
 
 	info(c, "ctx %p created\n", c);
