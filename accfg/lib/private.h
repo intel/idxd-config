@@ -32,6 +32,7 @@ struct accfg_device {
 	char *device_path;
 	char *mdev_path;
 	char *device_buf;
+	char *bus_type_str;
 	char *device_type_str;
 	enum accfg_device_type type;
 	size_t buf_len;

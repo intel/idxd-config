@@ -30,6 +30,12 @@
 #define MDEV_POSTFIX "mdev_supported_types"
 #define IDXD_DRIVER_BIND_PATH "/sys/bus/dsa/drivers/idxd"
 
+char *accfg_bus_types[] = {
+	"dsa",
+	"iax",
+	NULL
+};
+
 const char *accfg_wq_mode_str[] = {
 	[ACCFG_WQ_SHARED]	= "shared",
 	[ACCFG_WQ_DEDICATED]	= "dedicated",
@@ -407,10 +413,11 @@ ACCFG_EXPORT void accfg_set_log_priority(struct accfg_ctx *ctx,
 }
 
 static int device_parse(struct accfg_ctx *ctx, const char *base_path,
-			char *dev_prefix, int (*filter)(const struct dirent *),
+			char *dev_prefix, char *bus_type,
+			int (*filter)(const struct dirent *),
 			void *parent, add_dev_fn add_dev)
 {
-	return sysfs_device_parse(ctx, base_path, dev_prefix,
+	return sysfs_device_parse(ctx, base_path, dev_prefix, bus_type,
 			filter, parent, add_dev);
 }
 
@@ -495,7 +502,8 @@ exit_add_mdev:
 	return rc;
 }
 
-static void *add_device(void *parent, int id, const char *ctl_base, char *dev_prefix)
+static void *add_device(void *parent, int id, const char *ctl_base,
+		char *dev_prefix, char *bus_type)
 {
 	struct accfg_ctx *ctx = parent;
 	struct accfg_device *device;
@@ -592,6 +600,8 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	if (rc < 0)
 		goto err_dev_path;
 
+	device->bus_type_str = bus_type;
+
 	if (device->mdev_path && add_device_mdevs(ctx, device))
 		goto err_dev_path;
 
@@ -639,7 +649,7 @@ static int wq_parse_type(struct accfg_wq *wq, char *wq_type)
 }
 
 static void *add_wq(void *parent, int id, const char *wq_base,
-		char *dev_prefix)
+		char *dev_prefix, char *bus_type)
 {
 	struct accfg_wq *wq;
 	struct accfg_device *device = parent;
@@ -736,7 +746,7 @@ err_wq:
 }
 
 static void *add_group(void *parent, int id, const char *group_base,
-		char *dev_prefix)
+		char *dev_prefix, char *bus_type)
 {
 	struct accfg_group *group;
 	struct accfg_device *device = parent;
@@ -824,7 +834,7 @@ err_group:
 }
 
 static void *add_engine(void *parent, int id, const char *engine_base,
-		char *dev_prefix)
+		char *dev_prefix, char *bus_type)
 {
 	struct accfg_engine *engine;
 	struct accfg_device *device = parent;
@@ -927,14 +937,15 @@ static void groups_init(struct accfg_device *device)
 	device->group_init = 1;
 	set_filename_prefix("group");
 	device_parse(device->ctx, device->device_path, "group",
-			filter_file_name_prefix,
+			device->bus_type_str, filter_file_name_prefix,
 			device, add_group);
 }
 
 static void devices_init(struct accfg_ctx *ctx)
 {
 	char **accel_name;
-	char *path;
+	char **bus_type;
+	char path[PATH_MAX];
 	struct accfg_device *device;
 
 	if (ctx->devices_init) {
@@ -943,16 +954,15 @@ static void devices_init(struct accfg_ctx *ctx)
 	}
 	ctx->devices_init = 1;
 
-	for (accel_name = accfg_basenames; *accel_name != NULL;
-		accel_name++) {
-		if (asprintf(&path, "/sys/bus/%s/devices", *accel_name) < 0) {
-			err(ctx, "devices_init set path failed\n");
-			continue;
+	for (bus_type = accfg_bus_types; *bus_type != NULL; bus_type++) {
+		sprintf(path, "/sys/bus/%s/devices", *bus_type);
+		for (accel_name = accfg_basenames; *accel_name != NULL;
+				accel_name++) {
+			set_filename_prefix(*accel_name);
+			device_parse(ctx, path, *accel_name, *bus_type,
+					filter_file_name_prefix, ctx,
+					add_device);
 		}
-		set_filename_prefix(*accel_name);
-		device_parse(ctx, path, *accel_name,
-				filter_file_name_prefix, ctx, add_device);
-		free(path);
 	}
 
 	accfg_device_foreach(ctx, device) {
@@ -974,7 +984,7 @@ static void engines_init(struct accfg_device *device)
 	}
 	set_filename_prefix("engine");
 	device_parse(ctx, device->device_path, "engine",
-			filter_file_name_prefix, device,
+			device->bus_type_str, filter_file_name_prefix, device,
 			add_engine);
 }
 
@@ -1705,7 +1715,7 @@ static void wqs_init(struct accfg_device *device)
 		group->wqs_init = 1;
 	}
 	set_filename_prefix("wq");
-	device_parse(ctx, device->device_path, "wq",
+	device_parse(ctx, device->device_path, "wq", device->bus_type_str,
 			filter_file_name_prefix, device, add_wq);
 }
 

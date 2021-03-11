@@ -75,7 +75,8 @@ int __sysfs_write_attr_quiet(struct log_ctx *ctx, const char *path,
 	return write_attr(ctx, path, buf, 1);
 }
 
-int __sysfs_device_parse(struct log_ctx *ctx, const char *base_path, char *dev_prefix,
+int __sysfs_device_parse(struct log_ctx *ctx, const char *base_path,
+			char *dev_prefix, char *bus_type,
 			int (*filter)(const struct dirent *),
 			void *parent, add_dev_fn add_dev)
 {
@@ -104,7 +105,7 @@ int __sysfs_device_parse(struct log_ctx *ctx, const char *base_path, char *dev_p
 				de->d_name, id);
 			continue;
 		}
-		dev = add_dev(parent, id, dev_path, dev_prefix);
+		dev = add_dev(parent, id, dev_path, dev_prefix, bus_type);
 		free(dev_path);
 		if (!dev) {
 			add_errors++;
