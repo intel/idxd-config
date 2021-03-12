@@ -133,7 +133,8 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		struct accfg_wq *wq, struct wq_parameters *wq_params)
 {
-	unsigned int max_groups, max_wq_size, max_batch_size;
+	int max_groups;
+	unsigned int max_wq_size, max_batch_size;
 	uint64_t max_transfer_size;
 	int rc = 0;
 
@@ -158,10 +159,11 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		return -EINVAL;
 	}
 
-	if (((unsigned int)wq_params->group_id >= max_groups)
-		&& (wq_params->group_id != INT_MAX)) {
+	if ((wq_params->group_id >= max_groups) &&
+			(wq_params->group_id != INT_MAX)) {
 		fprintf(stderr,
-			"valid group_id should be 0 to %d\n", max_groups-1);
+			"valid group id should be 0 to %d or -1 to dissociate the wq from groups\n",
+			max_groups-1);
 		return -EINVAL;
 	}
 
