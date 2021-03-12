@@ -262,8 +262,9 @@ static int accel_config_parse_engine_attribs(struct accfg_device *device,
 	max_groups = accfg_device_get_max_groups(device);
 
 	if (engine_params->group_id >= max_groups) {
-		fprintf(stderr, "valid engine_id should be 0 to %d\n",
-				max_groups - 1);
+		fprintf(stderr,
+			"valid group id should be 0 to %d or -1 to dissociate from groups\n",
+			max_groups - 1);
 		return -EINVAL;
 	}
 
