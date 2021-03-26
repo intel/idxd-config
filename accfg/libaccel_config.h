@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <uuid/uuid.h>
-#include <util/filter.h>
 
 #ifdef __cplusplus
 extern "C" {
