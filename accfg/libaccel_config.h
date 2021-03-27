@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <uuid/uuid.h>
-#include <util/filter.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,7 +101,7 @@ struct wq_parameters {
 	unsigned int priority;
 	int block_on_fault;
 	unsigned int max_batch_size;
-	unsigned long max_transfer_size;
+	uint64_t max_transfer_size;
 	const char *mode;
 	const char *type;
 	const char *name;
@@ -167,9 +166,9 @@ unsigned int accfg_device_get_max_work_queues_size(struct accfg_device *device);
 int accfg_device_get_numa_node(struct accfg_device *device);
 unsigned int accfg_device_get_ims_size(struct accfg_device *device);
 unsigned int accfg_device_get_max_batch_size(struct accfg_device *device);
-unsigned long accfg_device_get_max_transfer_size(struct accfg_device *device);
-unsigned long accfg_device_get_op_cap(struct accfg_device *device);
-unsigned long accfg_device_get_gen_cap(struct accfg_device *device);
+uint64_t accfg_device_get_max_transfer_size(struct accfg_device *device);
+uint64_t accfg_device_get_op_cap(struct accfg_device *device);
+uint64_t accfg_device_get_gen_cap(struct accfg_device *device);
 unsigned int accfg_device_get_configurable(struct accfg_device *device);
 bool accfg_device_get_pasid_enabled(struct accfg_device  *device);
 bool accfg_device_get_mdev_enabled(struct accfg_device *device);
@@ -213,8 +212,8 @@ struct accfg_group *accfg_device_group_get_by_id(struct accfg_device *device,
 						int id);
 int accfg_group_get_device_id(struct accfg_group *group);
 const char *accfg_group_get_devname(struct accfg_group *group);
-unsigned long accfg_group_get_size(struct accfg_group *group);
-unsigned long accfg_group_get_available_size(struct accfg_group *group);
+uint64_t accfg_group_get_size(struct accfg_group *group);
+uint64_t accfg_group_get_available_size(struct accfg_group *group);
 struct accfg_device *accfg_group_get_device(struct accfg_group *group);
 struct accfg_ctx *accfg_group_get_ctx(struct accfg_group *group);
 int accfg_group_get_tokens_reserved(struct accfg_group *group);
@@ -247,7 +246,7 @@ struct accfg_wq *accfg_device_wq_get_by_id(struct accfg_device *device,
 					int id);
 const char *accfg_wq_get_devname(struct accfg_wq *wq);
 enum accfg_wq_mode accfg_wq_get_mode(struct accfg_wq *wq);
-unsigned long accfg_wq_get_size(struct accfg_wq *wq);
+uint64_t accfg_wq_get_size(struct accfg_wq *wq);
 int accfg_wq_get_group_id(struct accfg_wq *wq);
 int accfg_wq_get_priority(struct accfg_wq *wq);
 unsigned int accfg_wq_get_priv(struct accfg_wq *wq);
@@ -257,7 +256,7 @@ int accfg_wq_get_cdev_minor(struct accfg_wq *wq);
 const char *accfg_wq_get_type_name(struct accfg_wq *wq);
 enum accfg_wq_type accfg_wq_get_type(struct accfg_wq *wq);
 unsigned int accfg_wq_get_max_batch_size(struct accfg_wq *wq);
-unsigned long accfg_wq_get_max_transfer_size(struct accfg_wq *wq);
+uint64_t accfg_wq_get_max_transfer_size(struct accfg_wq *wq);
 int accfg_wq_get_threshold(struct accfg_wq *wq);
 int accfg_wq_get_clients(struct accfg_wq *wq);
 int accfg_wq_is_enabled(struct accfg_wq *wq);
@@ -267,7 +266,7 @@ int accfg_wq_set_group_id(struct accfg_wq *wq, int val);
 int accfg_wq_set_threshold(struct accfg_wq *wq, int val);
 int accfg_wq_set_block_on_fault(struct accfg_wq *wq, int val);
 int accfg_wq_set_max_batch_size(struct accfg_wq *wq, int val);
-int accfg_wq_set_max_transfer_size(struct accfg_wq *wq, unsigned long val);
+int accfg_wq_set_max_transfer_size(struct accfg_wq *wq, uint64_t val);
 int accfg_wq_set_str_mode(struct accfg_wq *wq, const char* val);
 int accfg_wq_set_mode(struct accfg_wq *wq, enum accfg_wq_mode mode);
 int accfg_wq_set_str_type(struct accfg_wq *wq, const char* val);

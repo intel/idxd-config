@@ -99,7 +99,14 @@ check_prereq()
 #
 _cleanup()
 {
-	modprobe -r idxd
+	lsmod | grep -q "idxd_mdev" && {
+		modprobe -r idxd_mdev
+		sleep 1
+	}
+	lsmod | grep -q "idxd" && {
+		modprobe -r idxd
+		sleep 1
+	}
 	modprobe idxd
 }
 

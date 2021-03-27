@@ -25,9 +25,9 @@ static struct {
 	bool save_conf;
 } list;
 
-static unsigned long listopts_to_flags(void)
+static uint64_t listopts_to_flags(void)
 {
-	unsigned long flags = 0;
+	uint64_t flags = 0;
 
 	if (list.idle)
 		flags |= UTIL_JSON_IDLE;
@@ -50,7 +50,7 @@ do { \
 } while (0)
 
 static struct json_object *group_to_json(struct accfg_group *group,
-		unsigned long flags)
+		uint64_t flags)
 {
 	struct json_object *jgroup = json_object_new_object();
 	struct json_object *jobj = NULL;
@@ -249,7 +249,7 @@ static bool filter_engine(struct accfg_engine *engine,
 static bool filter_group(struct accfg_group *group,
 			 struct util_filter_ctx *ctx)
 {
-	unsigned long group_id;
+	uint64_t group_id;
 	struct list_filter_arg *lfa = ctx->list;
 	struct json_object *jgroup;
 	struct json_object *container = lfa->jdevice;

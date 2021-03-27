@@ -51,9 +51,9 @@ struct accfg_device {
 	unsigned int token_limit;
 	unsigned int cdev_major;
 	unsigned int version;
-	unsigned long max_transfer_size;
-	unsigned long opcap;
-	unsigned long gencap;
+	uint64_t max_transfer_size;
+	uint64_t opcap;
+	uint64_t gencap;
 	char *pasid_enabled;
 };
 
@@ -124,7 +124,7 @@ struct accfg_wq {
 	enum accfg_wq_type type;
 	char *state;
 	unsigned int max_batch_size;
-	unsigned long max_transfer_size;
+	uint64_t max_transfer_size;
 };
 
 #define ACCFG_EXPORT __attribute__ ((visibility("default")))
@@ -144,7 +144,7 @@ struct accfg_ctx {
         int devices_init;
 	int groups_init;
 	struct list_head devices;
-        unsigned long timeout;
+	uint64_t timeout;
         void *private_data;
 };
 

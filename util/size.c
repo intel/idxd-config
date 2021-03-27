@@ -5,9 +5,9 @@
 #include <limits.h>
 #include <util/size.h>
 
-unsigned long long __parse_size64(const char *str, unsigned long long *units)
+uint64_t __parse_size64(const char *str, uint64_t *units)
 {
-	unsigned long long val, check;
+	uint64_t val, check;
 	char *end;
 
 	val = strtoull(str, &end, 0);
@@ -54,7 +54,7 @@ unsigned long long __parse_size64(const char *str, unsigned long long *units)
 	return val;
 }
 
-unsigned long long parse_size64(const char *str)
+uint64_t parse_size64(const char *str)
 {
 	return __parse_size64(str, NULL);
 }

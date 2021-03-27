@@ -27,7 +27,7 @@ static const char *wq_type_str[] = {
 static int display_size(struct json_object *jobj, struct printbuf *pbuf,
 			int level, int flags)
 {
-	unsigned long long bytes = json_object_get_int64(jobj);
+	uint64_t bytes = json_object_get_int64(jobj);
 	static char buf[128];
 	int c;
 
@@ -43,7 +43,7 @@ static int display_size(struct json_object *jobj, struct printbuf *pbuf,
 	 */
 
 	if (bytes < 5000 * 1024)
-		snprintf(buf, sizeof(buf), "%lld", bytes);
+		snprintf(buf, sizeof(buf), "%" PRIu64, bytes);
 	else {
 		/* IEC */
 		if (bytes < 2 * 1024LL * 1024LL * 1024LL) {
@@ -78,14 +78,14 @@ static int display_size(struct json_object *jobj, struct printbuf *pbuf,
 static int display_hex(struct json_object *jobj, struct printbuf *pbuf,
 		       int level, int flags)
 {
-	unsigned long long val = json_object_get_int64(jobj);
+	uint64_t val = json_object_get_int64(jobj);
 	static char buf[32];
-	snprintf(buf, sizeof(buf), "\"%#llx\"", val);
+	snprintf(buf, sizeof(buf), "\"%#" PRIx64 "\"", val);
 	return printbuf_memappend(pbuf, buf, strlen(buf));
 }
 
-struct json_object *util_json_object_size(unsigned long long size,
-					  unsigned long flags)
+struct json_object *util_json_object_size(uint64_t size,
+					  uint64_t flags)
 {
 	struct json_object *jobj = json_object_new_int64(size);
 
@@ -94,8 +94,8 @@ struct json_object *util_json_object_size(unsigned long long size,
 	return jobj;
 }
 
-struct json_object *util_json_object_hex(unsigned long long val,
-					 unsigned long flags)
+struct json_object *util_json_object_hex(uint64_t val,
+					 uint64_t flags)
 {
 	struct json_object *jobj = json_object_new_int64(val);
 
@@ -106,7 +106,7 @@ struct json_object *util_json_object_hex(unsigned long long val,
 
 /* API used to output json object display to console */
 void util_display_json_array(FILE * f_out, struct json_object *jarray,
-			     unsigned long flags)
+			     uint64_t flags)
 {
 	int len = json_object_array_length(jarray);
 	int jflag = JSON_C_TO_STRING_PRETTY;
@@ -125,7 +125,7 @@ void util_display_json_array(FILE * f_out, struct json_object *jarray,
 
 /* API used to output json object display to specified file */
 void __util_display_json_array(FILE * fd, struct json_object *jarray,
-			     unsigned long flags)
+			     uint64_t flags)
 {
 	int len = json_object_array_length(jarray);
 	int jflag = JSON_C_TO_STRING_PRETTY;
@@ -143,15 +143,15 @@ void __util_display_json_array(FILE * fd, struct json_object *jarray,
 }
 
 struct json_object *util_device_to_json(struct accfg_device *device,
-					unsigned long flags)
+					uint64_t flags)
 {
 	struct json_object *jdevice = json_object_new_object();
 	struct json_object *jobj;
 	struct accfg_error *error;
 	enum accfg_device_state dev_state;
 	int int_val;
-	unsigned long ulong_val;
-	unsigned long long ullong_val;
+	uint64_t ulong_val;
+	uint64_t ullong_val;
 	bool new_bool;
 	struct accfg_device_mdev *mdev;
 	struct json_object *json_uuid;
@@ -386,11 +386,11 @@ err:
 }
 
 struct json_object *util_wq_to_json(struct accfg_wq *wq,
-				    unsigned long flags)
+				    uint64_t flags)
 {
 	struct json_object *jaccfg = json_object_new_object();
 	struct json_object *jobj = NULL;
-	unsigned long size = ULLONG_MAX;
+	uint64_t size = ULLONG_MAX;
 	enum accfg_wq_mode wq_mode;
 	enum accfg_wq_state wq_state;
 	int int_val;
@@ -501,7 +501,7 @@ err:
 }
 
 struct json_object *util_engine_to_json(struct accfg_engine *engine,
-					unsigned long flags)
+					uint64_t flags)
 {
 	struct json_object *jaccfg = json_object_new_object();
 	struct json_object *jobj = NULL;

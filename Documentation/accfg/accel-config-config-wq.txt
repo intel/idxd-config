@@ -14,7 +14,7 @@ SYNOPSIS
 
 EXAMPLE
 -------
-accel-config config-devie dsa0/wq0.0 --wq-size=16
+accel-config config-wq dsa0/wq0.0 --wq-size=16
 
 OPTIONS
 --------

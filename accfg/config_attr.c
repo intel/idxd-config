@@ -133,8 +133,9 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		struct accfg_wq *wq, struct wq_parameters *wq_params)
 {
-	unsigned int max_groups, max_wq_size, max_batch_size;
-	unsigned long max_transfer_size;
+	int max_groups;
+	unsigned int max_wq_size, max_batch_size;
+	uint64_t max_transfer_size;
 	int rc = 0;
 
 	if (wq_params->mode) {
@@ -158,10 +159,11 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		return -EINVAL;
 	}
 
-	if (((unsigned int)wq_params->group_id >= max_groups)
-		&& (wq_params->group_id != INT_MAX)) {
+	if ((wq_params->group_id >= max_groups) &&
+			(wq_params->group_id != INT_MAX)) {
 		fprintf(stderr,
-			"valid group_id should be 0 to %d\n", max_groups-1);
+			"valid group id should be 0 to %d or -1 to dissociate the wq from groups\n",
+			max_groups-1);
 		return -EINVAL;
 	}
 
@@ -184,7 +186,7 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		|| wq_params->max_transfer_size > max_transfer_size)
 		&& (wq_params->max_transfer_size != INT_MAX)) {
 		fprintf(stderr,
-			"valid max-transfer-size should be 1 to %ld\n", max_transfer_size);
+			"valid max-transfer-size should be 1 to %" PRIu64 "\n", max_transfer_size);
 		return -EINVAL;
 	}
 
@@ -260,8 +262,9 @@ static int accel_config_parse_engine_attribs(struct accfg_device *device,
 	max_groups = accfg_device_get_max_groups(device);
 
 	if (engine_params->group_id >= max_groups) {
-		fprintf(stderr, "valid engine_id should be 0 to %d\n",
-				max_groups - 1);
+		fprintf(stderr,
+			"valid group id should be 0 to %d or -1 to dissociate from groups\n",
+			max_groups - 1);
 		return -EINVAL;
 	}
 

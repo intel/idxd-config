@@ -81,6 +81,17 @@ static int dev_action_switch(struct accfg_device *device,
 	}
 }
 
+static void print_device_cmd_status(struct accfg_device *device)
+{
+	const char *status;
+
+	if (accfg_device_get_cmd_status(device) > 0) {
+		status = accfg_device_get_cmd_status_str(device);
+		if (status)
+			fprintf(stderr, "device command status: %s\n", status);
+	}
+}
+
 static int device_action(int argc, const char **argv, const char *usage,
 			 const struct option *options, enum dev_action action,
 			 struct accfg_ctx *ctx)
@@ -89,7 +100,7 @@ static int device_action(int argc, const char **argv, const char *usage,
 		usage,
 		NULL
 	};
-	int i, rc = 0, success = 0, fail = 0, fail_reason = 0;
+	int i, rc = -EINVAL, success = 0;
 	const char *all = "all";
 	enum accfg_device_state state;
 
@@ -128,20 +139,18 @@ static int device_action(int argc, const char **argv, const char *usage,
 				 * matches with the enable/disable
 				 */
 				state = accfg_device_get_state(device);
-				if (((state == 1) && (action == DEV_ACTION_ENABLE))
-				    ||((state == 0) && (action == DEV_ACTION_DISABLE)))
-					success++;
-				else
-					fail++;
-			} else if (!fail) {
-				const char *status;
-
-				fail_reason = rc;
+				if (((state != ACCFG_DEVICE_ENABLED) &&
+						(action == DEV_ACTION_ENABLE)) ||
+						((state != ACCFG_DEVICE_DISABLED) &&
+						 (action == DEV_ACTION_DISABLE)))
+					rc = ENXIO;
+			}
+			if (rc == 0) {
+				success++;
+			} else {
 				fprintf(stderr, "failed in %s\n", argv[i]);
 
-				status = accfg_device_get_cmd_status_str(device);
-				if (status)
-					fprintf(stderr, "device cmd err: %s.\n", status);
+				print_device_cmd_status(device);
 			}
 		}
 
@@ -150,33 +159,14 @@ static int device_action(int argc, const char **argv, const char *usage,
 					argv[i]);
 	}
 
-	if (success) {
-		if (action == DEV_ACTION_ENABLE)
-			fprintf(stderr, "successfully enabled %d device%s\n",
-					success, success > 1 ? "s" : "");
-		else
-			fprintf(stderr, "successfully disabled %d device%s\n",
-					success, success > 1 ? "s" : "");
-		return success;
-	}
+	fprintf(stderr, "%s %d device(s) out of %d\n",
+			action == DEV_ACTION_ENABLE ? "enabled" : "disabled",
+				success, argc);
 
-	if (fail) {
-		if (action == DEV_ACTION_ENABLE)
-			fprintf(stderr, "failed to enable %d device%s\n", fail,
-				fail > 1 ? "s" : "");
-		else
-			fprintf(stderr, "failed to disable %d device%s\n", fail,
-				fail > 1 ? "s" : "");
+	if (success)
+		return 0;
 
-		return fail;
-	}
-
-	if (fail_reason) {
-		fprintf(stderr, "failed due to reason %d\n", fail_reason);
-		return fail_reason;
-	}
-
-	return -ENXIO;
+	return rc;
 }
 
 static int action_disable_wq(struct accfg_wq *wq, const char *wq_name)
@@ -236,10 +226,9 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		usage,
 		NULL
 	};
-	unsigned long dev_id, wq_id;
-	int i, rc = 0, success = 0, fail = 0, fail_reason = 0;
+	uint64_t dev_id, wq_id;
+	int i, rc = -EINVAL, success = 0;
 	const char *all = "all";
-	enum accfg_wq_state state;
 
 	argc = parse_options(argc, argv, options, u, 0);
 
@@ -263,7 +252,8 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		char dev_name[MAX_DEV_LEN], wq_name[MAX_DEV_LEN];
 		int found = 0;
 
-		if (sscanf(argv[i], "%[^/]/wq%lu.%lu", dev_name, &dev_id, &wq_id) != 3) {
+		if (sscanf(argv[i], "%[^/]/wq%" SCNu64 ".%" SCNu64,
+					dev_name, &dev_id, &wq_id) != 3) {
 			fprintf(stderr, "'%s' is not a valid wq name\n",
 				argv[i]);
 			return -EINVAL;
@@ -272,9 +262,9 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		if (!accfg_device_type_validate(dev_name))
 			return -EINVAL;
 
-		rc = sprintf(wq_name, "wq%lu.%lu", dev_id, wq_id);
+		rc = sprintf(wq_name, "wq%" PRIu64 ".%" PRIu64, dev_id, wq_id);
 		if (rc < 0)
-			return errno;
+			return rc;
 
 		accfg_device_foreach(ctx, device) {
 			if (!util_device_filter(device, dev_name))
@@ -285,24 +275,11 @@ static int wq_action(int argc, const char **argv, const char *usage,
 				found++;
 				rc = wq_action_switch(wq, action, wq_name);
 				if (rc == 0) {
-					/*
-					 * Double check if the state of the
-					 * wq matches with the enable/disable
-					 */
-					state = accfg_wq_get_state(wq);
-					if (((state == 1) && (action == WQ_ACTION_ENABLE))
-					    ||((state == 0) && (action == WQ_ACTION_DISABLE)))
-						success++;
-					else
-						fail++;
-				} else if (!fail) {
-					const char *status;
-
-					fail_reason = rc;
+					success++;
+				} else {
 					fprintf(stderr, "failed in %s\n", wq_name);
-					status = accfg_device_get_cmd_status_str(device);
-					if (status)
-						fprintf(stderr, "device cmd err: %s.\n", status);
+
+					print_device_cmd_status(device);
 				}
 			}
 		}
@@ -311,34 +288,14 @@ static int wq_action(int argc, const char **argv, const char *usage,
 			fprintf(stderr, "no wq matches id: %s\n", wq_name);
 	}
 
-	if (success) {
-		if (action == WQ_ACTION_ENABLE)
-			fprintf(stderr, "successfully enabled %d wq%s\n",
-					success,
-			success > 1 ? "s" : "");
-		else
-			fprintf(stderr, "successfully disabled %d wq%s\n",
-					success,
-			success > 1 ? "s" : "");
-		return success;
-	}
+	fprintf(stderr, "%s %d wq(s) out of %d\n",
+			action == WQ_ACTION_ENABLE ? "enabled" : "disabled",
+				success, argc);
 
-	if (fail) {
-		if (action == WQ_ACTION_ENABLE)
-			fprintf(stderr, "failed to enable %d wq%s\n",
-			fail, fail > 1 ? "s" : "");
-		else
-			fprintf(stderr, "failed to disable %d wq%s\n",
-			fail, fail > 1 ? "s" : "");
-		return fail;
-	}
+	if (success)
+		return 0;
 
-	if (fail_reason) {
-		fprintf(stderr, "failed due to reason %d\n",
-			fail_reason);
-		return fail_reason;
-	}
-	return -ENXIO;
+	return rc;
 }
 
 int cmd_disable_device(int argc, const char **argv, void *ctx)

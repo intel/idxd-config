@@ -32,9 +32,9 @@ static struct config {
 	char *buf;
 } config;
 
-static unsigned long config_opts_to_flags(void)
+static uint64_t config_opts_to_flags(void)
 {
-	unsigned long flags = 0;
+	uint64_t flags = 0;
 	return flags;
 }
 
@@ -47,7 +47,7 @@ struct device_set_table {
 struct wq_set_table {
 	char *name;
 	int (*set_int_func)(struct accfg_wq *wq, int val);
-	int (*set_long_func)(struct accfg_wq *wq, unsigned long val);
+	int (*set_long_func)(struct accfg_wq *wq, uint64_t val);
 	int (*set_str_func)(struct accfg_wq *wq, const char *val);
 	bool (*is_writable)(struct accfg_wq *wq, int val);
 };
@@ -259,7 +259,7 @@ static int wq_json_set_val(struct accfg_wq *wq, json_object *jobj, char *key)
 
 				return 0;
 			} else if (wq_table[i].set_long_func) {
-				unsigned long val = json_object_get_int64(jobj);
+				uint64_t val = json_object_get_int64(jobj);
 
 				if ((val == 0) && (errno == EINVAL))
 					return -errno;
@@ -563,7 +563,7 @@ static int configure_json_value(struct accfg_ctx *ctx,
 }
 
 static struct json_object *config_group_to_json(struct accfg_group *group,
-						unsigned long flags)
+						uint64_t flags)
 {
 	struct json_object *jgroup = json_object_new_object();
 	struct json_object *jobj = NULL;
@@ -819,7 +819,7 @@ static bool filter_group(struct accfg_group *group,
 	struct list_filter_arg *lfa = ctx->list;
 	struct json_object *jgroup;
 	struct json_object *container = lfa->jdevice;
-	unsigned long group_id;
+	uint64_t group_id;
 	struct accfg_device *dev = accfg_group_get_device(group);
 	int max_groups = accfg_device_get_max_groups(dev);
 	struct accfg_json_container *jc = NULL, *iter;

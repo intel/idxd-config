@@ -3,7 +3,7 @@ include $(top_srcdir)/Makefile.am.in
 %.pc: %.pc.in Makefile
 	$(SED_PROCESS)
 
-pkginclude_HEADERS = ../libaccel_config.h ../accfg.h
+pkginclude_HEADERS = ../libaccel_config.h
 lib_LTLIBRARIES = libaccel-config.la
 
 DISTCLEANFILES = config.h
