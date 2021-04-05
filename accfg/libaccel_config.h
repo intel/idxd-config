@@ -276,6 +276,7 @@ int accfg_wq_enable(struct accfg_wq *wq);
 int accfg_wq_disable(struct accfg_wq *wq, bool force);
 int accfg_wq_priority_boundary(struct accfg_wq *wq);
 int accfg_wq_size_boundary(struct accfg_device *device, int wq_num);
+int accfg_wq_get_user_dev_path(struct accfg_wq *wq, char *buf, size_t size);
 
 /* libaccfg function for engine */
 struct accfg_engine;

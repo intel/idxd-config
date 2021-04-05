@@ -141,3 +141,8 @@ global:
 	accfg_remove_mdev;
 	accfg_device_get_mdev_enabled;
 } LIBACCFG_6;
+
+LIBACCFG_8 {
+global:
+	accfg_wq_get_user_dev_path;
+} LIBACCFG_7;

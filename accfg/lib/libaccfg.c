@@ -25,6 +25,7 @@
 #include <ccan/build_assert/build_assert.h>
 #include <util/sysfs.h>
 #include <accfg/libaccel_config.h>
+#include <fnmatch.h>
 #include "private.h"
 
 #define MDEV_POSTFIX "mdev_supported_types"
@@ -2097,6 +2098,60 @@ ACCFG_EXPORT int accfg_wq_size_boundary(struct accfg_device *device,
 	}
 
 	return 0;
+}
+
+ACCFG_EXPORT int accfg_wq_get_user_dev_path(struct accfg_wq *wq, char *buf,
+		size_t size)
+{
+	struct dirent **d;
+	int n, n1;
+	char *f;
+	char p[PATH_MAX];
+	struct accfg_ctx *ctx;
+	int rc = 0;
+
+	ctx = accfg_device_get_ctx(wq->device);
+
+	sprintf(p, "/dev/%s", wq->device->bus_type_str);
+	n1 = n = scandir(p, &d, NULL, alphasort);
+	if (n < 0) {
+		err(ctx, "Device path not found %s\n", p);
+		return -ENOENT;
+	}
+
+	sprintf(p, "%s-*", accfg_wq_get_devname(wq));
+
+	while (n--) {
+		f = &d[n]->d_name[0];
+
+		if (!fnmatch(p, f, 0) || !strcmp(accfg_wq_get_devname(wq), f))
+			break;
+	}
+
+	if (n < 0) {
+		err(ctx, "Device for %s not found at /dev/%s\n",
+				accfg_wq_get_devname(wq),
+				wq->device->bus_type_str);
+		rc = -ENOENT;
+		goto ext_uacce;
+	}
+
+	n = sprintf(p, "/dev/%s/%s", wq->device->bus_type_str, f);
+
+	if ((size_t)n >= size) {
+		err(ctx, "Buffer size too small. Need %d bytes\n", n + 1);
+		rc = -ERANGE;
+		goto ext_uacce;
+	}
+
+	strcpy(buf, p);
+
+ext_uacce:
+	while (n1--)
+		free(d[n1]);
+	free(d);
+
+	return rc;
 }
 
 #define accfg_wq_set_field(wq, val, field) \
