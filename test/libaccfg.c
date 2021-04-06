@@ -82,8 +82,8 @@ static struct wq_parameters wq00_param = {
 	.priority = 10,
 	.block_on_fault = 1,
 	.threshold = 15,
-	.max_batch_size = 1,
-	.max_transfer_size = 1,
+	.max_batch_size = 16,
+	.max_transfer_size = 16,
 	.mode = "shared",
 	.type = "user",
 	.name = "myapp1"
@@ -111,7 +111,7 @@ static struct wq_parameters wq02_param = {
 	.max_batch_size = (1 << 8),
 	.max_transfer_size = (1l << 30),
 	.mode = "shared",
-	.type = "user",
+	.type = "mdev",
 	.name = "guest1"
 };
 
@@ -123,7 +123,7 @@ static struct wq_parameters wq03_param = {
 	.max_batch_size = (1 << 9),
 	.max_transfer_size = (1l << 31),
 	.mode = "dedicated",
-	.type = "user",
+	.type = "mdev",
 	.name = "guest2"
 
 };
@@ -790,8 +790,8 @@ static int wq_bounds_test(struct accfg_ctx *ctx, const char *dev_name)
 	}
 
 	/* reset to valid values for following tests */
-	wq00_param.max_batch_size = 1;
-	wq00_param.max_transfer_size = 1;
+	wq00_param.max_batch_size = 16;
+	wq00_param.max_transfer_size = 16;
 	rc = config_wq(ctx, 0, 0, wq00_param, dev_name);
 	if (rc != 0) {
 		fprintf(stderr, "config wq wq0.0 failed\n");
