@@ -20,7 +20,8 @@
 static const char *wq_type_str[] = {
 	"none",
 	"kernel",
-	"user"
+	"user",
+	"mdev"
 };
 
 /* adapted from mdadm::human_size_brief() */
