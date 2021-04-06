@@ -100,14 +100,17 @@ check_prereq()
 _cleanup()
 {
 	lsmod | grep -q "idxd_mdev" && {
-		modprobe -r idxd_mdev
-		sleep 1
+		rmmod idxd_mdev
+	}
+	lsmod | grep -q "idxd_uacce" && {
+		rmmod idxd_uacce
 	}
 	lsmod | grep -q "idxd" && {
-		modprobe -r idxd
-		sleep 1
+		rmmod idxd
 	}
+	sleep 1
 	modprobe idxd
+	sleep 1
 }
 
 # json2var
