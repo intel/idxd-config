@@ -108,6 +108,11 @@ const char *accfg_device_cmd_status[] = {
 	[ACCFG_CMD_STATUS_MAX]	= "",
 };
 
+static inline bool is_mdev_registered(struct accfg_device *device)
+{
+	return device->mdev_path && !access(device->mdev_path, R_OK);
+}
+
 static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
@@ -593,11 +598,7 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 		goto err_dev_path;
 	}
 	free(device->mdev_path);
-	if (access(p, R_OK)) {
-		free(p);
-		device->mdev_path = NULL;
-	} else
-		device->mdev_path = p;
+	device->mdev_path = p;
 
 	device->device_buf = calloc(1, strlen(device->device_path) +
 			MAX_PARAM_LEN);
@@ -614,7 +615,7 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 
 	device->bus_type_str = bus_type;
 
-	if (device->mdev_path && add_device_mdevs(ctx, device))
+	if (is_mdev_registered(device) && add_device_mdevs(ctx, device))
 		goto err_dev_path;
 
 	list_add_tail(&ctx->devices, &device->list);
@@ -1050,7 +1051,7 @@ ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
 	unsigned int version;
 	int rc;
 
-	if (!device->mdev_path)
+	if (!is_mdev_registered(device))
 		return -ENOENT;
 
 	if (type >= ACCFG_MDEV_TYPE_UNKNOWN || type < 0)
@@ -1110,7 +1111,7 @@ ACCFG_EXPORT int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid)
 	struct accfg_device_mdev *entry, *next;
 	int rc, all;
 
-	if (!device->mdev_path)
+	if (!is_mdev_registered(device))
 		return -ENOENT;
 
 	/* remove all mdevs if null uuid is passed */
@@ -1266,7 +1267,7 @@ ACCFG_EXPORT bool accfg_device_get_pasid_enabled(
 ACCFG_EXPORT bool accfg_device_get_mdev_enabled(
 		struct accfg_device *device)
 {
-	return device->mdev_path != NULL;
+	return is_mdev_registered(device);
 }
 
 ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
