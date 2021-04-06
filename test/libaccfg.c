@@ -1116,7 +1116,7 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 
 	/*
 	 * iterate to check the state of each device, skip entire test if any of
-	 * them is active
+	 * them is active or not configurable
 	 */
 	accfg_device_foreach(ctx, device) {
 		if (accfg_device_is_active(device)) {
@@ -1132,6 +1132,12 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 		if (!accfg_device_get_pasid_enabled(device)) {
 			accfg_test_skip(test);
 			fprintf(stderr, "device has no pasid support, skipping tests\n");
+			return EXIT_SKIP;
+		}
+
+		if (!accfg_device_get_configurable(device)) {
+			accfg_test_skip(test);
+			fprintf(stderr, "device is not configuratble, skipping tests\n");
 			return EXIT_SKIP;
 		}
 	}
