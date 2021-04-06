@@ -1074,18 +1074,12 @@ static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
 		return rc;
 	}
 	rc = kmod_module_get_initstate(*mdev_mod);
-	if (rc == -ENOENT)
-		rc = kmod_module_probe_insert_module(*mdev_mod, 0, NULL, NULL, NULL,
-				NULL);
 	if (rc < 0) {
 		kmod_module_unref(*mdev_mod);
 		*mdev_mod = NULL;
 		mdev_disabled = true;
 	}
 	rc = kmod_module_get_initstate(*mod);
-	if (rc == -ENOENT)
-		rc = kmod_module_probe_insert_module(*mod, 0, NULL, NULL, NULL,
-				NULL);
 	if (rc < 0) {
 		kmod_module_unref(*mod);
 		kmod_unref(*ctx);
@@ -1165,12 +1159,9 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 
 	test_cleanup(ctx);
 
-	if (mdev_mod) {
-		kmod_module_remove_module(mdev_mod, 0);
+	if (mdev_mod)
 		kmod_module_unref(mdev_mod);
-	}
-	kmod_module_remove_module(mod, 0);
-	kmod_module_probe_insert_module(mod, 0, NULL, NULL, NULL, NULL);
+
 	kmod_module_unref(mod);
 	kmod_unref(kmod_ctx);
 
