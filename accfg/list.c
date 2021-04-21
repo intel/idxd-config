@@ -369,7 +369,7 @@ static int save_config(struct list_filter_arg *lfa, const char *saved_file)
 	if (!fd) {
 		fprintf(stderr, "Failed to open %s for save: %s\n",
 				saved_file, strerror(errno));
-		return false;
+		return -EIO;
 	}
 
 	if (jdevices)
@@ -397,10 +397,10 @@ static int display_device(struct json_object *jdevices,
 		util_display_json_array(stdout, jdevices, lfa->flags);
 
 	if (!util_param.device)
-		return true;
+		return 0;
 
 	if (sscanf(util_param.device, "%[a-z]%d", dev_type, &device_id) != 2)
-		return false;
+		return -EINVAL;
 
 	for (accel_type = accfg_basenames; *accel_type != NULL; accel_type++)
 		if (!strcmp(dev_type, *accel_type))
@@ -408,18 +408,18 @@ static int display_device(struct json_object *jdevices,
 
 	if (*accel_type == NULL) {
 		fprintf(stderr, "device type not matched\n");
-		return false;
+		return -EINVAL;
 	}
 
 	if (device_id > lfa->dev_num) {
 		fprintf(stderr, "device_id out of range\n");
-		return false;
+		return -EINVAL;
 	}
 
 	jdevice = json_object_array_get_idx(jdevices, 0);
 	printf("%s\n", json_object_to_json_string_ext(jdevice, jflag));
 
-	return true;
+	return 0;
 }
 
 static int display_group(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
@@ -437,12 +437,12 @@ static int display_group(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 		list_for_each(&lfa->jdev_list, iter, list)
 			util_display_json_array(stdout, iter->jgroups,
 					lfa->flags);
-		return true;
+		return 0;
 
 	}
 
 	if (sscanf(util_param.group, "group%d.%d", &device_id, &group_id) != 2)
-		return false;
+		return -EINVAL;
 
 	accfg_device_foreach(ctx, dev) {
 		if (accfg_device_get_id(dev) != device_id)
@@ -452,7 +452,7 @@ static int display_group(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 		if (device_id > lfa->dev_num || group_id > max_groups) {
 			fprintf(stderr,
 				"device_id or group_id out of range\n");
-			return false;
+			return -EINVAL;
 		}
 
 		list_for_each(&lfa->jdev_list, iter, list) {
@@ -469,7 +469,7 @@ static int display_group(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 		}
 	}
 
-	return true;
+	return 0;
 }
 
 static int display_wq(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
@@ -495,11 +495,11 @@ static int display_wq(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 			}
 
 		}
-		return true;
+		return 0;
 	}
 
 	if (sscanf(util_param.wq, "wq%d.%d", &device_id, &wq_id) != 2)
-		return false;
+		return -EINVAL;
 
 	accfg_device_foreach(ctx, dev) {
 		if (accfg_device_get_id(dev) == device_id) {
@@ -509,14 +509,14 @@ static int display_wq(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 			if (device_id > lfa->dev_num || wq_id > max_wqs) {
 				fprintf(stderr,
 					"device_id or wq_id out of range\n");
-				return false;
+				return -EINVAL;
 			}
 
 			list_for_each(&lfa->jdev_list, iter, list)
 				if (match_device(dev, iter))
 					jc = iter;
 			if (!jc)
-				return false;
+				return -EINVAL;
 
 			printf("device %s:\n", jc->device_name);
 			for (index = 0; index < max_groups; index++) {
@@ -534,7 +534,7 @@ static int display_wq(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 		}
 	}
 
-	return true;
+	return 0;
 }
 
 static int display_engine(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
@@ -561,7 +561,7 @@ static int display_engine(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 			}
 
 		}
-		return true;
+		return 0;
 	}
 
 	if  (sscanf(util_param.engine, "engine%d.%d", &device_id, &engine_id) != 2)
@@ -576,14 +576,14 @@ static int display_engine(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 					|| engine_id > max_engines) {
 				fprintf(stderr,
 					"dev id or engine id out of range\n");
-				return false;
+				return -EINVAL;
 			}
 
 			list_for_each(&lfa->jdev_list, iter, list)
 				if (match_device(dev, iter))
 					jc = iter;
 			if (!jc)
-				return false;
+				return -EINVAL;
 
 			printf("device %s:\n", jc->device_name);
 			for (index = 0; index < max_groups; index++) {
@@ -602,7 +602,7 @@ static int display_engine(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
 		}
 	}
 
-	return true;
+	return 0;
 }
 
 static int list_display(struct list_filter_arg *lfa, struct accfg_ctx *ctx)
@@ -635,6 +635,8 @@ static int num_list_flags(void)
 
 int cmd_list(int argc, const char **argv, void *ctx)
 {
+	int i, rc;
+
 	const struct option options[] = {
 		OPT_STRING('d', "device", &util_param.device, "device-id",
 			   "filter by device"),
@@ -662,7 +664,6 @@ int cmd_list(int argc, const char **argv, void *ctx)
 	};
 	struct util_filter_ctx fctx = { 0 };
 	struct list_filter_arg lfa = { 0 };
-	int i, rc;
 
 	argc = parse_options(argc, argv, options, u, 0);
 	for (i = 0; i < argc; i++)
@@ -694,8 +695,13 @@ int cmd_list(int argc, const char **argv, void *ctx)
 	if (rc)
 		return rc;
 
-	if (list_display(&lfa, ctx) || did_fail)
-		return -ENOMEM;
+	rc = list_display(&lfa, ctx);
+	if (rc)
+		return rc;
+
+	if (did_fail)
+		return -EINVAL;
+
 	return 0;
 }
 
