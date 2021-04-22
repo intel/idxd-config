@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2015-2019 Intel Corporation. All rights reserved. */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright(c) 2015-2019 Intel Corporation. All rights reserved.
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -47,9 +47,8 @@ struct accfg_device *util_device_filter(struct accfg_device *device,
 	}
 	free(ident);
 
-	if (name) {
+	if (name)
 		return device;
-	}
 
 	return NULL;
 }
@@ -61,9 +60,8 @@ struct accfg_group *util_group_filter(struct accfg_group *group,
 	const char *name;
 	int device_id, group_id;
 
-	if (!__ident) {
+	if (!__ident)
 		return group;
-	}
 
 	ident = strdup(__ident);
 	if (!ident)
@@ -74,9 +72,8 @@ struct accfg_group *util_group_filter(struct accfg_group *group,
 		if (strcmp(name, "all") == 0)
 			break;
 
-		if (strcmp(name, accfg_group_get_devname(group)) == 0) {
+		if (strcmp(name, accfg_group_get_devname(group)) == 0)
 			break;
-		}
 
 		if (sscanf(name, "%d.%d", &device_id, &group_id) == 2
 		    && accfg_group_get_id(group) == group_id
@@ -85,9 +82,9 @@ struct accfg_group *util_group_filter(struct accfg_group *group,
 		}
 	}
 	free(ident);
-	if (name) {
+	if (name)
 		return group;
-	}
+
 	return NULL;
 }
 
@@ -159,14 +156,12 @@ struct accfg_device *util_device_filter_by_group(struct accfg_device *device,
 {
 	struct accfg_group *group;
 
-	if (!ident || strcmp(ident, "all") == 0) {
+	if (!ident || strcmp(ident, "all") == 0)
 		return device;
-	}
 
 	accfg_group_foreach(device, group) {
-		if (util_group_filter(group, ident)) {
+		if (util_group_filter(group, ident))
 			return device;
-		}
 	}
 	return NULL;
 }
@@ -181,9 +176,9 @@ struct accfg_device *util_device_filter_by_wq(struct accfg_device *device,
 		return device;
 
 	accfg_group_foreach(device, group)
-	    accfg_wq_foreach(device, wq)
-	    if (util_wq_filter(wq, ident))
-		return device;
+		accfg_wq_foreach(device, wq)
+			if (util_wq_filter(wq, ident))
+				return device;
 	return NULL;
 }
 
@@ -197,9 +192,9 @@ struct accfg_device *util_device_filter_by_engine(struct accfg_device *device,
 		return device;
 
 	accfg_group_foreach(device, group)
-	    accfg_engine_foreach(device, engine)
-	    if (util_engine_filter(engine, ident))
-		return device;
+		accfg_engine_foreach(device, engine)
+			if (util_engine_filter(engine, ident))
+				return device;
 	return NULL;
 }
 
@@ -213,8 +208,8 @@ struct accfg_group *util_group_filter_by_wq(struct accfg_group *group,
 		return group;
 
 	accfg_wq_foreach(device, wq)
-	    if (util_wq_filter(wq, ident))
-		return group;
+		if (util_wq_filter(wq, ident))
+			return group;
 	return NULL;
 }
 
@@ -228,8 +223,8 @@ struct accfg_group *util_group_filter_by_engine(struct accfg_group *group,
 		return group;
 
 	accfg_engine_foreach(device, engine)
-	    if (util_engine_filter(engine, ident))
-		return group;
+		if (util_engine_filter(engine, ident))
+			return group;
 	return NULL;
 }
 
@@ -268,9 +263,8 @@ int util_filter_walk(struct accfg_ctx *ctx, struct util_filter_ctx *fctx,
 		}
 
 		accfg_wq_foreach(device, wq) {
-			if (!fctx->filter_wq) {
+			if (!fctx->filter_wq)
 				break;
-			}
 
 			if (!util_wq_filter(wq, param->wq))
 				continue;

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2019 Intel Corporation. All rights reserved. */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright(c) 2019 Intel Corporation. All rights reserved.
 
 #include <stdio.h>
 #include <errno.h>
@@ -128,7 +128,7 @@ static bool filter_wq(struct accfg_wq *wq, struct util_filter_ctx *ctx)
 	if (!jwq)
 		return false;
 
-	for (i = 0; i < max_groups; i ++) {
+	for (i = 0; i < max_groups; i++) {
 		/*
 		 * Group array will be created only if group contains
 		 * the wq.
@@ -308,9 +308,9 @@ static bool filter_device(struct accfg_device *device,
 	if (!jc)
 		return false;
 
-       jc->jgroup_assigned = calloc(max_groups, sizeof(struct json_object *));
-       if (!jc->jgroup_assigned)
-               goto err_jc;
+	jc->jgroup_assigned = calloc(max_groups, sizeof(struct json_object *));
+	if (!jc->jgroup_assigned)
+		goto err_jc;
 
 	jc->jwq_group = calloc(max_groups, sizeof(struct json_object *));
 	if (!jc->jwq_group)
@@ -361,7 +361,7 @@ static void free_containers(struct list_filter_arg *lfa)
 	}
 }
 
-static int save_config(struct list_filter_arg *lfa, const char* saved_file)
+static int save_config(struct list_filter_arg *lfa, const char *saved_file)
 {
 	struct json_object *jdevices = lfa->jdevices;
 	FILE *fd = fopen(saved_file, "w");

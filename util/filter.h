@@ -14,7 +14,7 @@ struct accfg_wq *util_wq_filter(struct accfg_wq *wq,
 struct accfg_engine *util_engine_filter(struct accfg_engine *engine, const char *ident);
 
 struct accfg_device *util_device_filter_by_group(struct accfg_device *device,
-                const char *ident);
+		const char *ident);
 struct accfg_group *util_group_filter_by_wq(struct accfg_group *group,
 		const char *ident);
 struct accfg_group *util_group_filter_by_engine(struct accfg_group *group,
@@ -40,7 +40,7 @@ struct accfg_json_container {
 	/* array for assigned engines in group */
 	struct json_object **jengine_group;
 	/* array for unassigned engines in group */
-        struct json_object *jengine_ungroup;
+	struct json_object *jengine_ungroup;
 	/* store group_id when a jgroup is created */
 	int *jgroup_id;
 	/* device_id bonded with this container */
@@ -54,9 +54,9 @@ struct accfg_json_container {
 /* json object device for the util_filter_walk() by cmd_list() and cmd_config() */
 struct list_filter_arg {
 	/* json object for device array */
-        struct json_object *jdevices;
+	struct json_object *jdevices;
 	/* json object for each device */
-        struct json_object *jdevice;
+	struct json_object *jdevice;
 	/* linked list to add accfg_json_container for each device */
 	struct list_head jdev_list;
 	/* linked list node for each list_filter_arg */

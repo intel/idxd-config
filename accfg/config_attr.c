@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2019 Intel Corporation. All rights reserved. */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright(c) 2019 Intel Corporation. All rights reserved.
 
 #include <stdio.h>
 #include <errno.h>
@@ -45,6 +45,7 @@ static int accel_config_parse_device_attribs(struct accfg_device *dev,
 		struct dev_parameters *device_param)
 {
 	int rc = 0;
+
 	rc = accfg_device_set_token_limit(dev, device_param->token_limit);
 	if (rc < 0)
 		return rc;
@@ -93,10 +94,10 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 	}
 
 	if (group_params->use_token_limit != UINT_MAX) {
-                rc = accfg_group_set_use_token_limit(group,
+		rc = accfg_group_set_use_token_limit(group,
 			group_params->use_token_limit);
 		if (rc < 0)
-		        return rc;
+			return rc;
 	}
 
 	if (group_params->tokens_reserved != UINT_MAX) {
@@ -309,7 +310,7 @@ int cmd_config_device(int argc, const char **argv, void *ctx)
 	}
 
 	for (i = 0; i < argc; i++) {
-			if (accfg_device_type_validate(argv[i])) {
+		if (accfg_device_type_validate(argv[i])) {
 			/* walkthrough device */
 			accfg_device_foreach(ctx, device) {
 				if (!util_device_filter(device, argv[i]))
@@ -318,7 +319,7 @@ int cmd_config_device(int argc, const char **argv, void *ctx)
 						&dev_param);
 				if (rc != 0) {
 					fprintf(stderr,
-						"accel_config_parse_device_attribs failed\n");
+							"accel_config_parse_device_attribs failed\n");
 					return rc;
 				}
 			}
@@ -401,7 +402,7 @@ int cmd_config_group(int argc, const char **argv, void *ctx)
 
 			accfg_group_foreach(device, group) {
 				if (!util_group_filter(group, group_name))
-				      continue;
+					continue;
 
 				rc = accel_config_parse_group_attribs(group,
 						&group_param);
@@ -481,9 +482,9 @@ int cmd_config_wq(int argc, const char **argv, void *ctx)
 		if (!accfg_device_type_validate(dev_name))
 			return -EINVAL;
 
-                rc = sprintf(wq_name, "wq%u.%u", dev_id, wq_id);
-                if (rc < 0)
-                        return rc;
+		rc = sprintf(wq_name, "wq%u.%u", dev_id, wq_id);
+		if (rc < 0)
+			return rc;
 
 		accfg_device_foreach(ctx, device) {
 			if (!util_device_filter(device, dev_name))
@@ -553,9 +554,9 @@ int cmd_config_engine(int argc, const char **argv, void *ctx)
 		if (!accfg_device_type_validate(dev_name))
 			return -EINVAL;
 
-                rc = sprintf(engine_name, "engine%u.%u", dev_id, engine_id);
-                if (rc < 0)
-                        return rc;
+		rc = sprintf(engine_name, "engine%u.%u", dev_id, engine_id);
+		if (rc < 0)
+			return rc;
 
 		accfg_device_foreach(ctx, device) {
 			if (!util_device_filter(device, dev_name))

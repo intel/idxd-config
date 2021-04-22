@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2015-2019 Intel Corporation. All rights reserved. */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright(c) 2015-2019 Intel Corporation. All rights reserved.
 #include <limits.h>
 #include <string.h>
 #include <util/json.h>
@@ -17,7 +17,7 @@
 #include <dirent.h>
 #include "sysfs.h"
 
-static const char *wq_type_str[] = {
+static const char * const wq_type_str[] = {
 	"none",
 	"kernel",
 	"user",
@@ -81,6 +81,7 @@ static int display_hex(struct json_object *jobj, struct printbuf *pbuf,
 {
 	uint64_t val = json_object_get_int64(jobj);
 	static char buf[32];
+
 	snprintf(buf, sizeof(buf), "\"%#" PRIx64 "\"", val);
 	return printbuf_memappend(pbuf, buf, strlen(buf));
 }
@@ -106,7 +107,7 @@ struct json_object *util_json_object_hex(uint64_t val,
 }
 
 /* API used to output json object display to console */
-void util_display_json_array(FILE * f_out, struct json_object *jarray,
+void util_display_json_array(FILE *f_out, struct json_object *jarray,
 			     uint64_t flags)
 {
 	int len = json_object_array_length(jarray);
@@ -117,6 +118,7 @@ void util_display_json_array(FILE * f_out, struct json_object *jarray,
 			json_object_to_json_string_ext(jarray, jflag));
 	else if (len) {
 		struct json_object *jobj;
+
 		jobj = json_object_array_get_idx(jarray, 0);
 		fprintf(f_out, "%s\n",
 			json_object_to_json_string_ext(jobj, jflag));
@@ -125,7 +127,7 @@ void util_display_json_array(FILE * f_out, struct json_object *jarray,
 }
 
 /* API used to output json object display to specified file */
-void __util_display_json_array(FILE * fd, struct json_object *jarray,
+void __util_display_json_array(FILE *fd, struct json_object *jarray,
 			     uint64_t flags)
 {
 	int len = json_object_array_length(jarray);
@@ -136,6 +138,7 @@ void __util_display_json_array(FILE * fd, struct json_object *jarray,
 			json_object_to_json_string_ext(jarray, jflag));
 	else if (len) {
 		struct json_object *jobj;
+
 		jobj = json_object_array_get_idx(jarray, 0);
 		fprintf(fd, "%s\n",
 			json_object_to_json_string_ext(jobj, jflag));
@@ -507,9 +510,8 @@ struct json_object *util_engine_to_json(struct accfg_engine *engine,
 	struct json_object *jaccfg = json_object_new_object();
 	struct json_object *jobj = NULL;
 
-	if (!jaccfg) {
+	if (!jaccfg)
 		return NULL;
-	}
 	jobj = json_object_new_string(accfg_engine_get_devname(engine));
 	if (!jobj)
 		goto err;
