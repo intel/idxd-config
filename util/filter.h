@@ -6,23 +6,10 @@
 #include <ccan/list/list.h>
 #include <ccan/short_types/short_types.h>
 
-struct accfg_device *util_device_filter(struct accfg_device *device, const char *ident);
-struct accfg_group *util_group_filter(struct accfg_group *group,
-		const char *ident);
-struct accfg_wq *util_wq_filter(struct accfg_wq *wq,
-		const char *ident);
-struct accfg_engine *util_engine_filter(struct accfg_engine *engine, const char *ident);
-
-struct accfg_device *util_device_filter_by_group(struct accfg_device *device,
-		const char *ident);
-struct accfg_group *util_group_filter_by_wq(struct accfg_group *group,
-		const char *ident);
-struct accfg_group *util_group_filter_by_engine(struct accfg_group *group,
-		const char *ident);
-struct accfg_wq *util_wq_filter_by_group(struct accfg_wq *wq,
-		const char *ident);
-struct accfg_engine *util_engine_filter_by_group(struct accfg_engine *engine,
-		const char *ident);
+struct accfg_device;
+struct accfg_group;
+struct accfg_wq;
+struct accfg_engine;
 struct json_object;
 
 /* json object hierarchy for device */
@@ -99,6 +86,21 @@ struct util_filter_params {
 };
 
 struct accfg_ctx;
+
+int scan_device_type_id(const char *name, char *dev_type,
+		unsigned int *dev_id);
+int scan_parent_child_names(const char *name, char *parent_name,
+		char *child_name);
+int scan_parent_child_ids(const char *name, unsigned int *parent_id,
+		unsigned int *child_id);
+int parse_device_name(struct accfg_ctx *ctx, const char *name,
+		struct accfg_device **device);
+int parse_wq_name(struct accfg_ctx *ctx, const char *name,
+		struct accfg_device **device, struct accfg_wq **wq);
+int parse_group_name(struct accfg_ctx *ctx, const char *name,
+		struct accfg_device **device, struct accfg_group **group);
+int parse_engine_name(struct accfg_ctx *ctx, const char *name,
+		struct accfg_device **device, struct accfg_engine **engine);
 int util_filter_walk(struct accfg_ctx *ctx, struct util_filter_ctx *fctx,
 		struct util_filter_params *param);
 int match_device(struct accfg_device *device, struct accfg_json_container *jc);
