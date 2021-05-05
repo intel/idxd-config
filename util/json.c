@@ -429,9 +429,11 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 			json_object_object_add(jaccfg, "size", jobj);
 	}
 
-	jobj = json_object_new_int(accfg_wq_get_group_id(wq));
-	if (jobj)
-		json_object_object_add(jaccfg, "group_id", jobj);
+	if (accfg_wq_get_group_id(wq) >= 0) {
+		jobj = json_object_new_int(accfg_wq_get_group_id(wq));
+		if (jobj)
+			json_object_object_add(jaccfg, "group_id", jobj);
+	}
 
 	int_val = accfg_wq_get_priority(wq);
 	if (int_val >= 0) {
@@ -452,7 +454,7 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	if (jobj)
 		json_object_object_add(jaccfg, "max_transfer_size", jobj);
 
-	if (!(flags & UTIL_JSON_SAVE)) {
+	if (!(flags & UTIL_JSON_SAVE) && accfg_wq_get_cdev_minor(wq) >= 0) {
 		jobj = json_object_new_int(accfg_wq_get_cdev_minor(wq));
 		if (jobj)
 			json_object_object_add(jaccfg, "cdev_minor", jobj);
@@ -517,10 +519,12 @@ struct json_object *util_engine_to_json(struct accfg_engine *engine,
 		goto err;
 	json_object_object_add(jaccfg, "dev", jobj);
 
-	jobj = json_object_new_int(accfg_engine_get_group_id(engine));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jaccfg, "group_id", jobj);
+	if (accfg_engine_get_group_id(engine) >= 0) {
+		jobj = json_object_new_int(accfg_engine_get_group_id(engine));
+		if (!jobj)
+			goto err;
+		json_object_object_add(jaccfg, "group_id", jobj);
+	}
 
 	return jaccfg;
 err:
