@@ -118,7 +118,7 @@ int main(int argc, const char **argv)
 		/* The user didn't specify a command; give them help */
 		printf("\n usage: %s\n\n", accfg_usage_string);
 		printf("\n %s\n\n", accfg_more_info_string);
-		return 0;
+		return -EINVAL;
 	}
 
 	rc = idxd_kmod_init(&kmod_ctx, &mod);
