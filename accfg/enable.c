@@ -121,42 +121,35 @@ static int device_action(int argc, const char **argv, const char *usage,
 	}
 
 	for (i = 0; i < argc; i++) {
-		int found = 0;
 		struct accfg_device *device;
 
-		if (!accfg_device_type_validate(argv[i]))
-			return -EINVAL;
-
-		accfg_device_foreach(ctx, device) {
-			if (!util_device_filter(device, argv[i]))
-				continue;
-			found++;
-
-			rc = dev_action_switch(device, action);
-			if (rc == 0) {
-				/*
-				 * Double check if the state of the device
-				 * matches with the enable/disable
-				 */
-				state = accfg_device_get_state(device);
-				if (((state != ACCFG_DEVICE_ENABLED) &&
-						(action == DEV_ACTION_ENABLE)) ||
-						((state != ACCFG_DEVICE_DISABLED) &&
-						 (action == DEV_ACTION_DISABLE)))
-					rc = ENXIO;
-			}
-			if (rc == 0) {
-				success++;
-			} else {
-				fprintf(stderr, "failed in %s\n", argv[i]);
-
-				print_device_cmd_status(device);
-			}
+		if (parse_device_name(ctx, argv[i], &device)) {
+			if (param.verbose)
+				fprintf(stderr,
+					"%s device not found\n", argv[i]);
+			continue;
 		}
 
-		if (!found && param.verbose)
-			fprintf(stderr, "no device matches with the name: %s\n",
-					argv[i]);
+		rc = dev_action_switch(device, action);
+		if (rc == 0) {
+			/*
+			 * Double check if the state of the device
+			 * matches with the enable/disable
+			 */
+			state = accfg_device_get_state(device);
+			if (((state != ACCFG_DEVICE_ENABLED) &&
+					(action == DEV_ACTION_ENABLE)) ||
+					((state != ACCFG_DEVICE_DISABLED) &&
+					(action == DEV_ACTION_DISABLE)))
+				rc = ENXIO;
+		}
+		if (rc == 0) {
+			success++;
+		} else {
+			fprintf(stderr, "failed in %s\n", argv[i]);
+
+			print_device_cmd_status(device);
+		}
 	}
 
 	fprintf(stderr, "%s %d device(s) out of %d\n",
@@ -226,7 +219,6 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		usage,
 		NULL
 	};
-	uint64_t dev_id, wq_id;
 	int i, rc = -EINVAL, success = 0;
 	const char *all = "all";
 
@@ -249,43 +241,21 @@ static int wq_action(int argc, const char **argv, const char *usage,
 	for (i = 0; i < argc; i++) {
 		struct accfg_device *device;
 		struct accfg_wq *wq;
-		char dev_name[MAX_DEV_LEN], wq_name[MAX_DEV_LEN];
-		int found = 0;
 
-		if (sscanf(argv[i], "%[^/]/wq%" SCNu64 ".%" SCNu64,
-					dev_name, &dev_id, &wq_id) != 3) {
-			fprintf(stderr, "'%s' is not a valid wq name\n",
-				argv[i]);
-			return -EINVAL;
+		if (parse_wq_name(ctx, argv[i], &device, &wq)) {
+			if (param.verbose)
+				fprintf(stderr, "%s wq not found\n", argv[i]);
+			continue;
 		}
 
-		if (!accfg_device_type_validate(dev_name))
-			return -EINVAL;
+		rc = wq_action_switch(wq, action, argv[i]);
+		if (rc == 0) {
+			success++;
+		} else {
+			fprintf(stderr, "failed in %s\n", argv[i]);
 
-		rc = sprintf(wq_name, "wq%" PRIu64 ".%" PRIu64, dev_id, wq_id);
-		if (rc < 0)
-			return rc;
-
-		accfg_device_foreach(ctx, device) {
-			if (!util_device_filter(device, dev_name))
-				continue;
-			accfg_wq_foreach(device, wq) {
-				if (!util_wq_filter(wq, wq_name))
-					continue;
-				found++;
-				rc = wq_action_switch(wq, action, wq_name);
-				if (rc == 0) {
-					success++;
-				} else {
-					fprintf(stderr, "failed in %s\n", wq_name);
-
-					print_device_cmd_status(device);
-				}
-			}
+			print_device_cmd_status(device);
 		}
-
-		if (!found && param.verbose)
-			fprintf(stderr, "no wq matches id: %s\n", wq_name);
 	}
 
 	fprintf(stderr, "%s %d wq(s) out of %d\n",
