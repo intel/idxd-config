@@ -17,8 +17,6 @@ enum util_json_flags {
 struct json_object;
 void util_display_json_array(FILE *f_out, struct json_object *jarray,
 		uint64_t flags);
-void __util_display_json_array(FILE *fd, struct json_object *jarray,
-		uint64_t flags);
 struct json_object *util_device_to_json(struct accfg_device *device,
 		uint64_t flags);
 struct json_object *util_wq_to_json(struct accfg_wq *accfg_wq,

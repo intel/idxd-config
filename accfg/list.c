@@ -373,7 +373,7 @@ static int save_config(struct list_filter_arg *lfa, const char *saved_file)
 	}
 
 	if (jdevices)
-		__util_display_json_array(fd, jdevices, lfa->flags);
+		util_display_json_array(fd, jdevices, lfa->flags);
 
 	/* free all the allocated container data structure */
 	free_containers(lfa);

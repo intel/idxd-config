@@ -106,7 +106,6 @@ struct json_object *util_json_object_hex(uint64_t val,
 	return jobj;
 }
 
-/* API used to output json object display to console */
 void util_display_json_array(FILE *f_out, struct json_object *jarray,
 			     uint64_t flags)
 {
@@ -121,26 +120,6 @@ void util_display_json_array(FILE *f_out, struct json_object *jarray,
 
 		jobj = json_object_array_get_idx(jarray, 0);
 		fprintf(f_out, "%s\n",
-			json_object_to_json_string_ext(jobj, jflag));
-	}
-	json_object_put(jarray);
-}
-
-/* API used to output json object display to specified file */
-void __util_display_json_array(FILE *fd, struct json_object *jarray,
-			     uint64_t flags)
-{
-	int len = json_object_array_length(jarray);
-	int jflag = JSON_C_TO_STRING_PRETTY;
-
-	if (json_object_array_length(jarray) > 1 || !(flags & UTIL_JSON_HUMAN))
-		fprintf(fd, "%s\n",
-			json_object_to_json_string_ext(jarray, jflag));
-	else if (len) {
-		struct json_object *jobj;
-
-		jobj = json_object_array_get_idx(jarray, 0);
-		fprintf(fd, "%s\n",
 			json_object_to_json_string_ext(jobj, jflag));
 	}
 	json_object_put(jarray);
