@@ -1250,6 +1250,35 @@ ACCFG_EXPORT uint64_t accfg_device_get_max_transfer_size(
 	return device->max_transfer_size;
 }
 
+ACCFG_EXPORT int accfg_device_get_op_cap(struct accfg_device *device,
+		struct accfg_op_cap *op_cap)
+{
+	char *oc;
+	int dfd;
+	int rc;
+	struct accfg_ctx *ctx;
+
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
+	dfd = open(device->device_path, O_PATH);
+	if (dfd < 0)
+		return -errno;
+	oc = accfg_get_param_str(ctx, dfd, "op_cap");
+	close(dfd);
+	rc = sscanf(oc, "%" SCNx64 " %" SCNx64 " %" SCNx64 " %" SCNx64,
+			&op_cap->bits[0], &op_cap->bits[1],
+			&op_cap->bits[2], &op_cap->bits[3]);
+
+	free(oc);
+
+	if (rc != 4)
+		return errno ? -errno : -EIO;
+
+	return 0;
+}
+
 ACCFG_EXPORT uint64_t accfg_device_get_gen_cap(struct accfg_device *device)
 {
 	return device->gencap;

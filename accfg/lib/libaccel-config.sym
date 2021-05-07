@@ -144,3 +144,8 @@ LIBACCFG_8 {
 global:
 	accfg_wq_get_user_dev_path;
 } LIBACCFG_7;
+
+LIBACCFG_9 {
+global:
+	accfg_device_get_op_cap;
+} LIBACCFG_8;

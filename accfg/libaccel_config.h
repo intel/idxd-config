@@ -79,6 +79,10 @@ struct accfg_error {
 	uint64_t val[4];
 };
 
+struct accfg_op_cap {
+	uint64_t bits[4];
+};
+
 /* parameters read from sysfs of accfg driver */
 struct dev_parameters {
 	unsigned int token_limit;
@@ -168,6 +172,8 @@ int accfg_device_get_numa_node(struct accfg_device *device);
 unsigned int accfg_device_get_ims_size(struct accfg_device *device);
 unsigned int accfg_device_get_max_batch_size(struct accfg_device *device);
 uint64_t accfg_device_get_max_transfer_size(struct accfg_device *device);
+int accfg_device_get_op_cap(struct accfg_device *device,
+		struct accfg_op_cap *op_cap);
 uint64_t accfg_device_get_gen_cap(struct accfg_device *device);
 unsigned int accfg_device_get_configurable(struct accfg_device *device);
 bool accfg_device_get_pasid_enabled(struct accfg_device  *device);
