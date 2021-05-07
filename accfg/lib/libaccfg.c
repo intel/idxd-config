@@ -205,6 +205,9 @@ static void free_wq(struct accfg_wq *wq)
 	list_del_from(&device->wqs, &wq->list);
 	free(wq->wq_path);
 	free(wq->wq_buf);
+	free(wq->mode);
+	free(wq->state);
+	free(wq->name);
 	free(wq);
 }
 
@@ -215,6 +218,8 @@ static void free_group(struct accfg_group *group)
 	list_del_from(&device->groups, &group->list);
 	free(group->group_buf);
 	free(group->group_path);
+	free(group->group_engines);
+	free(group->group_wqs);
 	free(group);
 }
 
@@ -754,6 +759,9 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 err_read:
 	free(wq->wq_buf);
 	free(wq->wq_path);
+	free(wq->mode);
+	free(wq->state);
+	free(wq->name);
 err_wq:
 	free(wq);
 	free(path);
@@ -842,8 +850,10 @@ static void *add_group(void *parent, int id, const char *group_base,
 
 err_read:
 	free(group->group_buf);
-	free(group);
+	free(group->group_engines);
+	free(group->group_wqs);
 err_group:
+	free(group);
 	free(path);
 	return NULL;
 }
