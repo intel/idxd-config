@@ -1290,17 +1290,13 @@ ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
 	rc = sscanf(read_error, "%" SCNx64 " %" SCNx64 " %" SCNx64 " %" SCNx64,
 			&error->val[0], &error->val[1],
 			&error->val[2], &error->val[3]);
-	if (rc < 0) {
-		free(read_error);
-		return -errno;
-	}
-	else if (rc != 4) {
-		free(read_error);
-		return 0;
-	}
 
 	free(read_error);
-	return 1;
+
+	if (rc != 4)
+		return errno ? -errno : -EIO;
+
+	return 0;
 }
 
 ACCFG_EXPORT enum accfg_device_state accfg_device_get_state(

@@ -212,7 +212,7 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		goto err;
 	json_object_object_add(jdevice, "numa_node", jobj);
 
-	if (accfg_device_get_errors(device, error) == 1
+	if (!accfg_device_get_errors(device, error)
 			&& (error->val[0] || error->val[1]
 				|| error->val[2] || error->val[3])) {
 		jobj = json_object_new_array();
