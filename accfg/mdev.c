@@ -130,7 +130,7 @@ int cmd_remove_mdev(int argc, const char **argv, void *ctx)
 
 	const char *const u[] = {
 		"accfg remove-mdev <device name> [<uuid>|<options>]",
-		"Pass null uuid to remove all mdevs",
+		"Pass \"all\" to remove all mdevs",
 		NULL
 	};
 
@@ -152,7 +152,9 @@ int cmd_remove_mdev(int argc, const char **argv, void *ctx)
 	if (opt_called)
 		return 0;
 
-	if (uuid_parse(argv[1], uuid) < 0) {
+	if (!strcmp(argv[1], "all"))
+		uuid_clear(uuid);
+	else if (uuid_parse(argv[1], uuid) < 0) {
 		fprintf(stderr, "Invalid uuid\n");
 		usage_with_options(u, options);
 	}
