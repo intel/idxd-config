@@ -574,7 +574,6 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 			"max_batch_size");
 	device->max_transfer_size =
 	    accfg_get_param_unsigned_llong(ctx, dfd, "max_transfer_size");
-	device->opcap = accfg_get_param_unsigned_llong(ctx, dfd, "op_cap");
 	device->gencap = accfg_get_param_unsigned_llong(ctx, dfd, "gen_cap");
 	device->configurable = accfg_get_param_unsigned_llong(ctx, dfd,
 			"configurable");
@@ -1249,12 +1248,6 @@ ACCFG_EXPORT uint64_t accfg_device_get_max_transfer_size(
 		struct accfg_device *device)
 {
 	return device->max_transfer_size;
-}
-
-ACCFG_EXPORT uint64_t accfg_device_get_op_cap(
-		struct accfg_device *device)
-{
-	return device->opcap;
 }
 
 ACCFG_EXPORT uint64_t accfg_device_get_gen_cap(struct accfg_device *device)

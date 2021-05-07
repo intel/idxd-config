@@ -228,14 +228,6 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		json_object_object_add(jdevice, "errors", jobj);
 	}
 
-	ulong_val = accfg_device_get_op_cap(device);
-	if (ulong_val > 0) {
-		jobj = util_json_object_hex(ulong_val, flags);
-		if (!jobj)
-			goto err;
-		json_object_object_add(jdevice, "op_cap", jobj);
-	}
-
 	jobj = util_json_object_hex(accfg_device_get_gen_cap(device), flags);
 	if (!jobj)
 		goto err;
