@@ -131,6 +131,7 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	struct json_object *jdevice = json_object_new_object();
 	struct json_object *jobj;
 	struct accfg_error *error;
+	struct accfg_op_cap op_cap;
 	enum accfg_device_state dev_state;
 	int int_val;
 	uint64_t ulong_val;
@@ -226,6 +227,19 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 			json_object_array_add(jobj, json_error);
 		}
 		json_object_object_add(jdevice, "errors", jobj);
+	}
+
+	if (!accfg_device_get_op_cap(device, &op_cap)) {
+		jobj = json_object_new_array();
+		if (!jobj)
+			goto err;
+		for (int i = 0; i < 4; i++) {
+			struct json_object *json_oc;
+
+			json_oc = util_json_object_hex(op_cap.bits[i], flags);
+			json_object_array_add(jobj, json_oc);
+		}
+		json_object_object_add(jdevice, "op_cap", jobj);
 	}
 
 	jobj = util_json_object_hex(accfg_device_get_gen_cap(device), flags);
