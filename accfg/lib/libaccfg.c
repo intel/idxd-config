@@ -36,9 +36,9 @@
 		(d)->bus_type_str : accfg_wq_device_portals[(w)->type])
 
 char *accfg_wq_device_portals[] = {
-	[ACCFG_WQT_KERNEL] = "idxd-kernel-portal",
-	[ACCFG_WQT_USER] = "idxd-user-portal",
-	[ACCFG_WQT_MDEV] = "idxd-mdev-portal",
+	[ACCFG_WQT_KERNEL] = "dmaengine",
+	[ACCFG_WQT_USER] = "user",
+	[ACCFG_WQT_MDEV] = "mdev",
 	NULL
 };
 
