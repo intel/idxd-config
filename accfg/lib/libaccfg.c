@@ -1925,62 +1925,16 @@ ACCFG_EXPORT int accfg_wq_priority_boundary(struct accfg_wq *wq)
 
 static int accfg_wq_retrieve_cdev_minor(struct accfg_wq *wq)
 {
+	int dfd;
 	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-	char *path = wq->wq_buf;
-	char buf[SYSFS_ATTR_SIZE];
-	int rc;
 
-	rc = sprintf(wq->wq_buf, "%s/%s", wq->wq_path, "cdev_minor");
-	if (rc < 0)
-		return -errno;
+	dfd = open(wq->wq_path, O_PATH);
+	if (dfd < 0)
+		return -ENXIO;
 
-	if (sysfs_read_attr(ctx, path, buf) < 0) {
-		err(ctx, "%s: retrieve cdev minor failed: '%s': %s\n",
-				__func__, wq->wq_path, strerror(errno));
-		return -errno;
-	}
+	wq->cdev_minor = accfg_get_param_long(ctx, dfd, "cdev_minor");
 
-	wq->cdev_minor = atoi(buf);
-	return 0;
-}
-
-static int accfg_wq_post_enable(struct accfg_wq *wq)
-{
-	enum accfg_wq_type type;
-	int rc;
-
-	type = accfg_wq_get_type(wq);
-
-	if (type == ACCFG_WQT_USER) {
-		rc = accfg_wq_retrieve_cdev_minor(wq);
-		if (rc < 0)
-			return rc;
-	}
-
-	return 0;
-}
-
-static int accfg_wq_post_disable(struct accfg_wq *wq)
-{
-	enum accfg_wq_type type;
-
-	type = accfg_wq_get_type(wq);
-
-	if (type == ACCFG_WQT_USER)
-		wq->cdev_minor = -1;
-
-	return 0;
-}
-
-static int accfg_wq_control_post_processing(struct accfg_wq *wq,
-		enum accfg_control_flag flag)
-{
-	if (flag == ACCFG_WQ_ENABLE)
-		return accfg_wq_post_enable(wq);
-	else if (flag == ACCFG_WQ_DISABLE)
-		return accfg_wq_post_disable(wq);
-	else
-		return -EINVAL;
+	close(dfd);
 
 	return 0;
 }
@@ -2052,10 +2006,8 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 		return -ENXIO;
 	}
 
-	/* post processing */
-	rc = accfg_wq_control_post_processing(wq, flag);
-	if (rc < 0)
-		return rc;
+	if (accfg_wq_retrieve_cdev_minor(wq))
+		return -ENXIO;
 
 	return 0;
 }
