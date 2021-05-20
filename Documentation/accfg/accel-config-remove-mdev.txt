@@ -6,8 +6,7 @@ accel-config-remove-mdev(1)
 NAME
 ----
 accel-config-remove-mdev - remove mdev of a device associated with
-the passed uuid. Passing a null uuid will remove all mdevs of the
-device.
+the passed uuid. Passing "all" will remove all mdevs of the device.
 
 SYNOPSIS
 --------
@@ -18,7 +17,7 @@ EXAMPLE
 -------
 accel-config remove-mdev dsa0 0f34f0ed-6f67-4086-a4b7-8e1ecf077dce
 
-accel-config remove-mdev dsa0 00000000-0000-0000-0000-000000000000
+accel-config remove-mdev dsa0 all
 
 accel-config remove-mdev dsa0 -l
 ----

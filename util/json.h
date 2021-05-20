@@ -1,4 +1,3 @@
-
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2015-2019 Intel Corporation. All rights reserved. */
 #ifndef __ACCFG_JSON_H__
@@ -17,8 +16,6 @@ enum util_json_flags {
 
 struct json_object;
 void util_display_json_array(FILE *f_out, struct json_object *jarray,
-		uint64_t flags);
-void __util_display_json_array(FILE *fd, struct json_object *jarray,
 		uint64_t flags);
 struct json_object *util_device_to_json(struct accfg_device *device,
 		uint64_t flags);

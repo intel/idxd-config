@@ -82,8 +82,8 @@ static struct wq_parameters wq00_param = {
 	.priority = 10,
 	.block_on_fault = 1,
 	.threshold = 15,
-	.max_batch_size = 1,
-	.max_transfer_size = 1,
+	.max_batch_size = 16,
+	.max_transfer_size = 16,
 	.mode = "shared",
 	.type = "user",
 	.name = "myapp1"
@@ -111,7 +111,7 @@ static struct wq_parameters wq02_param = {
 	.max_batch_size = (1 << 8),
 	.max_transfer_size = (1l << 30),
 	.mode = "shared",
-	.type = "user",
+	.type = "mdev",
 	.name = "guest1"
 };
 
@@ -123,7 +123,7 @@ static struct wq_parameters wq03_param = {
 	.max_batch_size = (1 << 9),
 	.max_transfer_size = (1l << 31),
 	.mode = "dedicated",
-	.type = "user",
+	.type = "mdev",
 	.name = "guest2"
 
 };
@@ -790,8 +790,8 @@ static int wq_bounds_test(struct accfg_ctx *ctx, const char *dev_name)
 	}
 
 	/* reset to valid values for following tests */
-	wq00_param.max_batch_size = 1;
-	wq00_param.max_transfer_size = 1;
+	wq00_param.max_batch_size = 16;
+	wq00_param.max_transfer_size = 16;
 	rc = config_wq(ctx, 0, 0, wq00_param, dev_name);
 	if (rc != 0) {
 		fprintf(stderr, "config wq wq0.0 failed\n");
@@ -1074,18 +1074,12 @@ static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
 		return rc;
 	}
 	rc = kmod_module_get_initstate(*mdev_mod);
-	if (rc == -ENOENT)
-		rc = kmod_module_probe_insert_module(*mdev_mod, 0, NULL, NULL, NULL,
-				NULL);
 	if (rc < 0) {
 		kmod_module_unref(*mdev_mod);
 		*mdev_mod = NULL;
 		mdev_disabled = true;
 	}
 	rc = kmod_module_get_initstate(*mod);
-	if (rc == -ENOENT)
-		rc = kmod_module_probe_insert_module(*mod, 0, NULL, NULL, NULL,
-				NULL);
 	if (rc < 0) {
 		kmod_module_unref(*mod);
 		kmod_unref(*ctx);
@@ -1116,7 +1110,7 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 
 	/*
 	 * iterate to check the state of each device, skip entire test if any of
-	 * them is active
+	 * them is active or not configurable
 	 */
 	accfg_device_foreach(ctx, device) {
 		if (accfg_device_is_active(device)) {
@@ -1132,6 +1126,12 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 		if (!accfg_device_get_pasid_enabled(device)) {
 			accfg_test_skip(test);
 			fprintf(stderr, "device has no pasid support, skipping tests\n");
+			return EXIT_SKIP;
+		}
+
+		if (!accfg_device_get_configurable(device)) {
+			accfg_test_skip(test);
+			fprintf(stderr, "device is not configuratble, skipping tests\n");
 			return EXIT_SKIP;
 		}
 	}
@@ -1159,12 +1159,9 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 
 	test_cleanup(ctx);
 
-	if (mdev_mod) {
-		kmod_module_remove_module(mdev_mod, 0);
+	if (mdev_mod)
 		kmod_module_unref(mdev_mod);
-	}
-	kmod_module_remove_module(mod, 0);
-	kmod_module_probe_insert_module(mod, 0, NULL, NULL, NULL, NULL);
+
 	kmod_module_unref(mod);
 	kmod_unref(kmod_ctx);
 

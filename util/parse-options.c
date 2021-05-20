@@ -495,7 +495,7 @@ static int parse_options_subcommand_prefix(int argc, const char **argv,
 	parse_options_start(&ctx, argc, argv, prefix, flags);
 	switch (parse_options_step(&ctx, options, usagestr)) {
 	case PARSE_OPT_HELP:
-		exit(129);
+		exit(0);
 	case PARSE_OPT_DONE:
 		break;
 	case PARSE_OPT_LIST_OPTS:
@@ -503,12 +503,12 @@ static int parse_options_subcommand_prefix(int argc, const char **argv,
 			printf("--%s ", options->long_name);
 			options++;
 		}
-		exit(130);
+		exit(0);
 	case PARSE_OPT_LIST_SUBCMDS:
 		if (subcommands)
 			for (int i = 0; subcommands[i]; i++)
 				printf("%s ", subcommands[i]);
-		exit(130);
+		exit(0);
 	default: /* PARSE_OPT_UNKNOWN */
 		if (ctx.argv[0][1] == '-') {
 			error("unknown option `%s'", ctx.argv[0] + 2);

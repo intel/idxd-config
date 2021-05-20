@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2019 Intel Corporation. All rights reserved. */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright(c) 2019 Intel Corporation. All rights reserved.
 
 #include <stdio.h>
 #include <errno.h>
@@ -45,6 +45,7 @@ static int accel_config_parse_device_attribs(struct accfg_device *dev,
 		struct dev_parameters *device_param)
 {
 	int rc = 0;
+
 	rc = accfg_device_set_token_limit(dev, device_param->token_limit);
 	if (rc < 0)
 		return rc;
@@ -93,10 +94,10 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 	}
 
 	if (group_params->use_token_limit != UINT_MAX) {
-                rc = accfg_group_set_use_token_limit(group,
+		rc = accfg_group_set_use_token_limit(group,
 			group_params->use_token_limit);
 		if (rc < 0)
-		        return rc;
+			return rc;
 	}
 
 	if (group_params->tokens_reserved != UINT_MAX) {
@@ -309,19 +310,17 @@ int cmd_config_device(int argc, const char **argv, void *ctx)
 	}
 
 	for (i = 0; i < argc; i++) {
-			if (accfg_device_type_validate(argv[i])) {
-			/* walkthrough device */
-			accfg_device_foreach(ctx, device) {
-				if (!util_device_filter(device, argv[i]))
-					continue;
-				rc = accel_config_parse_device_attribs(device,
-						&dev_param);
-				if (rc != 0) {
-					fprintf(stderr,
-						"accel_config_parse_device_attribs failed\n");
-					return rc;
-				}
-			}
+		if (parse_device_name(ctx, argv[i], &device)) {
+			fprintf(stderr,
+				"%s is not a valid device name\n", argv[i]);
+			continue;
+		}
+
+		rc = accel_config_parse_device_attribs(device, &dev_param);
+		if (rc != 0) {
+			fprintf(stderr,
+					"accel_config_parse_device_attribs failed\n");
+			return rc;
 		}
 	}
 
@@ -331,7 +330,6 @@ int cmd_config_device(int argc, const char **argv, void *ctx)
 int cmd_config_group(int argc, const char **argv, void *ctx)
 {
 	int i, rc = 0;
-	unsigned int dev_id, group_id;
 
 	const struct option options[] = {
 		OPT_UINTEGER('r', "tokens-reserved",
@@ -372,43 +370,17 @@ int cmd_config_group(int argc, const char **argv, void *ctx)
 	}
 
 	for (i = 0; i < argc; i++) {
-		struct accfg_device *device;
 		struct accfg_group *group;
-		char dev_name[MAX_DEV_LEN], group_name[MAX_DEV_LEN];
 
-		if (strstr(argv[i], "group") == NULL) {
-			fprintf(stderr, "need to provide group name\n");
-			return -EINVAL;
-		}
-
-		/* walk through group */
-		if (sscanf(argv[i], "%[^/]/group%u.%u",  dev_name, &dev_id, &group_id)
-		    != 3) {
+		if (parse_group_name(ctx, argv[i], NULL, &group)) {
 			fprintf(stderr,
-				"'%s' is not a valid group name\n", argv[i]);
-			return -EINVAL;
+				"%s is not a valid group name\n", argv[i]);
+			continue;
 		}
 
-		if (!accfg_device_type_validate(dev_name))
-			return -EINVAL;
-		rc = sprintf(group_name, "group%u.%u", dev_id, group_id);
+		rc = accel_config_parse_group_attribs(group, &group_param);
 		if (rc < 0)
 			return rc;
-
-		accfg_device_foreach(ctx, device) {
-			if (!util_device_filter(device, dev_name))
-				continue;
-
-			accfg_group_foreach(device, group) {
-				if (!util_group_filter(group, group_name))
-				      continue;
-
-				rc = accel_config_parse_group_attribs(group,
-						&group_param);
-				if (rc < 0)
-					return rc;
-			}
-		}
 	}
 
 	return 0;
@@ -417,7 +389,6 @@ int cmd_config_group(int argc, const char **argv, void *ctx)
 int cmd_config_wq(int argc, const char **argv, void *ctx)
 {
 	int i, rc = 0;
-	unsigned int dev_id = 0, wq_id = 0;
 
 	const struct option options[] = {
 		OPT_INTEGER('g', "group-id", &wq_param.group_id,
@@ -465,40 +436,16 @@ int cmd_config_wq(int argc, const char **argv, void *ctx)
 	for (i = 0; i < argc; i++) {
 		struct accfg_device *device;
 		struct accfg_wq *wq;
-		char dev_name[MAX_DEV_LEN], wq_name[MAX_DEV_LEN];
 
-		/* walk through wq */
-		if (strstr(argv[i], "wq") != NULL) {
-			if (sscanf(argv[i], "%[^/]/wq%u.%u",
-					dev_name, &dev_id, &wq_id) != 3) {
-				fprintf(stderr,
-					"'%s' is not a valid wq name\n",
-					argv[i]);
-				return -EINVAL;
-			}
+		if (parse_wq_name(ctx, argv[i], &device, &wq)) {
+			fprintf(stderr,
+				"%s is not a valid workqueue name\n", argv[i]);
+			continue;
 		}
 
-		if (!accfg_device_type_validate(dev_name))
-			return -EINVAL;
-
-                rc = sprintf(wq_name, "wq%u.%u", dev_id, wq_id);
-                if (rc < 0)
-                        return rc;
-
-		accfg_device_foreach(ctx, device) {
-			if (!util_device_filter(device, dev_name))
-				continue;
-
-			accfg_wq_foreach(device, wq) {
-				if (!util_wq_filter(wq, wq_name))
-					continue;
-
-				rc = accel_config_parse_wq_attribs(device, wq,
-						&wq_param);
-				if (rc < 0)
-					return rc;
-			}
-		}
+		rc = accel_config_parse_wq_attribs(device, wq, &wq_param);
+		if (rc < 0)
+			return rc;
 	}
 
 	return 0;
@@ -507,7 +454,6 @@ int cmd_config_wq(int argc, const char **argv, void *ctx)
 int cmd_config_engine(int argc, const char **argv, void *ctx)
 {
 	int i, rc = 0;
-	unsigned int dev_id = 0, engine_id = 0;
 
 	const struct option options[] = {
 		OPT_INTEGER('g', "group-id", &engine_param.group_id,
@@ -537,41 +483,19 @@ int cmd_config_engine(int argc, const char **argv, void *ctx)
 	for (i = 0; i < argc; i++) {
 		struct accfg_device *device;
 		struct accfg_engine *engine;
-		char dev_name[MAX_DEV_LEN], engine_name[MAX_DEV_LEN];
 
-		if (strstr(argv[i], "engine") != NULL) {
-			if (sscanf(argv[i], "%[^/]/engine%u.%u", dev_name, &dev_id,
-			     &engine_id) != 3) {
-				fprintf(stderr,
-					"'%s' is not a valid engine name\n",
-					argv[i]);
-				return -EINVAL;
-			}
+		if (parse_engine_name(ctx, argv[i], &device, &engine)) {
+			fprintf(stderr,
+				"%s is not a valid engine name\n", argv[i]);
+			continue;
 		}
 
-		/* walk through engine */
-		if (!accfg_device_type_validate(dev_name))
-			return -EINVAL;
-
-                rc = sprintf(engine_name, "engine%u.%u", dev_id, engine_id);
-                if (rc < 0)
-                        return rc;
-
-		accfg_device_foreach(ctx, device) {
-			if (!util_device_filter(device, dev_name))
-				continue;
-
-			accfg_engine_foreach(device, engine) {
-				if (!util_engine_filter(engine, engine_name))
-					continue;
-				rc = accel_config_parse_engine_attribs(device,
-						engine, &engine_param);
-				if (rc != 0) {
-					fprintf(stderr,
-						"accel_config_parse_engine_attribs failed\n");
-					return rc;
-				}
-			}
+		rc = accel_config_parse_engine_attribs(device,
+				engine, &engine_param);
+		if (rc != 0) {
+			fprintf(stderr,
+					"accel_config_parse_engine_attribs failed\n");
+			return rc;
 		}
 	}
 

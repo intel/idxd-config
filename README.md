@@ -5,11 +5,25 @@ sub-system in the Linux kernel
 
 ## Resolve dependencies
 
+### Fedora, RHEL, CentOS
 ```bash
 yum groupinstall "Development Tools"
 yum install autoconf automake libtool pkgconf rpm-build rpmdevtools
 yum install asciidoc xmlto libuuid-devel json-c-devel kmod-devel libudev-devel
 ```
+### Debian
+```bash
+apt install build-essential
+apt install autoconf automake autotools-dev libtool pkgconf asciidoc xmlto
+apt install uuid-dev libjson-c-dev libkmod-dev libudev-dev libkeyutils-dev
+apt install debhelper devscripts debmake quilt fakeroot lintian asciidoctor
+apt install file gnupg patch patchutils
+```
+### DSA Kernel headers
+Run following in kernel source folder
+```bash
+sudo make headers_install INSTALL_HDR_PATH=/usr
+````
 
 ## Build
 
@@ -56,3 +70,21 @@ make rhel/accfg-test.spec
 There are a number of packages required for the build steps that may not
 be installed by default. For information about the required packages,
 see the "BuildRequires:" lines in accfg.spec.in and accfg-test.spec.in.
+
+## Build Debian Package
+```bash
+export DEBEMAIL="your.email@example.org"
+export DEBFULLNAME="Firstname Lastname"
+./autogen.sh
+./configure CFLAGS='-g -O2' --prefix=/usr --sysconfdir=/etc \
+    --libdir=/usr/lib64 --enable-test=yes
+
+./debdch.sh
+(Run dch -r and edit debian/changelog as necessary)
+
+./debbuild.sh
+
+Debian package components would be created in ./debpkg
+
+debian/changelog changes should be committed
+```

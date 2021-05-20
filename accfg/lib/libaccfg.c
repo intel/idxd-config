@@ -25,9 +25,28 @@
 #include <ccan/build_assert/build_assert.h>
 #include <util/sysfs.h>
 #include <accfg/libaccel_config.h>
+#include <fnmatch.h>
 #include "private.h"
 
 #define MDEV_POSTFIX "mdev_supported_types"
+#define IDXD_DRIVER_BIND_PATH "/sys/bus/dsa/drivers/idxd"
+#define IDXD_DRIVER(d) ((d)->ctx->compat ? \
+		(d)->bus_type_str : "idxd")
+#define IDXD_WQ_DEVICE_PORTAL(d, w) ((d)->ctx->compat ? \
+		(d)->bus_type_str : accfg_wq_device_portals[(w)->type])
+
+char *accfg_wq_device_portals[] = {
+	[ACCFG_WQT_KERNEL] = "idxd-kernel-portal",
+	[ACCFG_WQT_USER] = "idxd-user-portal",
+	[ACCFG_WQT_MDEV] = "idxd-mdev-portal",
+	NULL
+};
+
+char *accfg_bus_types[] = {
+	"dsa",
+	"iax",
+	NULL
+};
 
 const char *accfg_wq_mode_str[] = {
 	[ACCFG_WQ_SHARED]	= "shared",
@@ -88,6 +107,11 @@ const char *accfg_device_cmd_status[] = {
 	[0x44]	= "No revoked handles associted with the index",
 	[ACCFG_CMD_STATUS_MAX]	= "",
 };
+
+static inline bool is_mdev_registered(struct accfg_device *device)
+{
+	return device->mdev_path && !access(device->mdev_path, R_OK);
+}
 
 static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 {
@@ -181,6 +205,9 @@ static void free_wq(struct accfg_wq *wq)
 	list_del_from(&device->wqs, &wq->list);
 	free(wq->wq_path);
 	free(wq->wq_buf);
+	free(wq->mode);
+	free(wq->state);
+	free(wq->name);
 	free(wq);
 }
 
@@ -191,6 +218,8 @@ static void free_group(struct accfg_group *group)
 	list_del_from(&device->groups, &group->list);
 	free(group->group_buf);
 	free(group->group_path);
+	free(group->group_engines);
+	free(group->group_wqs);
 	free(group);
 }
 
@@ -310,6 +339,9 @@ ACCFG_EXPORT int accfg_new(struct accfg_ctx **ctx)
 	c->refcount = 1;
 	log_init(&c->ctx, "libaccfg", "ACCFG_LOG");
 	c->timeout = 5000;
+	if (access(IDXD_DRIVER_BIND_PATH, R_OK))
+		c->compat = true;
+
 	list_head_init(&c->devices);
 
 	info(c, "ctx %p created\n", c);
@@ -403,10 +435,11 @@ ACCFG_EXPORT void accfg_set_log_priority(struct accfg_ctx *ctx,
 }
 
 static int device_parse(struct accfg_ctx *ctx, const char *base_path,
-			char *dev_prefix, int (*filter)(const struct dirent *),
+			char *dev_prefix, char *bus_type,
+			int (*filter)(const struct dirent *),
 			void *parent, add_dev_fn add_dev)
 {
-	return sysfs_device_parse(ctx, base_path, dev_prefix,
+	return sysfs_device_parse(ctx, base_path, dev_prefix, bus_type,
 			filter, parent, add_dev);
 }
 
@@ -491,7 +524,8 @@ exit_add_mdev:
 	return rc;
 }
 
-static void *add_device(void *parent, int id, const char *ctl_base, char *dev_prefix)
+static void *add_device(void *parent, int id, const char *ctl_base,
+		char *dev_prefix, char *bus_type)
 {
 	struct accfg_ctx *ctx = parent;
 	struct accfg_device *device;
@@ -540,7 +574,6 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 			"max_batch_size");
 	device->max_transfer_size =
 	    accfg_get_param_unsigned_llong(ctx, dfd, "max_transfer_size");
-	device->opcap = accfg_get_param_unsigned_llong(ctx, dfd, "op_cap");
 	device->gencap = accfg_get_param_unsigned_llong(ctx, dfd, "gen_cap");
 	device->configurable = accfg_get_param_unsigned_llong(ctx, dfd,
 			"configurable");
@@ -569,11 +602,7 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 		goto err_dev_path;
 	}
 	free(device->mdev_path);
-	if (access(p, R_OK)) {
-		free(p);
-		device->mdev_path = NULL;
-	} else
-		device->mdev_path = p;
+	device->mdev_path = p;
 
 	device->device_buf = calloc(1, strlen(device->device_path) +
 			MAX_PARAM_LEN);
@@ -588,7 +617,9 @@ static void *add_device(void *parent, int id, const char *ctl_base, char *dev_pr
 	if (rc < 0)
 		goto err_dev_path;
 
-	if (device->mdev_path && add_device_mdevs(ctx, device))
+	device->bus_type_str = bus_type;
+
+	if (is_mdev_registered(device) && add_device_mdevs(ctx, device))
 		goto err_dev_path;
 
 	list_add_tail(&ctx->devices, &device->list);
@@ -626,6 +657,8 @@ static int wq_parse_type(struct accfg_wq *wq, char *wq_type)
 		wq->type = ACCFG_WQT_KERNEL;
 	else if (strcmp(ptype, "user") == 0)
 		wq->type = ACCFG_WQT_USER;
+	else if (strcmp(ptype, "mdev") == 0)
+		wq->type = ACCFG_WQT_MDEV;
 	else
 		wq->type = ACCFG_WQT_NONE;
 
@@ -635,7 +668,7 @@ static int wq_parse_type(struct accfg_wq *wq, char *wq_type)
 }
 
 static void *add_wq(void *parent, int id, const char *wq_base,
-		char *dev_prefix)
+		char *dev_prefix, char *bus_type)
 {
 	struct accfg_wq *wq;
 	struct accfg_device *device = parent;
@@ -725,6 +758,9 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 err_read:
 	free(wq->wq_buf);
 	free(wq->wq_path);
+	free(wq->mode);
+	free(wq->state);
+	free(wq->name);
 err_wq:
 	free(wq);
 	free(path);
@@ -732,7 +768,7 @@ err_wq:
 }
 
 static void *add_group(void *parent, int id, const char *group_base,
-		char *dev_prefix)
+		char *dev_prefix, char *bus_type)
 {
 	struct accfg_group *group;
 	struct accfg_device *device = parent;
@@ -813,14 +849,16 @@ static void *add_group(void *parent, int id, const char *group_base,
 
 err_read:
 	free(group->group_buf);
-	free(group);
+	free(group->group_engines);
+	free(group->group_wqs);
 err_group:
+	free(group);
 	free(path);
 	return NULL;
 }
 
 static void *add_engine(void *parent, int id, const char *engine_base,
-		char *dev_prefix)
+		char *dev_prefix, char *bus_type)
 {
 	struct accfg_engine *engine;
 	struct accfg_device *device = parent;
@@ -923,14 +961,15 @@ static void groups_init(struct accfg_device *device)
 	device->group_init = 1;
 	set_filename_prefix("group");
 	device_parse(device->ctx, device->device_path, "group",
-			filter_file_name_prefix,
+			device->bus_type_str, filter_file_name_prefix,
 			device, add_group);
 }
 
 static void devices_init(struct accfg_ctx *ctx)
 {
 	char **accel_name;
-	char *path;
+	char **bus_type;
+	char path[PATH_MAX];
 	struct accfg_device *device;
 
 	if (ctx->devices_init) {
@@ -939,16 +978,15 @@ static void devices_init(struct accfg_ctx *ctx)
 	}
 	ctx->devices_init = 1;
 
-	for (accel_name = accfg_basenames; *accel_name != NULL;
-		accel_name++) {
-		if (asprintf(&path, "/sys/bus/%s/devices", *accel_name) < 0) {
-			err(ctx, "devices_init set path failed\n");
-			continue;
+	for (bus_type = accfg_bus_types; *bus_type != NULL; bus_type++) {
+		sprintf(path, "/sys/bus/%s/devices", *bus_type);
+		for (accel_name = accfg_basenames; *accel_name != NULL;
+				accel_name++) {
+			set_filename_prefix(*accel_name);
+			device_parse(ctx, path, *accel_name, *bus_type,
+					filter_file_name_prefix, ctx,
+					add_device);
 		}
-		set_filename_prefix(*accel_name);
-		device_parse(ctx, path, *accel_name,
-				filter_file_name_prefix, ctx, add_device);
-		free(path);
 	}
 
 	accfg_device_foreach(ctx, device) {
@@ -970,7 +1008,7 @@ static void engines_init(struct accfg_device *device)
 	}
 	set_filename_prefix("engine");
 	device_parse(ctx, device->device_path, "engine",
-			filter_file_name_prefix, device,
+			device->bus_type_str, filter_file_name_prefix, device,
 			add_engine);
 }
 
@@ -1022,7 +1060,7 @@ ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
 	unsigned int version;
 	int rc;
 
-	if (!device->mdev_path)
+	if (!is_mdev_registered(device))
 		return -ENOENT;
 
 	if (type >= ACCFG_MDEV_TYPE_UNKNOWN || type < 0)
@@ -1082,7 +1120,7 @@ ACCFG_EXPORT int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid)
 	struct accfg_device_mdev *entry, *next;
 	int rc, all;
 
-	if (!device->mdev_path)
+	if (!is_mdev_registered(device))
 		return -ENOENT;
 
 	/* remove all mdevs if null uuid is passed */
@@ -1212,10 +1250,33 @@ ACCFG_EXPORT uint64_t accfg_device_get_max_transfer_size(
 	return device->max_transfer_size;
 }
 
-ACCFG_EXPORT uint64_t accfg_device_get_op_cap(
-		struct accfg_device *device)
+ACCFG_EXPORT int accfg_device_get_op_cap(struct accfg_device *device,
+		struct accfg_op_cap *op_cap)
 {
-	return device->opcap;
+	char *oc;
+	int dfd;
+	int rc;
+	struct accfg_ctx *ctx;
+
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
+	dfd = open(device->device_path, O_PATH);
+	if (dfd < 0)
+		return -errno;
+	oc = accfg_get_param_str(ctx, dfd, "op_cap");
+	close(dfd);
+	rc = sscanf(oc, "%" SCNx64 " %" SCNx64 " %" SCNx64 " %" SCNx64,
+			&op_cap->bits[0], &op_cap->bits[1],
+			&op_cap->bits[2], &op_cap->bits[3]);
+
+	free(oc);
+
+	if (rc != 4)
+		return errno ? -errno : -EIO;
+
+	return 0;
 }
 
 ACCFG_EXPORT uint64_t accfg_device_get_gen_cap(struct accfg_device *device)
@@ -1238,7 +1299,7 @@ ACCFG_EXPORT bool accfg_device_get_pasid_enabled(
 ACCFG_EXPORT bool accfg_device_get_mdev_enabled(
 		struct accfg_device *device)
 {
-	return device->mdev_path != NULL;
+	return is_mdev_registered(device);
 }
 
 ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
@@ -1261,17 +1322,13 @@ ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
 	rc = sscanf(read_error, "%" SCNx64 " %" SCNx64 " %" SCNx64 " %" SCNx64,
 			&error->val[0], &error->val[1],
 			&error->val[2], &error->val[3]);
-	if (rc < 0) {
-		free(read_error);
-		return -errno;
-	}
-	else if (rc != 4) {
-		free(read_error);
-		return 0;
-	}
 
 	free(read_error);
-	return 1;
+
+	if (rc != 4)
+		return errno ? -errno : -EIO;
+
+	return 0;
 }
 
 ACCFG_EXPORT enum accfg_device_state accfg_device_get_state(
@@ -1505,6 +1562,34 @@ ACCFG_EXPORT char *accfg_device_get_type_str(struct accfg_device *device)
 	return device->device_type_str;
 }
 
+static int get_driver_bind_path(char *bus_name, const char *drv_name,
+		char **path)
+{
+	char p[PATH_MAX];
+
+	sprintf(p, "/sys/bus/%s/drivers/%s/bind", bus_name, drv_name);
+
+	*path = strdup(p);
+	if (!*path)
+		return -errno;
+
+	return 0;
+}
+
+static int get_driver_unbind_path(char *bus_name, const char *dev_name,
+		char **path)
+{
+	char p[PATH_MAX];
+
+	sprintf(p, "/sys/bus/%s/devices/%s/driver/unbind", bus_name, dev_name);
+
+	*path = realpath(p, NULL);
+	if (!*path)
+		return -errno;
+
+	return 0;
+}
+
 /* Helper function to parse the device enable flag */
 static int accfg_device_control(struct accfg_device *device,
 		enum accfg_control_flag flag, bool force)
@@ -1519,15 +1604,15 @@ static int accfg_device_control(struct accfg_device *device,
 	ctx = accfg_device_get_ctx(device);
 
 	if (flag == ACCFG_DEVICE_ENABLE) {
-		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/bind",
-				device->device_type_str, device->device_type_str);
+		rc = get_driver_bind_path(device->bus_type_str,
+				IDXD_DRIVER(device), &path);
 		if (rc < 0)
 			return rc;
 	} else if (flag == ACCFG_DEVICE_DISABLE) {
 		int clients;
 
-		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/unbind",
-				device->device_type_str, device->device_type_str);
+		rc = get_driver_unbind_path(device->bus_type_str,
+				accfg_device_get_devname(device), &path);
 		if (rc < 0)
 			return rc;
 
@@ -1701,7 +1786,7 @@ static void wqs_init(struct accfg_device *device)
 		group->wqs_init = 1;
 	}
 	set_filename_prefix("wq");
-	device_parse(ctx, device->device_path, "wq",
+	device_parse(ctx, device->device_path, "wq", device->bus_type_str,
 			filter_file_name_prefix, device, add_wq);
 }
 
@@ -1840,62 +1925,16 @@ ACCFG_EXPORT int accfg_wq_priority_boundary(struct accfg_wq *wq)
 
 static int accfg_wq_retrieve_cdev_minor(struct accfg_wq *wq)
 {
+	int dfd;
 	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
-	char *path = wq->wq_buf;
-	char buf[SYSFS_ATTR_SIZE];
-	int rc;
 
-	rc = sprintf(wq->wq_buf, "%s/%s", wq->wq_path, "cdev_minor");
-	if (rc < 0)
-		return -errno;
+	dfd = open(wq->wq_path, O_PATH);
+	if (dfd < 0)
+		return -ENXIO;
 
-	if (sysfs_read_attr(ctx, path, buf) < 0) {
-		err(ctx, "%s: retrieve cdev minor failed: '%s': %s\n",
-				__func__, wq->wq_path, strerror(errno));
-		return -errno;
-	}
+	wq->cdev_minor = accfg_get_param_long(ctx, dfd, "cdev_minor");
 
-	wq->cdev_minor = atoi(buf);
-	return 0;
-}
-
-static int accfg_wq_post_enable(struct accfg_wq *wq)
-{
-	enum accfg_wq_type type;
-	int rc;
-
-	type = accfg_wq_get_type(wq);
-
-	if (type == ACCFG_WQT_USER) {
-		rc = accfg_wq_retrieve_cdev_minor(wq);
-		if (rc < 0)
-			return rc;
-	}
-
-	return 0;
-}
-
-static int accfg_wq_post_disable(struct accfg_wq *wq)
-{
-	enum accfg_wq_type type;
-
-	type = accfg_wq_get_type(wq);
-
-	if (type == ACCFG_WQT_USER)
-		wq->cdev_minor = -1;
-
-	return 0;
-}
-
-static int accfg_wq_control_post_processing(struct accfg_wq *wq,
-		enum accfg_control_flag flag)
-{
-	if (flag == ACCFG_WQ_ENABLE)
-		return accfg_wq_post_enable(wq);
-	else if (flag == ACCFG_WQ_DISABLE)
-		return accfg_wq_post_disable(wq);
-	else
-		return -EINVAL;
+	close(dfd);
 
 	return 0;
 }
@@ -1929,15 +1968,15 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 	const char *wq_name = accfg_wq_get_devname(wq);
 
 	if (flag == ACCFG_WQ_ENABLE) {
-		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/bind",
-				device->device_type_str, device->device_type_str);
+		rc = get_driver_bind_path(device->bus_type_str,
+				IDXD_WQ_DEVICE_PORTAL(device, wq), &path);
 		if (rc < 0)
 			return rc;
 	} else if (flag == ACCFG_WQ_DISABLE) {
 		int clients;
 
-		rc = asprintf(&path, "/sys/bus/%s/drivers/%s/unbind",
-				device->device_type_str, device->device_type_str);
+		rc = get_driver_unbind_path(device->bus_type_str, wq_name,
+				&path);
 		if (rc < 0)
 			return rc;
 
@@ -1967,10 +2006,8 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 		return -ENXIO;
 	}
 
-	/* post processing */
-	rc = accfg_wq_control_post_processing(wq, flag);
-	if (rc < 0)
-		return rc;
+	if (accfg_wq_retrieve_cdev_minor(wq))
+		return -ENXIO;
 
 	return 0;
 }
@@ -2042,6 +2079,60 @@ ACCFG_EXPORT int accfg_wq_size_boundary(struct accfg_device *device,
 	}
 
 	return 0;
+}
+
+ACCFG_EXPORT int accfg_wq_get_user_dev_path(struct accfg_wq *wq, char *buf,
+		size_t size)
+{
+	struct dirent **d;
+	int n, n1;
+	char *f;
+	char p[PATH_MAX];
+	struct accfg_ctx *ctx;
+	int rc = 0;
+
+	ctx = accfg_device_get_ctx(wq->device);
+
+	sprintf(p, "/dev/%s", wq->device->bus_type_str);
+	n1 = n = scandir(p, &d, NULL, alphasort);
+	if (n < 0) {
+		err(ctx, "Device path not found %s\n", p);
+		return -ENOENT;
+	}
+
+	sprintf(p, "%s-*", accfg_wq_get_devname(wq));
+
+	while (n--) {
+		f = &d[n]->d_name[0];
+
+		if (!fnmatch(p, f, 0) || !strcmp(accfg_wq_get_devname(wq), f))
+			break;
+	}
+
+	if (n < 0) {
+		err(ctx, "Device for %s not found at /dev/%s\n",
+				accfg_wq_get_devname(wq),
+				wq->device->bus_type_str);
+		rc = -ENOENT;
+		goto ext_uacce;
+	}
+
+	n = sprintf(p, "/dev/%s/%s", wq->device->bus_type_str, f);
+
+	if ((size_t)n >= size) {
+		err(ctx, "Buffer size too small. Need %d bytes\n", n + 1);
+		rc = -ERANGE;
+		goto ext_uacce;
+	}
+
+	strcpy(buf, p);
+
+ext_uacce:
+	while (n1--)
+		free(d[n1]);
+	free(d);
+
+	return rc;
 }
 
 #define accfg_wq_set_field(wq, val, field) \

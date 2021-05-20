@@ -69,19 +69,15 @@ struct dsa_context *dsa_init(void)
 
 static int dsa_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
 {
-	struct accfg_device *dev;
-	int major, minor;
-	char path[1024];
+	char path[PATH_MAX];
+	int rc;
 
-	dev = accfg_wq_get_device(wq);
-	major = accfg_device_get_cdev_major(dev);
-	if (major < 0)
-		return -ENODEV;
-	minor = accfg_wq_get_cdev_minor(wq);
-	if (minor < 0)
-		return -ENODEV;
+	rc = accfg_wq_get_user_dev_path(wq, path, PATH_MAX);
+	if (rc) {
+		fprintf(stderr, "Error getting uacce device path\n");
+		return rc;
+	}
 
-	sprintf(path, "/dev/char/%u:%u", major, minor);
 	ctx->fd = open(path, O_RDWR);
 	if (ctx->fd < 0) {
 		perror("open");

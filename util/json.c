@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2015-2019 Intel Corporation. All rights reserved. */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright(c) 2015-2019 Intel Corporation. All rights reserved.
 #include <limits.h>
 #include <string.h>
 #include <util/json.h>
@@ -17,10 +17,11 @@
 #include <dirent.h>
 #include "sysfs.h"
 
-static const char *wq_type_str[] = {
+static const char * const wq_type_str[] = {
 	"none",
 	"kernel",
-	"user"
+	"user",
+	"mdev"
 };
 
 /* adapted from mdadm::human_size_brief() */
@@ -80,6 +81,7 @@ static int display_hex(struct json_object *jobj, struct printbuf *pbuf,
 {
 	uint64_t val = json_object_get_int64(jobj);
 	static char buf[32];
+
 	snprintf(buf, sizeof(buf), "\"%#" PRIx64 "\"", val);
 	return printbuf_memappend(pbuf, buf, strlen(buf));
 }
@@ -104,8 +106,7 @@ struct json_object *util_json_object_hex(uint64_t val,
 	return jobj;
 }
 
-/* API used to output json object display to console */
-void util_display_json_array(FILE * f_out, struct json_object *jarray,
+void util_display_json_array(FILE *f_out, struct json_object *jarray,
 			     uint64_t flags)
 {
 	int len = json_object_array_length(jarray);
@@ -116,27 +117,9 @@ void util_display_json_array(FILE * f_out, struct json_object *jarray,
 			json_object_to_json_string_ext(jarray, jflag));
 	else if (len) {
 		struct json_object *jobj;
+
 		jobj = json_object_array_get_idx(jarray, 0);
 		fprintf(f_out, "%s\n",
-			json_object_to_json_string_ext(jobj, jflag));
-	}
-	json_object_put(jarray);
-}
-
-/* API used to output json object display to specified file */
-void __util_display_json_array(FILE * fd, struct json_object *jarray,
-			     uint64_t flags)
-{
-	int len = json_object_array_length(jarray);
-	int jflag = JSON_C_TO_STRING_PRETTY;
-
-	if (json_object_array_length(jarray) > 1 || !(flags & UTIL_JSON_HUMAN))
-		fprintf(fd, "%s\n",
-			json_object_to_json_string_ext(jarray, jflag));
-	else if (len) {
-		struct json_object *jobj;
-		jobj = json_object_array_get_idx(jarray, 0);
-		fprintf(fd, "%s\n",
 			json_object_to_json_string_ext(jobj, jflag));
 	}
 	json_object_put(jarray);
@@ -148,6 +131,7 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	struct json_object *jdevice = json_object_new_object();
 	struct json_object *jobj;
 	struct accfg_error *error;
+	struct accfg_op_cap op_cap;
 	enum accfg_device_state dev_state;
 	int int_val;
 	uint64_t ulong_val;
@@ -229,7 +213,7 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		goto err;
 	json_object_object_add(jdevice, "numa_node", jobj);
 
-	if (accfg_device_get_errors(device, error) == 1
+	if (!accfg_device_get_errors(device, error)
 			&& (error->val[0] || error->val[1]
 				|| error->val[2] || error->val[3])) {
 		jobj = json_object_new_array();
@@ -245,11 +229,16 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		json_object_object_add(jdevice, "errors", jobj);
 	}
 
-	ulong_val = accfg_device_get_op_cap(device);
-	if (ulong_val > 0) {
-		jobj = util_json_object_hex(ulong_val, flags);
+	if (!accfg_device_get_op_cap(device, &op_cap)) {
+		jobj = json_object_new_array();
 		if (!jobj)
 			goto err;
+		for (int i = 0; i < 4; i++) {
+			struct json_object *json_oc;
+
+			json_oc = util_json_object_hex(op_cap.bits[i], flags);
+			json_object_array_add(jobj, json_oc);
+		}
 		json_object_object_add(jdevice, "op_cap", jobj);
 	}
 
@@ -425,9 +414,11 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 			json_object_object_add(jaccfg, "size", jobj);
 	}
 
-	jobj = json_object_new_int(accfg_wq_get_group_id(wq));
-	if (jobj)
-		json_object_object_add(jaccfg, "group_id", jobj);
+	if (accfg_wq_get_group_id(wq) >= 0) {
+		jobj = json_object_new_int(accfg_wq_get_group_id(wq));
+		if (jobj)
+			json_object_object_add(jaccfg, "group_id", jobj);
+	}
 
 	int_val = accfg_wq_get_priority(wq);
 	if (int_val >= 0) {
@@ -448,7 +439,7 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	if (jobj)
 		json_object_object_add(jaccfg, "max_transfer_size", jobj);
 
-	if (!(flags & UTIL_JSON_SAVE)) {
+	if (!(flags & UTIL_JSON_SAVE) && accfg_wq_get_cdev_minor(wq) >= 0) {
 		jobj = json_object_new_int(accfg_wq_get_cdev_minor(wq));
 		if (jobj)
 			json_object_object_add(jaccfg, "cdev_minor", jobj);
@@ -506,18 +497,19 @@ struct json_object *util_engine_to_json(struct accfg_engine *engine,
 	struct json_object *jaccfg = json_object_new_object();
 	struct json_object *jobj = NULL;
 
-	if (!jaccfg) {
+	if (!jaccfg)
 		return NULL;
-	}
 	jobj = json_object_new_string(accfg_engine_get_devname(engine));
 	if (!jobj)
 		goto err;
 	json_object_object_add(jaccfg, "dev", jobj);
 
-	jobj = json_object_new_int(accfg_engine_get_group_id(engine));
-	if (!jobj)
-		goto err;
-	json_object_object_add(jaccfg, "group_id", jobj);
+	if (accfg_engine_get_group_id(engine) >= 0) {
+		jobj = json_object_new_int(accfg_engine_get_group_id(engine));
+		if (!jobj)
+			goto err;
+		json_object_object_add(jaccfg, "group_id", jobj);
+	}
 
 	return jaccfg;
 err:

@@ -1,0 +1,3 @@
+usr/include/accel-config/
+usr/lib/libaccel-config.so
+usr/lib/pkgconfig/libaccel-config.pc
