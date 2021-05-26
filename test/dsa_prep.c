@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/mman.h>
 #include <accfg/idxd.h>
 #include "accel_test.h"
 #include "dsa.h"
@@ -33,6 +34,25 @@ void dsa_prep_drain(struct task *tsk)
 				 (uint64_t)(tsk->src1), 0, tsk->dflags);
 	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
 	tsk->comp->status = 0;
+}
+
+void dsa_reprep_batch(struct batch_task *btsk, struct acctest_context *ctx)
+{
+	struct task *ctsk = btsk->core_task;
+	struct completion_record *compl = ctsk->comp;
+	struct hw_desc *hw = ctsk->desc;
+
+	info("batch PF addr %#lx dir %d dc %#x\n",
+	     compl->fault_addr, compl->result,
+	     compl->descs_completed);
+
+	mprotect((void *)(compl->fault_addr & ~0xfff), 4096, PROT_READ | PROT_WRITE);
+	hw->desc_list_addr += compl->descs_completed * 64;
+	hw->desc_count -= compl->descs_completed;
+
+	compl->status = 0;
+
+	acctest_desc_submit(ctx, hw);
 }
 
 void dsa_prep_memcpy(struct task *tsk)

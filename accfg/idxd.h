@@ -270,7 +270,10 @@ struct completion_record {
 		uint8_t		dif_status;
 	};
 	uint16_t		rsvd;
-	uint32_t		bytes_completed;
+	union {
+		uint32_t	bytes_completed;
+		uint32_t	descs_completed;
+	};
 	uint64_t		fault_addr;
 	union {
 		/* common record */

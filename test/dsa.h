@@ -55,7 +55,10 @@ static inline void dump_sub_compl_rec(struct batch_task *btsk, int compl_size)
 
 	for (i = 0; i < btsk->task_num; i++) {
 		dbg("sub_comp[%d]:\n", i);
-		dump_compl_rec(btsk->sub_tasks[i].comp, compl_size);
+		if (btsk->edl && !btsk->edl->di[i].cp_wr_fail)
+			dump_compl_rec(btsk->sub_tasks[i].comp, compl_size);
+		else
+			dbg("comp address mmap'ed PROT_NONE\n");
 	}
 }
 
@@ -119,6 +122,7 @@ int dsa_wait_cflush(struct acctest_context *ctx, struct task *tsk);
 
 void dsa_prep_noop(struct task *tsk);
 void dsa_prep_drain(struct task *tsk);
+void dsa_reprep_batch(struct batch_task *btsk, struct acctest_context *ctx);
 void dsa_prep_memcpy(struct task *tsk);
 void dsa_reprep_memcpy(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_memfill(struct task *tsk);
@@ -157,7 +161,7 @@ int task_result_verify_crcgen(struct task *tsk, int mismatch_expected);
 int task_result_verify_crc_copy(struct task *tsk, int mismatch_expected);
 int task_result_verify_dif(struct task *tsk, unsigned long xfer_size, int mismatch_expected);
 int task_result_verify_dif_tags(struct task *tsk, unsigned long xfer_size);
-int batch_result_verify(struct batch_task *btsk, int bof);
+int batch_result_verify(struct batch_task *btsk, int bof, int cp_fault);
 
 int alloc_batch_task(struct acctest_context *ctx, unsigned int task_num, int num_itr);
 int init_batch_task(struct batch_task *btsk, int task_num, int tflags,

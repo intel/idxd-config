@@ -267,8 +267,13 @@ struct task *acctest_alloc_task(struct acctest_context *ctx)
 	}
 	memset(tsk->desc, 0, sizeof(struct hw_desc));
 
-	tsk->comp = aligned_alloc(ctx->compl_size, sizeof(struct completion_record));
+	/* page fault test, alloc 4k size */
+	if (ctx->is_evl_test)
+		tsk->comp = aligned_alloc(1 << 12, 1 << 12);
+	else
+		tsk->comp = aligned_alloc(ctx->compl_size, sizeof(struct completion_record));
 	if (!tsk->comp) {
+		free(tsk->desc);
 		free_task(tsk);
 		return NULL;
 	}
@@ -459,7 +464,8 @@ void __clean_task(struct task *tsk)
 		return;
 
 	free(tsk->desc);
-	free(tsk->comp);
+	munmap(tsk->comp, 4096);
+	mprotect(tsk->src1, 4096, PROT_READ | PROT_WRITE);
 	free(tsk->src1);
 	free(tsk->src2);
 	free(tsk->dst1);
@@ -487,8 +493,13 @@ void free_batch_task(struct batch_task *btsk)
 	}
 
 	free(btsk->sub_tasks);
-	free(btsk->sub_descs);
-	free(btsk->sub_comps);
+	if (btsk->edl) {
+		munmap(btsk->sub_descs, PAGE_ALIGN(btsk->task_num * sizeof(struct hw_desc)));
+		munmap(btsk->sub_comps, btsk->task_num * 4096);
+	} else {
+		free(btsk->sub_descs);
+		free(btsk->sub_comps);
+	}
 	free(btsk);
 }
 

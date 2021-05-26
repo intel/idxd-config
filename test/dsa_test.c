@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <sys/mman.h>
 #include "accel_test.h"
 #include "dsa.h"
 
@@ -20,17 +21,21 @@ static void usage(void)
 	"		 ; 0x2: no umwait\n"
 	"                ; 0x4: reserved\n"
 	"                ; 0x8: prefault buffers\n"
+	"                ; 0x10: fault on completion record\n"
+	"                ; 0x20: fault on batch record\n"
 	"-o <opcode>     ; opcode, same value as in DSA spec\n"
 	"-b <opcode> ; if batch opcode, opcode in the batch\n"
 	"-c <batch_size> ; if batch opcode, number of descriptors for batch\n"
 	"-d              ; wq device such as dsa0/wq0.0\n"
 	"-n <number of descriptors> ;descriptor count to submit\n"
 	"-t <ms timeout> ; ms to wait for descs to complete\n"
+	"-e              ; evl pattern <batch>:<desc><..>\n"
+	"                ; <bc_fault:bc_wr_fail:bd_fault:bd_fault_idx>:<desc_fault:cp_fault:cp_wr_fail:fence>:\n"
 	"-v              ; verbose\n"
 	"-h              ; print this message\n");
 }
 
-static int test_batch(struct acctest_context *ctx, size_t buf_size,
+static int test_batch(struct acctest_context *ctx, struct evl_desc_list *edl, size_t buf_size,
 		      int tflags, uint32_t bopcode, unsigned int bsize, int num_desc)
 {
 	struct btask_node *btsk_node;
@@ -66,6 +71,21 @@ static int test_batch(struct acctest_context *ctx, size_t buf_size,
 		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
 		btsk_node = ctx->multi_btask_node;
 		while (btsk_node) {
+			if (edl) {
+				struct batch_task *btsk = btsk_node->btsk;
+				struct batch_desc_info *bdi = &edl->bdi;
+				struct hw_desc *descs;
+
+				/*
+				 * adjust sub_descs so &btsk->sub_descs[bdi->da_fault_idx]
+				 * is aligned to a page boundary
+				 */
+				if (bdi->da_fault) {
+					descs = (struct hw_desc *)((char *)btsk->sub_descs + 4096);
+					btsk->sub_descs = descs - bdi->da_fault_idx;
+				}
+				btsk->edl = edl;
+			}
 			rc = init_batch_task(btsk_node->btsk, bsize, tflags, bopcode,
 					     buf_size, dflags);
 			if (rc != ACCTEST_STATUS_OK)
@@ -148,12 +168,62 @@ static int test_batch(struct acctest_context *ctx, size_t buf_size,
 
 		btsk_node = ctx->multi_btask_node;
 		while (btsk_node) {
+			if (tflags & TEST_FLAGS_BTFLT)
+				mprotect(btsk_node->btsk->sub_descs,
+					 PAGE_ALIGN(64 * btsk_node->btsk->task_num), PROT_NONE);
+
+			if (tflags & TEST_FLAGS_CPFLT) {
+				mprotect(btsk_node->btsk->sub_comps,
+					 4096 * btsk_node->btsk->task_num,
+					 PROT_NONE);
+				mprotect(btsk_node->btsk->sub_comps,
+					 4096 * btsk_node->btsk->task_num,
+					 PROT_READ | PROT_WRITE);
+			}
+
+			if (edl) {
+				struct batch_task *btsk = btsk_node->btsk;
+				struct batch_desc_info *bdi = &edl->bdi;
+
+				for (i = 0; i < (int)bsize; i++) {
+					struct desc_info *di = &edl->di[i];
+
+					if (di->desc_fault)
+						mprotect(btsk->sub_tasks[i].src1, 4096, PROT_NONE);
+					if (di->cp_fault) {
+						mprotect(btsk->sub_tasks[i].comp, 4096, PROT_NONE);
+						mprotect(btsk->sub_tasks[i].comp,
+							 4096, PROT_READ | PROT_WRITE);
+					}
+					if (di->cp_wr_fail)
+						mprotect(btsk->sub_tasks[i].comp, 4096, PROT_NONE);
+					if (di->fence)
+						btsk->sub_descs[i].flags |= IDXD_OP_FLAG_FENCE;
+				}
+
+				if (bdi->bc_fault) {
+					mprotect(btsk->core_task->comp, 4096, PROT_NONE);
+					if (!bdi->bc_wr_fail)
+						mprotect(btsk->core_task->comp,
+							 4096, PROT_READ | PROT_WRITE);
+				}
+
+				if (bdi->da_fault)
+					mprotect(&btsk->sub_descs[bdi->da_fault_idx],
+						 4096, PROT_NONE);
+			}
+
 			acctest_desc_submit(ctx, btsk_node->btsk->core_task->desc);
 			btsk_node = btsk_node->next;
 		}
 
 		btsk_node = ctx->multi_btask_node;
 		while (btsk_node) {
+			if (edl && btsk_node->btsk->edl->bdi.bc_wr_fail) {
+				info("batch completion unmapped not checking completions, done\n");
+				return 0;
+			}
+
 			rc = dsa_wait_batch(btsk_node->btsk, ctx);
 			if (rc != ACCTEST_STATUS_OK) {
 				err("batch failed stat %d\n", rc);
@@ -196,11 +266,24 @@ static int test_batch(struct acctest_context *ctx, size_t buf_size,
 
 		btsk_node = ctx->multi_btask_node;
 		while (btsk_node) {
-			rc = batch_result_verify(btsk_node->btsk, dflags & IDXD_OP_FLAG_BOF);
+			rc = batch_result_verify(btsk_node->btsk, dflags & IDXD_OP_FLAG_BOF,
+						 tflags & TEST_FLAGS_CPFLT);
 			if (rc != ACCTEST_STATUS_OK) {
 				err("batch verification failed stat %d\n", rc);
 				return rc;
 			}
+
+			if (edl) {
+				struct batch_task *btsk = btsk_node->btsk;
+				struct batch_desc_info *bdi = &edl->bdi;
+				struct hw_desc *descs;
+
+				if (bdi->da_fault) {
+					descs = &btsk->sub_descs[bdi->da_fault_idx];
+					btsk->sub_descs = (struct hw_desc *)((char *)descs - 4096);
+				}
+			}
+
 			btsk_node = btsk_node->next;
 		}
 
@@ -635,6 +718,85 @@ static int test_crc(struct acctest_context *ctx, size_t buf_size,
 	return rc;
 }
 
+static struct evl_desc_list *parse_evl_desc(char *s, int nr_desc)
+{
+	char *cur;
+	struct evl_desc_list *edl;
+	struct batch_desc_info *bdi;
+	int i;
+	unsigned char status;
+	int cp_fault;
+
+	cur = strtok(s, ":");
+	if (!cur)
+		return NULL;
+
+	edl = calloc(sizeof(*edl) + nr_desc * sizeof(edl->di[0]), 1);
+	if (!edl)
+		return NULL;
+
+	bdi = &edl->bdi;
+	if (sscanf(cur, "%d,%d,%d,%hu", &bdi->bc_fault, &bdi->bc_wr_fail, &bdi->da_fault,
+		   &bdi->da_fault_idx) < 4)
+		printf("%d: bc_fault %d bc_wr_fail %d da_fault %hu da_fault_idx\n",
+		       bdi->bc_fault, bdi->bc_wr_fail, bdi->da_fault, bdi->da_fault_idx);
+	if (bdi->da_fault) {
+		if (bdi->da_fault_idx >= nr_desc) {
+			err("desc addr fault idxd %d >= num desc in batch %d\n",
+			    bdi->da_fault_idx, nr_desc);
+			free(edl);
+			return NULL;
+		}
+	}
+
+	bdi->desc_completed = bdi->da_fault ? bdi->da_fault_idx : nr_desc;
+	bdi->status = bdi->da_fault ? DSA_COMP_BATCH_PAGE_FAULT :
+					DSA_COMP_SUCCESS;
+	bdi->result = 0;
+
+	i = 0;
+	cp_fault = 0;
+	status = DSA_COMP_SUCCESS;
+
+	while ((cur = strtok(NULL, ":")) && i < nr_desc) {
+		int nr_read;
+		struct desc_info *di = &edl->di[i];
+
+		nr_read = sscanf(cur, "%d,%d,%d,%d", &di->desc_fault,
+				 &di->cp_fault, &di->cp_wr_fail, &di->fence);
+		printf("%d: desc_fault %d cp_fault %d cp_wr_fail %d di_fence %d\n",
+		       i, di->desc_fault, di->cp_fault, di->cp_wr_fail, di->fence);
+
+		if (nr_read < 4)
+			break;
+
+		if (di->desc_fault || di->cp_wr_fail) {
+			bdi->status = DSA_COMP_BATCH_FAIL;
+			bdi->result = 1;
+		}
+
+		cp_fault = cp_fault | di->cp_fault;
+
+		if (di->fence && (status != DSA_COMP_SUCCESS || cp_fault)) {
+			if (cp_fault) {
+				bdi->status = DSA_COMP_BATCH_FAIL;
+				bdi->result = 1;
+			}
+			bdi->desc_completed = i;
+			break;
+		}
+
+		if (bdi->da_fault && i == bdi->da_fault_idx) {
+			bdi->status = DSA_COMP_BATCH_PAGE_FAULT;
+			break;
+		}
+
+		i++;
+	}
+
+	return edl;
+}
+
 int main(int argc, char *argv[])
 {
 	struct acctest_context *dsa;
@@ -651,9 +813,14 @@ int main(int argc, char *argv[])
 	int dev_id = ACCTEST_DEVICE_ID_NO_INPUT;
 	int dev_wq_id = ACCTEST_DEVICE_ID_NO_INPUT;
 	unsigned int num_desc = 1;
+	struct evl_desc_list *edl = NULL;
+	char *edl_str = NULL;
 
-	while ((opt = getopt(argc, argv, "w:l:f:o:b:c:d:n:t:p:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "e:w:l:f:o:b:c:d:n:t:p:vh")) != -1) {
 		switch (opt) {
+		case 'e':
+			edl_str = optarg;
+			break;
 		case 'w':
 			wq_type = atoi(optarg);
 			break;
@@ -702,6 +869,13 @@ int main(int argc, char *argv[])
 	if (!dsa)
 		return -ENOMEM;
 
+	if (edl_str && opcode == 1) {
+		edl = parse_evl_desc(edl_str, bsize);
+		if (!edl)
+			return -EINVAL;
+		dsa->is_evl_test = 1;
+	}
+
 	rc = acctest_alloc(dsa, wq_type, dev_id, wq_id);
 	if (rc < 0)
 		return -ENOMEM;
@@ -724,7 +898,7 @@ int main(int argc, char *argv[])
 			rc = -EINVAL;
 			goto error;
 		}
-		rc = test_batch(dsa, buf_size, tflags, bopcode, bsize, num_desc);
+		rc = test_batch(dsa, edl, buf_size, tflags, bopcode, bsize, num_desc);
 		if (rc < 0)
 			goto error;
 		break;
@@ -770,6 +944,7 @@ int main(int argc, char *argv[])
 	}
 
  error:
+	free(edl);
 	acctest_free(dsa);
 	return rc;
 }

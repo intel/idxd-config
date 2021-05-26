@@ -51,7 +51,7 @@ unsigned long get_blks(unsigned long xfer_size)
 
 int init_memcpy(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
 {
-	unsigned long force_align = ADDR_ALIGNMENT;
+	unsigned long force_align = 1 << 12;
 
 	tsk->pattern = 0x0123456789abcdef;
 	tsk->pattern2 = 0xfedcba9876543210;
@@ -533,6 +533,8 @@ int alloc_batch_task(struct acctest_context *ctx, unsigned int task_num, int num
 	struct btask_node *btsk_node;
 	struct batch_task *btsk;
 	int cnt = 0;
+	int prot = PROT_READ | PROT_WRITE;
+	int mmap_flags = MAP_ANONYMOUS | MAP_PRIVATE;
 
 	if (!ctx->is_batch) {
 		err("%s is valid only if 'is_batch' is enabled", __func__);
@@ -563,18 +565,34 @@ int alloc_batch_task(struct acctest_context *ctx, unsigned int task_num, int num
 			return -ENOMEM;
 		memset(btsk->sub_tasks, 0, task_num * sizeof(struct task));
 
-		btsk->sub_descs = aligned_alloc(64, task_num * sizeof(struct hw_desc));
-		if (!btsk->sub_descs)
-			return -ENOMEM;
-		memset(btsk->sub_descs, 0, task_num * sizeof(struct hw_desc));
+		if (ctx->is_evl_test) {
+			btsk->sub_descs = mmap(NULL, PAGE_ALIGN(4096 +
+					       task_num * sizeof(struct hw_desc)),
+					       prot, mmap_flags, -1, 0);
+			if (!btsk->sub_descs)
+				return -ENOMEM;
+			memset(btsk->sub_descs, 0, PAGE_ALIGN(4096 +
+			       task_num * sizeof(struct hw_desc)));
 
-		/* To be compatible with IAX, completion record need to be 64-byte aligned */
-		btsk->sub_comps =
-			aligned_alloc(64, task_num * sizeof(struct completion_record));
-		if (!btsk->sub_comps)
-			return -ENOMEM;
-		memset(btsk->sub_comps, 0,
-		       task_num * sizeof(struct completion_record));
+			btsk->sub_comps = aligned_alloc(1 << 12, task_num * 4096);
+			if (!btsk->sub_comps)
+				return -ENOMEM;
+			memset(btsk->sub_comps, 0,
+			       task_num * 4096);
+		} else	{
+			btsk->sub_descs = aligned_alloc(64, task_num * sizeof(struct hw_desc));
+			if (!btsk->sub_descs)
+				return -ENOMEM;
+			memset(btsk->sub_descs, 0, task_num * sizeof(struct hw_desc));
+
+			/* IAX completion record need to be 64-byte aligned */
+			btsk->sub_comps =
+				aligned_alloc(64, task_num * sizeof(struct completion_record));
+			if (!btsk->sub_comps)
+				return -ENOMEM;
+			memset(btsk->sub_comps, 0,
+			       task_num * sizeof(struct completion_record));
+		}
 
 		dbg("batch task allocated %#lx, ctask %#lx, sub_tasks %#lx\n",
 		    btsk, btsk->core_task, btsk->sub_tasks);
@@ -597,7 +615,11 @@ int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
 
 	for (i = 0; i < task_num; i++) {
 		btsk->sub_tasks[i].desc = &btsk->sub_descs[i];
-		btsk->sub_tasks[i].comp = &btsk->sub_comps[i];
+		if (btsk->edl)
+			btsk->sub_tasks[i].comp = &btsk->sub_comps[(4096 * i) /
+				sizeof(struct completion_record)];
+		else
+			btsk->sub_tasks[i].comp = &btsk->sub_comps[i];
 		btsk->sub_tasks[i].dflags = dflags;
 		rc = init_task(&btsk->sub_tasks[i], tflags, opcode, xfer_size);
 		if (rc != ACCTEST_STATUS_OK) {
@@ -661,10 +683,20 @@ int dsa_wait_batch(struct batch_task *btsk, struct acctest_context *ctx)
 
 	info("wait batch\n");
 
+again:
 	rc = acctest_wait_on_desc_timeout(ctsk->comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("batch desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
+	}
+
+	if (stat_val(ctsk->comp->status) == DSA_COMP_BATCH_PAGE_FAULT) {
+		struct hw_desc *hw = ctsk->desc;
+
+		if (hw->desc_count - ctsk->comp->descs_completed >= 2) {
+			dsa_reprep_batch(btsk, ctx);
+			goto again;
+		}
 	}
 
 	dump_sub_compl_rec(btsk, ctx->compl_size);
@@ -730,8 +762,9 @@ again:
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
-	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
-	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+	if ((stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+	     !(desc->flags & IDXD_OP_FLAG_BOF)) ||
+		(stat_val(comp->status) == DSA_COMP_CRA_XLAT)) {
 		dsa_reprep_memcpy(ctx, tsk);
 		goto again;
 	}
@@ -756,6 +789,9 @@ int dsa_memcpy_multi_task_nodes(struct acctest_context *ctx)
 	info("Submitted all memcpy jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
+		if (tsk_node->tsk->test_flags & TEST_FLAGS_CPFLT)
+			madvise(tsk_node->tsk->comp, 4096, MADV_DONTNEED);
+
 		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
@@ -2061,25 +2097,78 @@ int task_result_verify_dif_tags(struct task *tsk, unsigned long xfer_size)
 	return ACCTEST_STATUS_OK;
 }
 
-int batch_result_verify(struct batch_task *btsk, int bof)
+int batch_result_verify(struct batch_task *btsk, int bof, int cpfault)
 {
 	uint8_t core_stat, sub_stat;
 	int i, rc;
 	struct task *tsk;
+	struct evl_desc_list *edl;
+	unsigned short nr_desc;
+
+	edl = btsk->edl;
+
+	if (edl && edl->bdi.bc_wr_fail)
+		return 0;
 
 	core_stat = stat_val(btsk->core_task->comp->status);
-	if (core_stat == DSA_COMP_SUCCESS) {
-		info("core task success, chekcing sub-tasks\n");
-	} else if (!bof && core_stat == DSA_COMP_BATCH_FAIL) {
-		info("partial complete with NBOF, checking sub-tasks\n");
+	nr_desc = btsk->task_num;
+
+	if (edl) {
+		unsigned char res;
+		struct batch_desc_info *bdi;
+
+		res = btsk->core_task->comp->result;
+		nr_desc = btsk->core_task->comp->descs_completed;
+		bdi = &edl->bdi;
+		printf("res 0x%x core_stat 0x%x nr_desc %d\n",
+		       res, core_stat, nr_desc);
+		if (res != bdi->result)
+			err("core result (0x%x) expected (0x%x)\n",
+			    res, bdi->result);
+		if (core_stat != bdi->status)
+			err("core status (0x%x) expected (0x%x)\n",
+			    core_stat, bdi->status);
+		if (res && bdi->desc_completed != nr_desc)
+			err("core descs completed (0x%x) expected (0x%x)\n",
+			    nr_desc, bdi->desc_completed);
 	} else {
-		err("batch core task failed with status %d\n", core_stat);
-		return ACCTEST_STATUS_FAIL;
+		if (core_stat == DSA_COMP_SUCCESS) {
+			info("core task success, chekcing sub-tasks\n");
+		} else if (core_stat == DSA_COMP_BATCH_PAGE_FAULT) {
+			info("batch desc list page fault\n");
+		} else if (core_stat == DSA_COMP_BATCH_FAIL) {
+			if (!bof)
+				info("partial compl. with NBOF, checking sub-tasks\n");
+			if (cpfault)
+				info("partial compl. with CPFAULT, checking sub-tasks\n");
+		} else {
+			err("batch core task failed with status %d\n", core_stat);
+			return ACCTEST_STATUS_FAIL;
+		}
 	}
 
-	for (i = 0; i < btsk->task_num; i++) {
+	rc = ACCTEST_STATUS_OK;
+
+	for (i = 0; i < nr_desc; i++) {
 		tsk = &btsk->sub_tasks[i];
+
+		if (edl && edl->di[i].cp_wr_fail)
+			continue;
+
 		sub_stat = stat_val(tsk->comp->status);
+
+		if (edl && edl->di[i].desc_fault) {
+			if (sub_stat != DSA_COMP_PAGE_FAULT_NOBOF) {
+				err("%d: expected status %u got status %u\n", i,
+				    DSA_COMP_PAGE_FAULT_NOBOF, sub_stat);
+			}
+			continue;
+		}
+
+		if (sub_stat == DSA_COMP_CRA_XLAT) {
+			dbg("Compl. Rec. PF in sub-task[%d], consider as passed\n", i);
+			continue;
+		}
 
 		if (!bof && sub_stat == DSA_COMP_PAGE_FAULT_NOBOF) {
 			dbg("PF in sub-task[%d], consider as passed\n", i);

@@ -16,7 +16,10 @@
 #define TEST_FLAGS_BOF     0x1     /* Block on page faults */
 #define TEST_FLAGS_WAIT    0x4     /* Wait in kernel */
 #define TEST_FLAGS_PREF    0x8     /* Pre-fault the buffers */
+#define TEST_FLAGS_CPFLT   0x10    /* Gen fault on completion record */
+#define TEST_FLAGS_BTFLT   0x20    /* Gen fault on batch desc. list */
 
+#define PAGE_ALIGN(s)      ((((s) - 1) / 4096 + 1) * 4096)
 #define ACCTEST_STATUS_OK    0x0
 #define ACCTEST_STATUS_RETRY 0x1
 #define ACCTEST_STATUS_FAIL  0x2
@@ -87,12 +90,35 @@ struct task_node {
 	struct task_node *next;
 };
 
+struct batch_desc_info {
+	int bc_fault;
+	int bc_wr_fail;
+	int da_fault;
+	unsigned short da_fault_idx;
+	unsigned char result;
+	unsigned char status;
+	unsigned short desc_completed;
+};
+
+struct desc_info {
+	int desc_fault; /* desc src/dst generates page fault */
+	int cp_fault;	/* cp generates page fault */
+	int cp_wr_fail;	/* driver fails to write cp rec to application */
+	int fence;	/* desc has fence flag */
+};
+
+struct evl_desc_list {
+	struct batch_desc_info bdi;
+	struct desc_info di[0];
+};
+
 /* metadata for batch DSA task */
 struct batch_task {
 	struct task *core_task;     /* core task with batch opcode 0x1*/
 	struct task *sub_tasks;     /* array of sub-tasks in the batch */
 	struct hw_desc *sub_descs;              /* for sub-tasks */
 	struct completion_record *sub_comps;    /* for sub-tasks */
+	struct evl_desc_list *edl;
 	int task_num;
 	int test_flags;
 };
@@ -123,6 +149,7 @@ struct acctest_context {
 	int ats_disable;
 
 	int is_batch;
+	int is_evl_test;
 	union {
 		struct task_node *multi_task_node;
 		struct btask_node *multi_btask_node;
