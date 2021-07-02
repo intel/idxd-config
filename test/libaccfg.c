@@ -94,7 +94,7 @@ static struct wq_parameters wq02_param = {
 	.max_batch_size = (1 << 8),
 	.max_transfer_size = (1l << 30),
 	.mode = "shared",
-	.type = "mdev",
+	.type = "user",
 	.name = "guest1"
 };
 
@@ -106,7 +106,7 @@ static struct wq_parameters wq03_param = {
 	.max_batch_size = (1 << 9),
 	.max_transfer_size = (1l << 31),
 	.mode = "dedicated",
-	.type = "mdev",
+	.type = "user",
 	.name = "guest2"
 };
 
@@ -246,7 +246,7 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 	if (wq_param->threshold)
 		SET_ERR(rc, accfg_wq_set_threshold(wq, wq_param->threshold));
 
-	return 0;
+	return rc;
 }
 
 static int check_wq(struct accfg_ctx *ctx, struct accfg_device *device,
@@ -744,6 +744,17 @@ static int mdev_test(struct accfg_ctx *ctx, struct accfg_device *device,
 	return 0;
 }
 
+static int set_mdev_type(struct accfg_ctx *ctx, struct accfg_wq *wq)
+{
+	int rc;
+
+	rc = accfg_wq_set_str_type(wq, "mdev");
+	if (rc)
+		fprintf(stderr, "Error setting mdev type\n");
+
+	return rc;
+}
+
 static int enable_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 		struct accfg_wq *wq)
 {
@@ -779,6 +790,10 @@ static int test_mdev_1swq(struct accfg_ctx *ctx)
 	if (rc)
 		return rc;
 
+	rc = set_mdev_type(ctx, test_ctx.wq[2]);
+	if (rc)
+		return rc;
+
 	rc = enable_wq(ctx, test_ctx.device, test_ctx.wq[2]);
 	if (rc)
 		return rc;
@@ -805,6 +820,10 @@ static int test_mdev_1dwq(struct accfg_ctx *ctx)
 		return rc;
 
 	rc = set_config(ctx, &test_ctx);
+	if (rc)
+		return rc;
+
+	rc = set_mdev_type(ctx, test_ctx.wq[3]);
 	if (rc)
 		return rc;
 
