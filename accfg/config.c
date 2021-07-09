@@ -101,6 +101,7 @@ static const struct wq_set_table wq_table[] = {
 	{ "max_transfer_size", NULL, accfg_wq_set_max_transfer_size, NULL, NULL },
 	{ "threshold", accfg_wq_set_threshold, NULL, NULL,
 		is_wq_threshold_writable },
+	{ "ats_disable", accfg_wq_set_ats_disable, NULL, NULL, NULL },
 };
 
 static const struct engine_set_table engine_table[] = {
