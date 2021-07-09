@@ -68,6 +68,7 @@ static struct wq_parameters wq00_param = {
 	.threshold = 15,
 	.max_batch_size = 16,
 	.max_transfer_size = 16,
+	.ats_disable = 0,
 	.mode = "shared",
 	.type = "user",
 	.name = "myapp1"
@@ -80,6 +81,7 @@ static struct wq_parameters wq01_param = {
 	.block_on_fault = 0,
 	.max_batch_size = (1 << 4),
 	.max_transfer_size = (1l << 16),
+	.ats_disable = 0,
 	.mode = "dedicated",
 	.type = "user",
 	.name = "myapp2"
@@ -93,6 +95,7 @@ static struct wq_parameters wq02_param = {
 	.threshold = 8,
 	.max_batch_size = (1 << 8),
 	.max_transfer_size = (1l << 30),
+	.ats_disable = 0,
 	.mode = "shared",
 	.type = "user",
 	.name = "guest1"
@@ -105,6 +108,7 @@ static struct wq_parameters wq03_param = {
 	.block_on_fault = 0,
 	.max_batch_size = (1 << 9),
 	.max_transfer_size = (1l << 31),
+	.ats_disable = 0,
 	.mode = "dedicated",
 	.type = "user",
 	.name = "guest2"
@@ -243,6 +247,7 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 	SET_ERR(rc, accfg_wq_set_max_batch_size(wq, wq_param->max_batch_size));
 	SET_ERR(rc, accfg_wq_set_max_transfer_size(wq,
 				wq_param->max_transfer_size));
+	SET_ERR(rc, accfg_wq_set_ats_disable(wq, wq_param->ats_disable));
 	if (wq_param->threshold)
 		SET_ERR(rc, accfg_wq_set_threshold(wq, wq_param->threshold));
 
@@ -288,7 +293,11 @@ static int check_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 		return -EINVAL;
 	}
 	if (strcmp(wq_param->name, accfg_wq_get_type_name(wq)) != 0) {
-		fprintf(stderr, "check wq failed on wq name\n");
+		fprintf(stderr, "%s failed on wq name\n", __func__);
+		return -EINVAL;
+	}
+	if (wq_param->ats_disable != accfg_wq_get_ats_disable(wq)) {
+		fprintf(stderr, "%s failed on ats_disable\n", __func__);
 		return -EINVAL;
 	}
 
