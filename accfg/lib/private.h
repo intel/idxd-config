@@ -131,6 +131,14 @@ struct accfg_wq {
 
 #define ACCFG_EXPORT __attribute__ ((visibility("default")))
 
+struct accfg_error_ctx {
+	unsigned int cmd_status;
+	struct accfg_device *device;
+	struct accfg_group *group;
+	struct accfg_wq *wq;
+	struct accfg_engine *engine;
+};
+
 /**
  * struct accfg_ctx - library user context to find device instances
  *
@@ -149,6 +157,7 @@ struct accfg_ctx {
 	uint64_t timeout;
 	void *private_data;
 	bool compat;
+	struct accfg_error_ctx *error_ctx;
 };
 
 static inline int check_udev(struct udev *udev)

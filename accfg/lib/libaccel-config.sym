@@ -154,4 +154,10 @@ LIBACCFG_10 {
 global:
 	accfg_wq_get_ats_disable;
 	accfg_wq_set_ats_disable;
+	accfg_ctx_get_last_error;
+	accfg_ctx_get_last_error_str;
+	accfg_ctx_get_last_error_device;
+	accfg_ctx_get_last_error_wq;
+	accfg_ctx_get_last_error_group;
+	accfg_ctx_get_last_error_engine;
 } LIBACCFG_9;
