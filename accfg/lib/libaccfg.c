@@ -154,6 +154,23 @@ static inline bool is_mdev_registered(struct accfg_device *device)
 	return device->mdev_path && !access(device->mdev_path, R_OK);
 }
 
+static int accfg_set_param(struct accfg_ctx *ctx, int dfd, char *name,
+		void *buf, int len)
+{
+	int fd = openat(dfd, name, O_RDWR);
+	int n;
+
+	if (fd == -1)
+		return -errno;
+
+	n = write(fd, buf, len);
+	close(fd);
+	if (n != len)
+		return -errno;
+
+	return 0;
+}
+
 static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
@@ -587,6 +604,14 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 		err(ctx, "%s open failed: %s\n", __func__, strerror(errno));
 		free(path);
 		return NULL;
+	}
+
+	rc = accfg_set_param(ctx, dfd, "cmd_status", "1", 1);
+	/* older drivers don't support writing to cmd_status */
+	if (rc && rc != -EACCES) {
+		err(ctx, "Failed resetting cmd status %d\n", rc);
+		close(dfd);
+		goto err_device;
 	}
 
 	device = calloc(1, sizeof(*device));
