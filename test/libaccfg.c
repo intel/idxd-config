@@ -186,6 +186,10 @@ static int config_group(struct accfg_ctx *ctx, struct accfg_device *device,
 				group_param->tokens_allowed));
 	SET_ERR(rc, accfg_group_set_use_token_limit(group,
 				group_param->use_token_limit));
+
+	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2)
+		return rc;
+
 	SET_ERR(rc, accfg_group_set_traffic_class_a(group,
 				group_param->traffic_class_a));
 	SET_ERR(rc, accfg_group_set_traffic_class_b(group,
@@ -216,6 +220,9 @@ static int check_group(struct accfg_ctx *ctx, struct accfg_device *device,
 		fprintf(stderr, "%s failed on use_token_limit\n", __func__);
 		return -EINVAL;
 	}
+
+	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2)
+		return 0;
 
 	if (group_param->traffic_class_a !=
 			accfg_group_get_traffic_class_a(group)) {

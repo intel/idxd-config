@@ -27,6 +27,11 @@ extern "C" {
 #define WQ_PRIORITY_LIMIT 15
 #define UUID_ZERO "00000000-0000-0000-0000-000000000000"
 
+enum accfg_device_version {
+	ACCFG_DEVICE_VERSION_1 = 0x100,
+	ACCFG_DEVICE_VERSION_2 = 0x200,
+};
+
 /* no need to save device state */
 enum accfg_device_type {
 	ACCFG_DEVICE_DSA = 0,
