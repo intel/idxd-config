@@ -254,9 +254,13 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 	SET_ERR(rc, accfg_wq_set_max_batch_size(wq, wq_param->max_batch_size));
 	SET_ERR(rc, accfg_wq_set_max_transfer_size(wq,
 				wq_param->max_transfer_size));
-	SET_ERR(rc, accfg_wq_set_ats_disable(wq, wq_param->ats_disable));
 	if (wq_param->threshold)
 		SET_ERR(rc, accfg_wq_set_threshold(wq, wq_param->threshold));
+
+	SET_ERR(rc, accfg_wq_set_ats_disable(wq, wq_param->ats_disable));
+	/* Don't fail test if per wq ats disable is not supported */
+	if (rc == -EOPNOTSUPP)
+		rc = 0;
 
 	return rc;
 }
