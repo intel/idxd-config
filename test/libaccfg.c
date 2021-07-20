@@ -764,13 +764,18 @@ static int mdev_test(struct accfg_ctx *ctx, struct accfg_device *device,
 	return 0;
 }
 
-static int set_mdev_type(struct accfg_ctx *ctx, struct accfg_wq *wq)
+static int set_mdev_type(struct accfg_ctx *ctx, struct accfg_wq *wq,
+		struct wq_parameters *wq_param)
 {
 	int rc;
 
 	rc = accfg_wq_set_str_type(wq, "mdev");
 	if (rc)
 		fprintf(stderr, "Error setting mdev type\n");
+
+	rc = accfg_wq_set_str_name(wq, wq_param->name);
+	if (rc)
+		fprintf(stderr, "Error setting name for mdev type wq\n");
 
 	return rc;
 }
@@ -810,7 +815,7 @@ static int test_mdev_1swq(struct accfg_ctx *ctx)
 	if (rc)
 		return rc;
 
-	rc = set_mdev_type(ctx, test_ctx.wq[2]);
+	rc = set_mdev_type(ctx, test_ctx.wq[2], test_ctx.wq_param[2]);
 	if (rc)
 		return rc;
 
@@ -843,7 +848,7 @@ static int test_mdev_1dwq(struct accfg_ctx *ctx)
 	if (rc)
 		return rc;
 
-	rc = set_mdev_type(ctx, test_ctx.wq[3]);
+	rc = set_mdev_type(ctx, test_ctx.wq[3], test_ctx.wq_param[3]);
 	if (rc)
 		return rc;
 
