@@ -13,7 +13,7 @@
 #include <sys/mman.h>
 #include <linux/vfio.h>
 #include <accfg/libaccel_config.h>
-#include <linux/idxd.h>
+#include <accfg/idxd.h>
 #include "dsa.h"
 
 #define DSA_COMPL_RING_SIZE 64

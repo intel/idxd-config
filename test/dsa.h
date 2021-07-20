@@ -3,7 +3,7 @@
 #ifndef __TEST_DSA_H__
 #define __TEST_DSA_H__
 #include <accfg/libaccel_config.h>
-#include <linux/idxd.h>
+#include <accfg/idxd.h>
 #include "accfg_test.h"
 
 #define MAX_PATH_LENGTH 1024

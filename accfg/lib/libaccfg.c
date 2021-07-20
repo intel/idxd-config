@@ -27,7 +27,7 @@
 #include <accfg/libaccel_config.h>
 #include <fnmatch.h>
 #include "private.h"
-#include <linux/idxd.h>
+#include <accfg/idxd.h>
 
 #define MDEV_POSTFIX "mdev_supported_types"
 #define IDXD_DRIVER_BIND_PATH "/sys/bus/dsa/drivers/idxd"

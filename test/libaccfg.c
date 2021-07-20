@@ -27,7 +27,7 @@
 #include <ccan/array_size/array_size.h>
 #include <accfg/libaccel_config.h>
 #include <test.h>
-#include <linux/idxd.h>
+#include <accfg/idxd.h>
 #include <util/log.h>
 #include "accfg_test.h"
 
