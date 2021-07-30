@@ -66,11 +66,12 @@ static struct json_object *group_to_json(struct accfg_group *group,
 		goto err;
 
 	json_object_object_add(jgroup, "dev", jobj);
-	jobj = json_object_new_int(accfg_group_get_tokens_reserved(group));
-	if (!jobj)
-		goto err;
 
 	if (accfg_device_get_type(dev) != ACCFG_DEVICE_IAX) {
+		jobj = json_object_new_int(accfg_group_get_tokens_reserved(group));
+		if (!jobj)
+			goto err;
+
 		json_object_object_add(jgroup, "tokens_reserved", jobj);
 		jobj = json_object_new_int(accfg_group_get_use_token_limit(group));
 		if (!jobj)
@@ -82,11 +83,12 @@ static struct json_object *group_to_json(struct accfg_group *group,
 			goto err;
 
 		json_object_object_add(jgroup, "tokens_allowed", jobj);
-		jobj = json_object_new_int(accfg_group_get_traffic_class_a(
-				group));
-		if (!jobj)
-			goto err;
 	}
+
+	jobj = json_object_new_int(accfg_group_get_traffic_class_a(
+				group));
+	if (!jobj)
+		goto err;
 
 	json_object_object_add(jgroup, "traffic_class_a", jobj);
 	jobj = json_object_new_int(accfg_group_get_traffic_class_b(
