@@ -58,6 +58,15 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 		struct group_parameters *group_params)
 {
 	int rc = 0;
+	struct accfg_device *device;
+
+	device = accfg_group_get_device(group);
+	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2 &&
+			(group_params->traffic_class_a != INT_MAX ||
+			 group_params->traffic_class_b != INT_MAX)) {
+		fprintf(stderr, "traffic-class cannot be configured\n");
+		return -EINVAL;
+	}
 
 	if (group_params->tokens_reserved != UINT_MAX &&
 			group_params->tokens_reserved >= UCHAR_MAX) {
