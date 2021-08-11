@@ -807,6 +807,9 @@ static int test_mdev_1swq(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
+	if (mdev_disabled)
+		return -EOPNOTSUPP;
+
 	rc = device_test_reset(ctx, test_ctx.device, false);
 	if (rc)
 		return rc;
@@ -839,6 +842,9 @@ static int test_mdev_1swq(struct accfg_ctx *ctx)
 static int test_mdev_1dwq(struct accfg_ctx *ctx)
 {
 	int rc = 0;
+
+	if (mdev_disabled)
+		return -EOPNOTSUPP;
 
 	rc = device_test_reset(ctx, test_ctx.device, false);
 	if (rc)
@@ -873,7 +879,6 @@ struct _test_case {
 	do_test_fn test_fn;
 	char *desc;
 	bool enabled;
-	bool mdev;
 };
 
 static struct _test_case test_cases[] = {
@@ -881,31 +886,26 @@ static struct _test_case test_cases[] = {
 		.test_fn = test_config,
 		.desc = "set and get configurations",
 		.enabled = true,
-		.mdev = false,
 	},
 	{
 		.test_fn = test_max_wq_size,
 		.desc = "max wq size",
 		.enabled = true,
-		.mdev = false,
 	},
 	{
 		.test_fn = test_wq_boundary_conditions,
 		.desc = "wq boundary conditions",
 		.enabled = true,
-		.mdev = false,
 	},
 	{
 		.test_fn = test_mdev_1swq,
 		.desc = "1swq type mdev creation and removal",
 		.enabled = true,
-		.mdev = true,
 	},
 	{
 		.test_fn = test_mdev_1dwq,
 		.desc = "1dwq type mdev creation and removal",
 		.enabled = true,
-		.mdev = true,
 	},
 };
 
@@ -1009,11 +1009,14 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 			continue;
 		}
 
-		if (test_cases[i].mdev && mdev_disabled)
-			continue;
-
 		printf("\nRunning accfg-test%d: %s\n", i, test_cases[i].desc);
 		err = test_cases[i].test_fn(ctx);
+		if (err == -EOPNOTSUPP) {
+			fprintf(stderr,
+				"accfg-test%d *skipped*: required feature not found\n",
+				i);
+			continue;
+		}
 		if (err < 0) {
 			fprintf(stderr, "accfg-test%d *failed*: %d\n", i, err);
 			break;
