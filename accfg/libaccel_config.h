@@ -277,6 +277,7 @@ uint64_t accfg_wq_get_max_transfer_size(struct accfg_wq *wq);
 int accfg_wq_get_threshold(struct accfg_wq *wq);
 int accfg_wq_get_clients(struct accfg_wq *wq);
 int accfg_wq_get_ats_disable(struct accfg_wq *wq);
+int accfg_wq_get_occupancy(struct accfg_wq *wq);
 int accfg_wq_is_enabled(struct accfg_wq *wq);
 int accfg_wq_set_size(struct accfg_wq *wq, int val);
 int accfg_wq_set_priority(struct accfg_wq *wq, int val);

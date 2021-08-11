@@ -2033,6 +2033,18 @@ ACCFG_EXPORT uint64_t accfg_wq_get_max_transfer_size(struct accfg_wq *wq)
 	return wq->max_transfer_size;
 }
 
+ACCFG_EXPORT int accfg_wq_get_occupancy(struct accfg_wq *wq)
+{
+	int dfd;
+	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
+
+	dfd = open(wq->wq_path, O_PATH);
+	if (dfd < 0)
+		return -ENXIO;
+
+	return accfg_get_param_long(ctx, dfd, "occupancy");
+}
+
 ACCFG_EXPORT int accfg_wq_get_clients(struct accfg_wq *wq)
 {
 	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);

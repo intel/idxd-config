@@ -161,3 +161,8 @@ global:
 	accfg_ctx_get_last_error_group;
 	accfg_ctx_get_last_error_engine;
 } LIBACCFG_9;
+
+LIBACCFG_11 {
+global:
+	accfg_wq_get_occupancy;
+} LIBACCFG_10;
