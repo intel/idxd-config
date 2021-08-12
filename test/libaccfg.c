@@ -394,7 +394,8 @@ static void test_cleanup(struct accfg_ctx *ctx)
 		device_test_reset(ctx, device, true);
 }
 
-static int set_config(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx)
+static int set_config(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx,
+		char *wq_mode)
 {
 	int rc = 0;
 	struct accfg_device *device;
@@ -422,6 +423,9 @@ static int set_config(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx)
 	}
 
 	for (i = 0; i < 4; i++) {
+		if (wq_mode && strcmp(ct_ctx->wq_param[i]->mode, wq_mode))
+			continue;
+
 		wq = ct_ctx->wq[i];
 		printf("configuring wq %s\n", accfg_wq_get_devname(wq));
 		rc = config_wq(ctx, device, wq, ct_ctx->wq_param[i]);
@@ -444,7 +448,8 @@ static int set_config(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx)
 	return 0;
 }
 
-static int check_config(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx)
+static int check_config(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx,
+		char *wq_mode)
 {
 	int rc = 0;
 	struct accfg_device *device;
@@ -472,6 +477,9 @@ static int check_config(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx)
 	}
 
 	for (i = 0; i < 4; i++) {
+		if (wq_mode && strcmp(ct_ctx->wq_param[i]->mode, wq_mode))
+			continue;
+
 		wq = ct_ctx->wq[i];
 		printf("check wq %s\n", accfg_wq_get_devname(wq));
 		rc = check_wq(ctx, device, wq, ct_ctx->wq_param[i]);
@@ -519,17 +527,17 @@ static int set_exceed_config(struct accfg_ctx *ctx,
 	}
 
 	/* configure 2 wqs with some wq sizes */
-	wq = ct_ctx->wq[0];
+	wq = ct_ctx->wq[1];
 	printf("configuring wq %s\n", accfg_wq_get_devname(wq));
-	rc = config_wq(ctx, device, wq, ct_ctx->wq_param[0]);
+	rc = config_wq(ctx, device, wq, ct_ctx->wq_param[1]);
 	if (rc) {
 		fprintf(stderr, "config wq failed\n");
 		return rc;
 	}
 
-	wq = ct_ctx->wq[2];
+	wq = ct_ctx->wq[3];
 	printf("configuring wq %s\n", accfg_wq_get_devname(wq));
-	rc = config_wq(ctx, device, wq, ct_ctx->wq_param[2]);
+	rc = config_wq(ctx, device, wq, ct_ctx->wq_param[3]);
 	if (rc) {
 		fprintf(stderr, "config wq failed\n");
 		return rc;
@@ -561,7 +569,7 @@ static int wq_bounds_test(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx)
 
 	device = ct_ctx->device;
 	group = ct_ctx->group[0];
-	wq = ct_ctx->wq[0];
+	wq = ct_ctx->wq[1];
 
 	printf("configure device %s, group %s, wq %s for bounds test\n",
 			accfg_device_get_devname(device),
@@ -580,7 +588,7 @@ static int wq_bounds_test(struct accfg_ctx *ctx, struct config_test_ctx *ct_ctx)
 		return rc;
 	}
 
-	rc = config_wq(ctx, device, wq, ct_ctx->wq_param[0]);
+	rc = config_wq(ctx, device, wq, ct_ctx->wq_param[1]);
 	if (rc) {
 		fprintf(stderr, "config wq failed\n");
 		return rc;
@@ -659,8 +667,8 @@ static int fill_test_ctx(struct accfg_ctx *ctx)
 	return 0;
 }
 
-/* test the set and get libaccfg functions */
-static int test_config(struct accfg_ctx *ctx)
+/* test set and get libaccfg functions for shared wqs */
+static int test_config_shared(struct accfg_ctx *ctx)
 {
 	int rc = 0;
 
@@ -668,11 +676,35 @@ static int test_config(struct accfg_ctx *ctx)
 	if (rc)
 		return rc;
 
-	rc = set_config(ctx, &test_ctx);
+	rc = set_config(ctx, &test_ctx, "shared");
 	if (rc)
 		return rc;
 
-	rc = check_config(ctx, &test_ctx);
+	rc = check_config(ctx, &test_ctx, "shared");
+	if (rc)
+		return rc;
+
+	rc = device_test_reset(ctx, test_ctx.device, false);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+/* test set and get libaccfg functions for dedicated wqs */
+static int test_config_dedicated(struct accfg_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = device_test_reset(ctx, test_ctx.device, false);
+	if (rc)
+		return rc;
+
+	rc = set_config(ctx, &test_ctx, "dedicated");
+	if (rc)
+		return rc;
+
+	rc = check_config(ctx, &test_ctx, "dedicated");
 	if (rc)
 		return rc;
 
@@ -814,7 +846,7 @@ static int test_mdev_1swq(struct accfg_ctx *ctx)
 	if (rc)
 		return rc;
 
-	rc = set_config(ctx, &test_ctx);
+	rc = set_config(ctx, &test_ctx, NULL);
 	if (rc)
 		return rc;
 
@@ -850,7 +882,7 @@ static int test_mdev_1dwq(struct accfg_ctx *ctx)
 	if (rc)
 		return rc;
 
-	rc = set_config(ctx, &test_ctx);
+	rc = set_config(ctx, &test_ctx, NULL);
 	if (rc)
 		return rc;
 
@@ -883,8 +915,13 @@ struct _test_case {
 
 static struct _test_case test_cases[] = {
 	{
-		.test_fn = test_config,
-		.desc = "set and get configurations",
+		.test_fn = test_config_shared,
+		.desc = "set and get configurations for shared wqs",
+		.enabled = true,
+	},
+	{
+		.test_fn = test_config_dedicated,
+		.desc = "set and get configurations for dedicated wqs",
 		.enabled = true,
 	},
 	{
