@@ -244,7 +244,9 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 {
 	int rc = 0;
 
-	SET_ERR(rc, accfg_wq_set_str_mode(wq, wq_param->mode));
+	rc = accfg_wq_set_str_mode(wq, wq_param->mode);
+	if (rc)
+		return rc;
 	SET_ERR(rc, accfg_wq_set_str_type(wq, wq_param->type));
 	SET_ERR(rc, accfg_wq_set_str_name(wq, wq_param->name));
 	SET_ERR(rc, accfg_wq_set_size(wq, wq_param->wq_size));
@@ -677,8 +679,14 @@ static int test_config_shared(struct accfg_ctx *ctx)
 		return rc;
 
 	rc = set_config(ctx, &test_ctx, "shared");
-	if (rc)
+	if (rc) {
+		if (rc == -EINVAL) {
+			fprintf(stderr, "shared wq support not available\n");
+			device_test_reset(ctx, test_ctx.device, false);
+			return -EOPNOTSUPP;
+		}
 		return rc;
+	}
 
 	rc = check_config(ctx, &test_ctx, "shared");
 	if (rc)
