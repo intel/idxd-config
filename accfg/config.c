@@ -69,6 +69,8 @@ static const struct device_set_table device_table[] = {
 	{ "token_limit", accfg_device_set_token_limit, NULL }
 };
 
+static bool is_group_traffic_class_writable(struct accfg_group *group,
+		int val);
 static bool is_group_token_attribs_writable(struct accfg_group *group,
 		int val);
 static bool is_group_token_limit_writable(struct accfg_group *group,
@@ -82,9 +84,9 @@ static const struct group_set_table group_table[] = {
 	{ "tokens_allowed", accfg_group_set_tokens_allowed, NULL,
 		is_group_token_attribs_writable },
 	{ "traffic_class_a", accfg_group_set_traffic_class_a, NULL,
-		is_group_token_attribs_writable },
+		is_group_traffic_class_writable},
 	{ "traffic_class_b", accfg_group_set_traffic_class_b, NULL,
-		is_group_token_attribs_writable },
+		is_group_traffic_class_writable},
 };
 
 static bool is_wq_threshold_writable(struct accfg_wq *wq, int val);
@@ -101,6 +103,7 @@ static const struct wq_set_table wq_table[] = {
 	{ "max_transfer_size", NULL, accfg_wq_set_max_transfer_size, NULL, NULL },
 	{ "threshold", accfg_wq_set_threshold, NULL, NULL,
 		is_wq_threshold_writable },
+	{ "ats_disable", accfg_wq_set_ats_disable, NULL, NULL, NULL },
 };
 
 static const struct engine_set_table engine_table[] = {
@@ -133,6 +136,21 @@ static bool is_group_token_limit_writable(struct accfg_group *group,
 static bool is_group_token_attribs_writable(struct accfg_group *group,
 		int val)
 {
+	if (val == -1)
+		return false;
+
+	return true;
+}
+
+static bool is_group_traffic_class_writable(struct accfg_group *group,
+		int val)
+{
+	struct accfg_device *device;
+
+	device = accfg_group_get_device(group);
+	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2)
+		return false;
+
 	if (val == -1)
 		return false;
 

@@ -37,6 +37,7 @@ static struct wq_parameters wq_param = {
 	.threshold = INT_MAX,
 	.max_batch_size = INT_MAX,
 	.max_transfer_size = INT_MAX,
+	.ats_disable = INT_MAX,
 };
 
 static struct engine_parameters engine_param;
@@ -57,6 +58,15 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 		struct group_parameters *group_params)
 {
 	int rc = 0;
+	struct accfg_device *device;
+
+	device = accfg_group_get_device(group);
+	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2 &&
+			(group_params->traffic_class_a != INT_MAX ||
+			 group_params->traffic_class_b != INT_MAX)) {
+		fprintf(stderr, "traffic-class cannot be configured\n");
+		return -EINVAL;
+	}
 
 	if (group_params->tokens_reserved != UINT_MAX &&
 			group_params->tokens_reserved >= UCHAR_MAX) {
@@ -191,6 +201,13 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		return -EINVAL;
 	}
 
+	if (wq_params->ats_disable > 1
+		&& (wq_params->ats_disable != INT_MAX)) {
+		fprintf(stderr,
+			"valid ats-disable should be either 0 or 1\n");
+		return -EINVAL;
+	}
+
 	if (wq_params->mode) {
 		rc = accfg_wq_set_str_mode(wq, wq_params->mode);
 		if (rc < 0)
@@ -248,6 +265,12 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 
 	if (wq_params->max_transfer_size != INT_MAX) {
 		rc = accfg_wq_set_max_transfer_size(wq, wq_params->max_transfer_size);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (wq_params->ats_disable != INT_MAX) {
+		rc = accfg_wq_set_ats_disable(wq, wq_params->ats_disable);
 		if (rc < 0)
 			return rc;
 	}
@@ -411,6 +434,8 @@ int cmd_config_wq(int argc, const char **argv, void *ctx)
 			     "specify max-batch-size used by wq"),
 		OPT_U64('x', "max-transfer-size", &wq_param.max_transfer_size,
 			     "specify max-transfer-size used by wq"),
+		OPT_INTEGER('a', "ats-disable", &wq_param.ats_disable,
+			    "specify per wq ats-disable"),
 		OPT_END(),
 	};
 

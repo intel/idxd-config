@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <linux/idxd.h>
+#include <accfg/idxd.h>
 #include "dsa.h"
 
 void dsa_prep_desc_common(struct dsa_hw_desc *hw, char opcode,

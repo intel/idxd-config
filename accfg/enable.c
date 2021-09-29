@@ -81,17 +81,6 @@ static int dev_action_switch(struct accfg_device *device,
 	}
 }
 
-static void print_device_cmd_status(struct accfg_device *device)
-{
-	const char *status;
-
-	if (accfg_device_get_cmd_status(device) > 0) {
-		status = accfg_device_get_cmd_status_str(device);
-		if (status)
-			fprintf(stderr, "device command status: %s\n", status);
-	}
-}
-
 static int device_action(int argc, const char **argv, const char *usage,
 			 const struct option *options, enum dev_action action,
 			 struct accfg_ctx *ctx)
@@ -143,13 +132,10 @@ static int device_action(int argc, const char **argv, const char *usage,
 					(action == DEV_ACTION_DISABLE)))
 				rc = ENXIO;
 		}
-		if (rc == 0) {
+		if (rc == 0)
 			success++;
-		} else {
+		else
 			fprintf(stderr, "failed in %s\n", argv[i]);
-
-			print_device_cmd_status(device);
-		}
 	}
 
 	fprintf(stderr, "%s %d device(s) out of %d\n",
@@ -249,13 +235,10 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		}
 
 		rc = wq_action_switch(wq, action, argv[i]);
-		if (rc == 0) {
+		if (rc == 0)
 			success++;
-		} else {
+		else
 			fprintf(stderr, "failed in %s\n", argv[i]);
-
-			print_device_cmd_status(device);
-		}
 	}
 
 	fprintf(stderr, "%s %d wq(s) out of %d\n",

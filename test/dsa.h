@@ -3,7 +3,7 @@
 #ifndef __TEST_DSA_H__
 #define __TEST_DSA_H__
 #include <accfg/libaccel_config.h>
-#include <linux/idxd.h>
+#include <accfg/idxd.h>
 #include "accfg_test.h"
 
 #define MAX_PATH_LENGTH 1024
@@ -86,6 +86,7 @@ struct dsa_context {
 	int bof;
 	unsigned int wq_max_batch_size;
 	unsigned long wq_max_xfer_size;
+	int ats_disable;
 
 	int is_batch;
 	union {

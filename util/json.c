@@ -457,6 +457,10 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	if (jobj)
 		json_object_object_add(jaccfg, "threshold", jobj);
 
+	jobj = json_object_new_int(accfg_wq_get_ats_disable(wq));
+	if (jobj)
+		json_object_object_add(jaccfg, "ats_disable", jobj);
+
 	if (!(flags & UTIL_JSON_SAVE)) {
 
 		switch (wq_state) {

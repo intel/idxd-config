@@ -27,6 +27,11 @@ extern "C" {
 #define WQ_PRIORITY_LIMIT 15
 #define UUID_ZERO "00000000-0000-0000-0000-000000000000"
 
+enum accfg_device_version {
+	ACCFG_DEVICE_VERSION_1 = 0x100,
+	ACCFG_DEVICE_VERSION_2 = 0x200,
+};
+
 /* no need to save device state */
 enum accfg_device_type {
 	ACCFG_DEVICE_DSA = 0,
@@ -107,6 +112,7 @@ struct wq_parameters {
 	int block_on_fault;
 	unsigned int max_batch_size;
 	uint64_t max_transfer_size;
+	int ats_disable;
 	const char *mode;
 	const char *type;
 	const char *name;
@@ -188,9 +194,14 @@ unsigned int accfg_device_get_version(struct accfg_device *device);
 int accfg_device_get_clients(struct accfg_device *device);
 int accfg_device_set_token_limit(struct accfg_device *dev, int val);
 int accfg_device_is_active(struct accfg_device *device);
-int accfg_device_get_cmd_status(struct accfg_device *device);
+unsigned int accfg_device_get_cmd_status(struct accfg_device *device);
 const char *accfg_device_get_cmd_status_str(struct accfg_device *device);
-
+unsigned int accfg_ctx_get_last_error(struct accfg_ctx *ctx);
+const char *accfg_ctx_get_last_error_str(struct accfg_ctx *ctx);
+struct accfg_device *accfg_ctx_get_last_error_device(struct accfg_ctx *ctx);
+struct accfg_wq *accfg_ctx_get_last_error_wq(struct accfg_ctx *ctx);
+struct accfg_group *accfg_ctx_get_last_error_group(struct accfg_ctx *ctx);
+struct accfg_engine *accfg_ctx_get_last_error_engine(struct accfg_ctx *ctx);
 struct accfg_device_mdev;
 struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device);
 struct accfg_device_mdev *accfg_device_next_mdev(struct accfg_device_mdev *mdev);
@@ -265,6 +276,8 @@ unsigned int accfg_wq_get_max_batch_size(struct accfg_wq *wq);
 uint64_t accfg_wq_get_max_transfer_size(struct accfg_wq *wq);
 int accfg_wq_get_threshold(struct accfg_wq *wq);
 int accfg_wq_get_clients(struct accfg_wq *wq);
+int accfg_wq_get_ats_disable(struct accfg_wq *wq);
+int accfg_wq_get_occupancy(struct accfg_wq *wq);
 int accfg_wq_is_enabled(struct accfg_wq *wq);
 int accfg_wq_set_size(struct accfg_wq *wq, int val);
 int accfg_wq_set_priority(struct accfg_wq *wq, int val);
@@ -272,6 +285,7 @@ int accfg_wq_set_group_id(struct accfg_wq *wq, int val);
 int accfg_wq_set_threshold(struct accfg_wq *wq, int val);
 int accfg_wq_set_block_on_fault(struct accfg_wq *wq, int val);
 int accfg_wq_set_max_batch_size(struct accfg_wq *wq, int val);
+int accfg_wq_set_ats_disable(struct accfg_wq *wq, int val);
 int accfg_wq_set_max_transfer_size(struct accfg_wq *wq, uint64_t val);
 int accfg_wq_set_str_mode(struct accfg_wq *wq, const char *val);
 int accfg_wq_set_mode(struct accfg_wq *wq, enum accfg_wq_mode mode);

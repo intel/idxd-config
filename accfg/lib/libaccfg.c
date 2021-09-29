@@ -27,6 +27,7 @@
 #include <accfg/libaccel_config.h>
 #include <fnmatch.h>
 #include "private.h"
+#include <accfg/idxd.h>
 
 #define MDEV_POSTFIX "mdev_supported_types"
 #define IDXD_DRIVER_BIND_PATH "/sys/bus/dsa/drivers/idxd"
@@ -70,7 +71,11 @@ ACCFG_EXPORT char *accfg_mdev_basenames[] = {
 
 enum {
 	ACCFG_CMD_STATUS_MAX = 0x45,
+	ACCFG_CMD_STATUS_ERROR = 0x80010000,
 };
+
+#define SCMD_STAT(x) (((x) & ~IDXD_SCMD_SOFTERR_MASK) >> \
+		IDXD_SCMD_SOFTERR_SHIFT)
 
 const char *accfg_device_cmd_status[] = {
 	[0x0]   = "Successful completion",
@@ -105,12 +110,65 @@ const char *accfg_device_cmd_status[] = {
 	[0x42]	= "No interrupt handle available",
 	[0x43]	= "No interrupt handles associated with the index",
 	[0x44]	= "No revoked handles associted with the index",
-	[ACCFG_CMD_STATUS_MAX]	= "",
+	[ACCFG_CMD_STATUS_MAX]	= "Unknown error",
 };
+
+const char *accfg_sw_cmd_status[] = {
+	[0x01] = "Error reading cmd_status (library error)",
+	[SCMD_STAT(IDXD_SCMD_DEV_DMA_ERR)] = "DMA device registration error (driver error)",
+	[SCMD_STAT(IDXD_SCMD_WQ_NO_GRP)] = "wq error - group not set",
+	[SCMD_STAT(IDXD_SCMD_WQ_NO_NAME)] = "wq error - name not set",
+	[SCMD_STAT(IDXD_SCMD_WQ_NO_SVM)] =
+		"wq error - no SVM support and needed (platform configuration error)",
+	[SCMD_STAT(IDXD_SCMD_WQ_NO_THRESH)] = "wq error - threshold not set",
+	[SCMD_STAT(IDXD_SCMD_WQ_PORTAL_ERR)] = "wq portal mapping error (driver error)",
+	[SCMD_STAT(IDXD_SCMD_WQ_RES_ALLOC_ERR)] = "wq resource allocation error (driver error)",
+	[SCMD_STAT(IDXD_SCMD_PERCPU_ERR)] = "wq percpu counter allocation error (driver error)",
+	[SCMD_STAT(IDXD_SCMD_DMA_CHAN_ERR)] = "wq DMA channel registration error (driver error)",
+	[SCMD_STAT(IDXD_SCMD_CDEV_ERR)] = "wq char dev registration error (driver error)",
+	[SCMD_STAT(IDXD_SCMD_WQ_NO_SWQ_SUPPORT)] =
+		"wq error - no shared wq support (platform configuration error)",
+	[SCMD_STAT(IDXD_SCMD_WQ_NONE_CONFIGURED)] = "wq error - no wqs configured",
+	[SCMD_STAT(IDXD_SCMD_WQ_NO_SIZE)] = "wq error - size not set",
+};
+
+static void save_last_error(struct accfg_device *device, struct accfg_wq *wq,
+		struct accfg_group *group, struct accfg_engine *engine)
+{
+	struct accfg_ctx *ctx = device->ctx;
+
+	if (!ctx->error_ctx)
+		ctx->error_ctx = calloc(1, sizeof(struct accfg_error_ctx));
+
+	if (ctx->error_ctx) {
+		ctx->error_ctx->cmd_status = accfg_device_get_cmd_status(device);
+		ctx->error_ctx->device = device;
+		ctx->error_ctx->wq = wq;
+		ctx->error_ctx->group = group;
+		ctx->error_ctx->engine = engine;
+	}
+}
 
 static inline bool is_mdev_registered(struct accfg_device *device)
 {
 	return device->mdev_path && !access(device->mdev_path, R_OK);
+}
+
+static int accfg_set_param(struct accfg_ctx *ctx, int dfd, char *name,
+		void *buf, int len)
+{
+	int fd = openat(dfd, name, O_RDWR);
+	int n;
+
+	if (fd == -1)
+		return -errno;
+
+	n = write(fd, buf, len);
+	close(fd);
+	if (n != len)
+		return -errno;
+
+	return 0;
 }
 
 static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
@@ -251,6 +309,7 @@ static void free_context(struct accfg_ctx *ctx)
 
 	list_for_each_safe(&ctx->devices, device, _b, list)
 		free_device(device, &ctx->devices);
+	free(ctx->error_ctx);
 	free(ctx);
 }
 
@@ -547,6 +606,14 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 		return NULL;
 	}
 
+	rc = accfg_set_param(ctx, dfd, "cmd_status", "1", 1);
+	/* older drivers don't support writing to cmd_status */
+	if (rc && rc != -EACCES) {
+		err(ctx, "Failed resetting cmd status %d\n", rc);
+		close(dfd);
+		goto err_device;
+	}
+
 	device = calloc(1, sizeof(*device));
 	if (!device) {
 		err(ctx, "allocation of device failed\n");
@@ -733,6 +800,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	wq->threshold =  accfg_get_param_long(ctx, dfd, "threshold");
 	wq->max_batch_size =  accfg_get_param_long(ctx, dfd, "max_batch_size");
 	wq->max_transfer_size =  accfg_get_param_long(ctx, dfd, "max_transfer_size");
+	wq->ats_disable = accfg_get_param_long(ctx, dfd, "ats_disable");
 
 	wq_parse_type(wq, wq_type);
 	free(wq_type);
@@ -1082,6 +1150,7 @@ ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
 	rc = sysfs_write_attr(ctx, mdev_path, uuid_str);
 	if (rc < 0) {
 		err(ctx, "create mdev failed %d\n", rc);
+		save_last_error(device, NULL, NULL, NULL);
 		goto create_err;
 	}
 
@@ -1105,8 +1174,10 @@ static int accfg_device_mdev_remove(struct accfg_device *device,
 	uuid_unparse(mdev->uuid, uuid_str);
 	sprintf(mdev_path, "%s/%s/remove", device->mdev_path, uuid_str);
 	rc = sysfs_write_attr(ctx, mdev_path, "1");
-	if (rc < 0)
+	if (rc < 0) {
+		save_last_error(device, NULL, NULL, NULL);
 		return rc;
+	}
 
 	list_del(&mdev->list);
 	free(mdev);
@@ -1355,6 +1426,7 @@ ACCFG_EXPORT enum accfg_device_state accfg_device_get_state(
 		err(ctx, "%s: sysfs_read_attr failed '%s': %s\n",
 				__func__, device->device_path,
 				strerror(errno));
+		save_last_error(device, NULL, NULL, NULL);
 		return ACCFG_DEVICE_UNKNOWN;
 	}
 
@@ -1414,6 +1486,7 @@ ACCFG_EXPORT int accfg_device_get_clients(struct accfg_device *device)
 	if (sysfs_read_attr(ctx, path, buf) < 0) {
 		err(ctx, "%s: retrieve clients failed '%s': %s\n",
 				__func__, path, strerror(errno));
+		save_last_error(device, NULL, NULL, NULL);
 		return -errno;
 	}
 
@@ -1448,6 +1521,7 @@ ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 	if (sysfs_write_attr(ctx, path, buf) < 0) {
 		err(ctx, "%s: write failed: %s\n",
 				accfg_device_get_devname(dev), strerror(errno));
+		save_last_error(dev, NULL, NULL, NULL);
 		return -errno;
 	}
 
@@ -1476,8 +1550,10 @@ ACCFG_EXPORT int accfg_device_is_active(struct accfg_device *device)
 		return 0;
 	}
 
-	if (sysfs_read_attr(ctx, path, buf) < 0)
+	if (sysfs_read_attr(ctx, path, buf) < 0) {
+		save_last_error(device, NULL, NULL, NULL);
 		return 0;
+	}
 
 	if (strcmp(buf, "enabled") == 0)
 		return 1;
@@ -1485,17 +1561,16 @@ ACCFG_EXPORT int accfg_device_is_active(struct accfg_device *device)
 	return 0;
 }
 
-ACCFG_EXPORT int accfg_device_get_cmd_status(struct accfg_device *device)
+ACCFG_EXPORT unsigned int accfg_device_get_cmd_status(struct accfg_device *device)
 {
 	struct accfg_ctx *ctx;
 	long status;
 	char *path;
 	int len;
 	char buf[SYSFS_ATTR_SIZE], *end_ptr;
-	int rc;
 
 	if (!device)
-		return -EINVAL;
+		return ACCFG_CMD_STATUS_ERROR;
 
 	ctx = accfg_device_get_ctx(device);
 	path = device->device_buf;
@@ -1504,29 +1579,94 @@ ACCFG_EXPORT int accfg_device_get_cmd_status(struct accfg_device *device)
 	if (snprintf(path, len, "%s/cmd_status", device->device_path) >= len) {
 		err(ctx, "%s: buffer too small!\n",
 				accfg_device_get_devname(device));
-		return -ENOMEM;
+		return ACCFG_CMD_STATUS_ERROR;
 	}
 
-	rc = sysfs_read_attr(ctx, path, buf);
-	if (rc < 0)
-		return rc;
+	if (sysfs_read_attr(ctx, path, buf))
+		return ACCFG_CMD_STATUS_ERROR;
 
 	status = strtol(buf, &end_ptr, 0);
 	if (errno == ERANGE || end_ptr == buf)
-		return -EIO;
+		return ACCFG_CMD_STATUS_ERROR;
 
-	return (int)status;
+	return (unsigned int)status;
 }
 
-ACCFG_EXPORT const char * accfg_device_get_cmd_status_str(struct accfg_device *device)
+static const char *get_cmd_status_str(unsigned int status)
 {
-	int status;
+	unsigned int sw_status;
 
-	status = accfg_device_get_cmd_status(device);
-	if (status < 0 || status >= ACCFG_CMD_STATUS_MAX)
-		return NULL;
+	if (status & IDXD_SCMD_SOFTERR_MASK) {
+		sw_status = SCMD_STAT(status);
+		if (sw_status) {
+			if (sw_status >= (sizeof(accfg_sw_cmd_status) /
+						sizeof(char *))) {
+				status = ACCFG_CMD_STATUS_MAX;
+				goto ext;
+			}
+			return accfg_sw_cmd_status[sw_status];
+		}
+		status &= ~IDXD_SCMD_SOFTERR_MASK;
+	}
 
+	if (status > ACCFG_CMD_STATUS_MAX)
+		status = ACCFG_CMD_STATUS_MAX;
+
+ext:
 	return accfg_device_cmd_status[status];
+}
+
+ACCFG_EXPORT const char *accfg_device_get_cmd_status_str(struct accfg_device *device)
+{
+	return get_cmd_status_str(accfg_device_get_cmd_status(device));
+}
+
+ACCFG_EXPORT unsigned int accfg_ctx_get_last_error(struct accfg_ctx *ctx)
+{
+	if (ctx->error_ctx)
+		return ctx->error_ctx->cmd_status;
+
+	return 0;
+}
+
+ACCFG_EXPORT const char *accfg_ctx_get_last_error_str(struct accfg_ctx *ctx)
+{
+	return get_cmd_status_str(accfg_ctx_get_last_error(ctx));
+}
+
+ACCFG_EXPORT struct accfg_device *accfg_ctx_get_last_error_device(
+		struct accfg_ctx *ctx)
+{
+	if (ctx->error_ctx)
+		return ctx->error_ctx->device;
+
+	return NULL;
+}
+
+ACCFG_EXPORT struct accfg_wq *accfg_ctx_get_last_error_wq(struct accfg_ctx *ctx)
+{
+	if (ctx->error_ctx)
+		return ctx->error_ctx->wq;
+
+	return NULL;
+}
+
+ACCFG_EXPORT struct accfg_group *accfg_ctx_get_last_error_group(
+		struct accfg_ctx *ctx)
+{
+	if (ctx->error_ctx)
+		return ctx->error_ctx->group;
+
+	return NULL;
+}
+
+ACCFG_EXPORT struct accfg_engine *accfg_ctx_get_last_error_engine(
+		struct accfg_ctx *ctx)
+{
+	if (ctx->error_ctx)
+		return ctx->error_ctx->engine;
+
+	return NULL;
 }
 
 /* Helper function to validate device type in the defined device array based on
@@ -1632,6 +1772,7 @@ static int accfg_device_control(struct accfg_device *device,
 		rc = sysfs_write_attr(ctx, path, accfg_device_get_devname(device));
 		free(path);
 		if (rc < 0) {
+			save_last_error(device, NULL, NULL, NULL);
 			return rc;
 		}
 	}
@@ -1721,8 +1862,10 @@ ACCFG_EXPORT uint64_t accfg_group_get_available_size(
 		return ULLONG_MAX;
 	}
 
-	if (sysfs_read_attr(ctx, path, buf) < 0)
+	if (sysfs_read_attr(ctx, path, buf) < 0) {
+		save_last_error(group->device, NULL, group, NULL);
 		return ULLONG_MAX;
+	}
 
 	return strtoull(buf, NULL, 0);
 }
@@ -1748,6 +1891,7 @@ ACCFG_EXPORT int accfg_group_set_##field( \
 		err(ctx, "%s: write failed: %s\n", \
 				accfg_group_get_devname(group), \
 				strerror(errno)); \
+		save_last_error(group->device, NULL, group, NULL); \
 		return -errno; \
 	} \
 	group->field = val; \
@@ -1889,6 +2033,18 @@ ACCFG_EXPORT uint64_t accfg_wq_get_max_transfer_size(struct accfg_wq *wq)
 	return wq->max_transfer_size;
 }
 
+ACCFG_EXPORT int accfg_wq_get_occupancy(struct accfg_wq *wq)
+{
+	int dfd;
+	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
+
+	dfd = open(wq->wq_path, O_PATH);
+	if (dfd < 0)
+		return -ENXIO;
+
+	return accfg_get_param_long(ctx, dfd, "occupancy");
+}
+
 ACCFG_EXPORT int accfg_wq_get_clients(struct accfg_wq *wq)
 {
 	struct accfg_ctx *ctx = accfg_wq_get_ctx(wq);
@@ -1906,6 +2062,7 @@ ACCFG_EXPORT int accfg_wq_get_clients(struct accfg_wq *wq)
 	if (sysfs_read_attr(ctx, path, buf) < 0) {
 		err(ctx, "%s: retrieve clients failed: '%s': %s\n",
 				__func__, wq->wq_path, strerror(errno));
+		save_last_error(wq->device, wq, NULL, NULL);
 		return -errno;
 	}
 
@@ -1993,6 +2150,7 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 	if (path) {
 		rc = sysfs_write_attr(ctx, path, wq_name);
 		if (rc < 0) {
+			save_last_error(wq->device, wq, NULL, NULL);
 			free(path);
 			return rc;
 		}
@@ -2037,6 +2195,7 @@ ACCFG_EXPORT enum accfg_wq_state accfg_wq_get_state(struct accfg_wq *wq)
 	if (sysfs_read_attr(ctx, path, read_state) < 0) {
 		err(ctx, "%s: sysfs_read_attr failed '%s': %s\n",
 				__func__, wq->wq_path, strerror(errno));
+		save_last_error(wq->device, wq, NULL, NULL);
 		return ACCFG_WQ_UNKNOWN;
 	}
 
@@ -2093,7 +2252,7 @@ ACCFG_EXPORT int accfg_wq_get_user_dev_path(struct accfg_wq *wq, char *buf,
 
 	ctx = accfg_device_get_ctx(wq->device);
 
-	sprintf(p, "/dev/%s", wq->device->bus_type_str);
+	sprintf(p, "/dev/%s", wq->device->device_type_str);
 	n1 = n = scandir(p, &d, NULL, alphasort);
 	if (n < 0) {
 		err(ctx, "Device path not found %s\n", p);
@@ -2112,12 +2271,12 @@ ACCFG_EXPORT int accfg_wq_get_user_dev_path(struct accfg_wq *wq, char *buf,
 	if (n < 0) {
 		err(ctx, "Device for %s not found at /dev/%s\n",
 				accfg_wq_get_devname(wq),
-				wq->device->bus_type_str);
+				wq->device->device_type_str);
 		rc = -ENOENT;
 		goto ext_uacce;
 	}
 
-	n = sprintf(p, "/dev/%s/%s", wq->device->bus_type_str, f);
+	n = sprintf(p, "/dev/%s/%s", wq->device->device_type_str, f);
 
 	if ((size_t)n >= size) {
 		err(ctx, "Buffer size too small. Need %d bytes\n", n + 1);
@@ -2162,6 +2321,7 @@ ACCFG_EXPORT int accfg_wq_set_##field( \
 		err(ctx, "%s: write failed: %s\n", \
 				accfg_wq_get_devname(wq), \
 				strerror(errno)); \
+		save_last_error(wq->device, wq, NULL, NULL); \
 		return -errno; \
 	} \
 	wq->field = val; \
@@ -2174,6 +2334,7 @@ accfg_wq_set_field(wq, val, group_id)
 accfg_wq_set_field(wq, val, block_on_fault)
 accfg_wq_set_field(wq, val, threshold)
 accfg_wq_set_field(wq, val, max_batch_size)
+accfg_wq_set_field(wq, val, ats_disable)
 
 #define accfg_wq_set_long_field(wq, val, field) \
 ACCFG_EXPORT int accfg_wq_set_##field( \
@@ -2200,6 +2361,7 @@ ACCFG_EXPORT int accfg_wq_set_##field( \
 		err(ctx, "%s: write failed: %s\n", \
 				accfg_wq_get_devname(wq), \
 				strerror(errno)); \
+		save_last_error(wq->device, wq, NULL, NULL); \
 		return -errno; \
 	} \
 	wq->field = val; \
@@ -2235,6 +2397,7 @@ ACCFG_EXPORT int accfg_wq_set_str_##field( \
 		err(ctx, "%s: write failed: %s\n", \
 				accfg_wq_get_devname(wq), \
 				strerror(errno)); \
+		save_last_error(wq->device, wq, NULL, NULL); \
 		return -errno; \
 	} \
 	if (wq->field) \
@@ -2273,6 +2436,7 @@ ACCFG_EXPORT int accfg_wq_set_str_type(struct accfg_wq *wq, const char *val)
 		err(ctx, "%s: write failed: %s\n",
 				accfg_wq_get_devname(wq),
 				strerror(errno));
+		save_last_error(wq->device, wq, NULL, NULL);
 		return -errno;
 	}
 
@@ -2299,6 +2463,7 @@ accfg_wq_get_field(wq, priority)
 accfg_wq_get_field(wq, threshold)
 accfg_wq_get_field(wq, group_id)
 accfg_wq_get_field(wq, block_on_fault)
+accfg_wq_get_field(wq, ats_disable)
 
 ACCFG_EXPORT int accfg_wq_set_mode(struct accfg_wq *wq,
 		enum accfg_wq_mode wq_mode)
@@ -2381,6 +2546,7 @@ ACCFG_EXPORT int accfg_engine_set_##field( \
 		err(ctx, "%s: write failed: %s\n", \
 				accfg_engine_get_devname(engine), \
 				strerror(errno)); \
+		save_last_error(engine->device, NULL, NULL, engine); \
 		return -errno; \
 	} \
 	engine->field = val; \

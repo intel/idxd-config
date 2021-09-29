@@ -21,6 +21,13 @@ like, but it should not be used directly given the variance of each system. The
 user should create a proper config file according to the format of sample file
 and use "-c" option to point to the config file.
 
+The "dev" property is used as the key for each json object and must be the
+first entry in each object block.
+
+Note: This feature is intended to be used with a configuration that was
+previously saved using the save-config command. Manual editing of the
+configuration file can produce unexpected results.
+
 EXAMPLE
 -------
 ----

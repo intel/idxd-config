@@ -103,6 +103,7 @@ int main(int argc, const char **argv)
 	struct accfg_ctx *ctx;
 	struct kmod_ctx *kmod_ctx;
 	struct kmod_module *mod;
+	unsigned int last_error;
 	int rc;
 
 	/* Look for flags.. */
@@ -136,6 +137,29 @@ int main(int argc, const char **argv)
 
 	rc = main_handle_internal_command(argc, argv, ctx, commands,
 				     ARRAY_SIZE(commands));
+
+	last_error = accfg_ctx_get_last_error(ctx);
+	if (rc && last_error) {
+		struct accfg_device *d;
+		struct accfg_group *g;
+		struct accfg_wq *w;
+		struct accfg_engine *e;
+
+		printf("Error[%#10x] ", last_error);
+		d = accfg_ctx_get_last_error_device(ctx);
+		g = accfg_ctx_get_last_error_group(ctx);
+		w = accfg_ctx_get_last_error_wq(ctx);
+		e = accfg_ctx_get_last_error_engine(ctx);
+		if (d)
+			printf("%s", accfg_device_get_devname(d));
+		if (g)
+			printf("/%s", accfg_group_get_devname(g));
+		if (w)
+			printf("/%s", accfg_wq_get_devname(w));
+		if (e)
+			printf("/%s", accfg_engine_get_devname(e));
+		printf(": %s\n", accfg_ctx_get_last_error_str(ctx));
+	}
 	accfg_unref(ctx);
 	kmod_module_unref(mod);
 	kmod_unref(kmod_ctx);
@@ -144,7 +168,6 @@ int main(int argc, const char **argv)
 		return EXIT_SUCCESS;
 error_exit:
 	errno = abs(rc);
-	perror("Error");
 
 	return EXIT_FAILURE;
 }
