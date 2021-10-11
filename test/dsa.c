@@ -554,6 +554,34 @@ void free_batch_task(struct batch_task *btsk)
 	free(btsk);
 }
 
+int dsa_wait_noop(struct dsa_context *ctx)
+{
+	struct dsa_completion_record *comp = ctx->single_task->comp;
+	int rc;
+
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("noop desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_noop(struct dsa_context *ctx)
+{
+	struct task *tsk = ctx->single_task;
+	int ret = DSA_STATUS_OK;
+
+	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+
+	dsa_prep_noop(tsk);
+	dsa_desc_submit(ctx, tsk->desc);
+	ret = dsa_wait_noop(ctx);
+
+	return ret;
+}
+
 int dsa_wait_batch(struct dsa_context *ctx)
 {
 	int rc;

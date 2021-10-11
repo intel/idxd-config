@@ -58,6 +58,9 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 		return rc;
 
 	switch (bopcode) {
+	case DSA_OPCODE_NOOP:
+		dsa_prep_batch_noop(ctx->batch_task);
+		break;
 	case DSA_OPCODE_MEMMOVE:
 		dsa_prep_batch_memcpy(ctx->batch_task);
 		break;
@@ -157,6 +160,33 @@ int main(int argc, char *argv[])
 	}
 
 	switch (opcode) {
+	case DSA_OPCODE_NOOP: {
+		struct task *tsk;
+
+		info("noop: len %#lx tflags %#x\n", buf_size, tflags);
+
+		rc = alloc_task(dsa);
+		if (rc != DSA_STATUS_OK) {
+			err("noop: alloc task failed, rc=%d\n", rc);
+			goto error;
+		}
+
+		tsk = dsa->single_task;
+
+		rc = dsa_noop(dsa);
+		if (rc != DSA_STATUS_OK) {
+			err("noop failed stat %d\n", rc);
+			rc = -ENXIO;
+			break;
+		}
+
+		rc = task_result_verify(tsk, 0);
+		if (rc != DSA_STATUS_OK)
+			goto error;
+
+		break;
+	}
+
 	case DSA_OPCODE_BATCH:
 		if (bsize > dsa->max_batch_size || bsize < 2) {
 			err("invalid num descs: %d\n", bsize);
