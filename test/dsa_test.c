@@ -23,6 +23,7 @@ static void usage(void)
 	"-o <opcode>     ; opcode, same value as in DSA spec\n"
 	"-b <opcode> ; if batch opcode, opcode in the batch\n"
 	"-c <batch_size> ; if batch opcode, number of descriptors for batch\n"
+	"-d              ; wq device such as dsa0/wq0.0\n"
 	"-t <ms timeout> ; ms to wait for descs to complete\n"
 	"-v              ; verbose\n"
 	"-h              ; print this message\n");
@@ -110,8 +111,12 @@ int main(int argc, char *argv[])
 	int tflags = TEST_FLAGS_BOF;
 	int opt;
 	unsigned int bsize = 0;
+	char dev_type[MAX_DEV_LEN];
+	int wq_id = DSA_DEVICE_ID_NO_INPUT;
+	int dev_id = DSA_DEVICE_ID_NO_INPUT;
+	int dev_wq_id = DSA_DEVICE_ID_NO_INPUT;
 
-	while ((opt = getopt(argc, argv, "w:l:f:o:b:c:t:p:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "w:l:f:o:b:c:d:t:p:vh")) != -1) {
 		switch (opt) {
 		case 'w':
 			wq_type = atoi(optarg);
@@ -130,6 +135,13 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			bsize = strtoul(optarg, NULL, 0);
+			break;
+		case 'd':
+			if (sscanf(optarg, "%[a-z]%u/%*[a-z]%u.%u", dev_type,
+						&dev_id, &dev_wq_id, &wq_id) != 4) {
+				err("invalid input device:dev_wq_id:%d ,wq_id:%d\n", dev_wq_id, wq_id);
+				return -EINVAL;
+			}
 			break;
 		case 't':
 			ms_timeout = strtoul(optarg, NULL, 0);
@@ -150,7 +162,7 @@ int main(int argc, char *argv[])
 	if (dsa == NULL)
 		return -ENOMEM;
 
-	rc = dsa_alloc(dsa, wq_type);
+	rc = dsa_alloc(dsa, wq_type, dev_id, wq_id);
 	if (rc < 0)
 		return -ENOMEM;
 

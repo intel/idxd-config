@@ -146,6 +146,49 @@ static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
 	return NULL;
 }
 
+static struct accfg_wq *dsa_get_wq_byid(struct dsa_context *ctx,
+					 int dev_id, int wq_id)
+{
+	struct accfg_device *device;
+	struct accfg_wq *wq;
+	int rc;
+
+	accfg_device_foreach(ctx->ctx, device) {
+
+		/* Make sure that the device is enabled */
+		if (accfg_device_get_state(device) != ACCFG_DEVICE_ENABLED)
+			continue;
+
+		/* Match the device to the id requested */
+		if (accfg_device_get_id(device) != dev_id &&
+				dev_id != DSA_DEVICE_ID_NO_INPUT)
+			continue;
+
+		accfg_wq_foreach(device, wq) {
+
+			/* Get a workqueue that's enabled */
+			if (accfg_wq_get_state(wq) != ACCFG_WQ_ENABLED)
+				continue;
+
+			/* The wq type should be user */
+			if (accfg_wq_get_type(wq) != ACCFG_WQT_USER)
+				continue;
+
+			/* Make sure the wq id is correct */
+			if (wq_id != accfg_wq_get_id(wq))
+				continue;
+
+			rc = dsa_setup_wq(ctx, wq);
+			if (rc < 0)
+				return NULL;
+
+			return wq;
+		}
+	}
+
+	return NULL;
+}
+
 static uint32_t bsr(uint32_t val)
 {
 	uint32_t msb;
@@ -154,7 +197,7 @@ static uint32_t bsr(uint32_t val)
 	return msb - 1;
 }
 
-int dsa_alloc(struct dsa_context *ctx, int shared)
+int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 {
 	struct accfg_device *dev;
 
@@ -162,14 +205,17 @@ int dsa_alloc(struct dsa_context *ctx, int shared)
 	if (ctx->wq_reg)
 		return 0;
 
-	ctx->wq = dsa_get_wq(ctx, -1, shared);
+	if (wq_id != DSA_DEVICE_ID_NO_INPUT)
+		ctx->wq = dsa_get_wq_byid(ctx, dev_id, wq_id);
+	else
+		ctx->wq = dsa_get_wq(ctx, dev_id, shared);
+
 	if (!ctx->wq) {
 		err("No usable wq found\n");
 		return -ENODEV;
 	}
 	dev = accfg_wq_get_device(ctx->wq);
-
-	ctx->dedicated = !shared;
+	ctx->dedicated = accfg_wq_get_mode(ctx->wq);
 	ctx->wq_size = accfg_wq_get_size(ctx->wq);
 	ctx->wq_idx = accfg_wq_get_id(ctx->wq);
 	ctx->bof = accfg_wq_get_block_on_fault(ctx->wq);
@@ -182,7 +228,7 @@ int dsa_alloc(struct dsa_context *ctx, int shared)
 	ctx->max_xfer_bits = bsr(ctx->max_xfer_size);
 
 	info("alloc wq %d shared %d size %d addr %p batch sz %#x xfer sz %#x\n",
-			ctx->wq_idx, shared, ctx->wq_size, ctx->wq_reg,
+			ctx->wq_idx, ctx->dedicated, ctx->wq_size, ctx->wq_reg,
 			ctx->max_batch_size, ctx->max_xfer_size);
 
 	return 0;

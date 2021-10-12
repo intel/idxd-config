@@ -8,6 +8,8 @@
 
 #define MAX_PATH_LENGTH 1024
 
+#define DSA_DEVICE_ID_NO_INPUT -1
+
 #define DSA_MAX_OPS 0x20
 
 #define TEST_FLAGS_BOF     0x1     /* Block on page faults */
@@ -211,7 +213,7 @@ int memcmp_pattern(const void *src, const uint64_t pattern, size_t len);
 int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw);
 
 struct dsa_context *dsa_init(void);
-int dsa_alloc(struct dsa_context *ctx, int shared);
+int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
 int alloc_task(struct dsa_context *ctx);
 struct task *__alloc_task(void);
 int init_task(struct task *tsk, int tflags, int opcode,
