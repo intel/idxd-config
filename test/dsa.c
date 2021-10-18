@@ -393,9 +393,6 @@ static inline int umwait(unsigned long timeout, unsigned int state)
 	uint32_t timeout_low = (uint32_t)timeout;
 	uint32_t timeout_high = (uint32_t)(timeout >> 32);
 
-	timeout_low = (uint32_t)timeout;
-	timeout_high = (uint32_t)(timeout >> 32);
-
 	asm volatile(".byte 0xf2, 0x48, 0x0f, 0xae, 0xf1\t\n"
 		"setc %0\t\n"
 		: "=r"(r)
