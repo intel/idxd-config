@@ -870,13 +870,11 @@ static void *add_group(void *parent, int id, const char *group_base,
 	group_base_string = strdup(group_base);
 	if (!group_base_string) {
 		err(ctx, "conversion of group_base_string failed\n");
-		free(group);
 		close(dfd);
 		goto err_group;
 	}
 	if (sscanf(basename(group_base_string),
 				"group%" SCNu64 ".%" SCNu64, &device_id, &group_id) != 2) {
-		free(group);
 		close(dfd);
 		goto err_group;
 	}
