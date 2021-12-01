@@ -31,7 +31,7 @@ testcore =\
 	accfg_test.h
 
 libaccfg_SOURCES = libaccfg.c $(testcore)
-libaccfg_LDADD = $(LIBACCFG_LIB) $(UUID_LIBS) $(KMOD_LIBS)
+libaccfg_LDADD = $(LIBACCFG_LIB) $(UUID_LIBS)
 
 dsa_test_SOURCES = dsa_test.c dsa.c prep.c
 dsa_test_LDADD = $(LIBACCFG_LIB) $(UUID_LIBS)

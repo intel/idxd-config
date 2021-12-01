@@ -9,13 +9,13 @@ sub-system in the Linux kernel
 ```bash
 yum groupinstall "Development Tools"
 yum install autoconf automake libtool pkgconf rpm-build rpmdevtools
-yum install asciidoc xmlto libuuid-devel json-c-devel kmod-devel libudev-devel
+yum install asciidoc xmlto libuuid-devel json-c-devel libudev-devel
 ```
 ### Debian
 ```bash
 apt install build-essential
 apt install autoconf automake autotools-dev libtool pkgconf asciidoc xmlto
-apt install uuid-dev libjson-c-dev libkmod-dev libudev-dev libkeyutils-dev
+apt install uuid-dev libjson-c-dev libudev-dev libkeyutils-dev
 apt install debhelper devscripts debmake quilt fakeroot lintian asciidoctor
 apt install file gnupg patch patchutils
 ```
