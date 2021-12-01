@@ -15,7 +15,6 @@ BuildRequires:	libtool
 BuildRequires:	pkgconfig
 BuildRequires:	pkgconfig(uuid)
 BuildRequires:	pkgconfig(json-c)
-BuildRequires:	pkgconfig(libudev)
 BuildRequires:	systemd
 
 %description

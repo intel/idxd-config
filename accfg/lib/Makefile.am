@@ -23,7 +23,6 @@ libaccel_config_la_SOURCES =\
 	libaccfg.c
 
 libaccel_config_la_LIBADD =\
-	$(UDEV_LIBS) \
 	$(UUID_LIBS)
 
 EXTRA_DIST += libaccel-config.sym
