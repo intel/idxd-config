@@ -151,7 +151,7 @@ static void save_last_error(struct accfg_device *device, struct accfg_wq *wq,
 
 static inline bool is_mdev_registered(struct accfg_device *device)
 {
-	return device->mdev_path && !access(device->mdev_path, R_OK);
+	return device->mdev_path && !access(device->mdev_path, F_OK);
 }
 
 static int accfg_set_param(struct accfg_ctx *ctx, int dfd, char *name,
@@ -398,7 +398,7 @@ ACCFG_EXPORT int accfg_new(struct accfg_ctx **ctx)
 	c->refcount = 1;
 	log_init(&c->ctx, "libaccfg", "ACCFG_LOG");
 	c->timeout = 5000;
-	if (access(IDXD_DRIVER_BIND_PATH, R_OK))
+	if (access(IDXD_DRIVER_BIND_PATH, F_OK))
 		c->compat = true;
 
 	list_head_init(&c->devices);
