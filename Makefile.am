@@ -39,6 +39,10 @@ accfgconf_DATA = $(accfgconf_file)
 
 EXTRA_DIST += $(accfgconf_file) accfg.spec.in accfg-test.spec.in
 
+contrib_configs = contrib/configs/*
+contribdir = $(prefix)/share/accel-config/contrib/configs
+contrib_DATA = $(contrib_configs)
+
 noinst_LIBRARIES = libccan.a
 libccan_a_SOURCES = \
         ccan/str/str.h \
