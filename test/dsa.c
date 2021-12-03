@@ -146,6 +146,49 @@ static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
 	return NULL;
 }
 
+static struct accfg_wq *dsa_get_wq_byid(struct dsa_context *ctx,
+					 int dev_id, int wq_id)
+{
+	struct accfg_device *device;
+	struct accfg_wq *wq;
+	int rc;
+
+	accfg_device_foreach(ctx->ctx, device) {
+
+		/* Make sure that the device is enabled */
+		if (accfg_device_get_state(device) != ACCFG_DEVICE_ENABLED)
+			continue;
+
+		/* Match the device to the id requested */
+		if (accfg_device_get_id(device) != dev_id &&
+				dev_id != DSA_DEVICE_ID_NO_INPUT)
+			continue;
+
+		accfg_wq_foreach(device, wq) {
+
+			/* Get a workqueue that's enabled */
+			if (accfg_wq_get_state(wq) != ACCFG_WQ_ENABLED)
+				continue;
+
+			/* The wq type should be user */
+			if (accfg_wq_get_type(wq) != ACCFG_WQT_USER)
+				continue;
+
+			/* Make sure the wq id is correct */
+			if (wq_id != accfg_wq_get_id(wq))
+				continue;
+
+			rc = dsa_setup_wq(ctx, wq);
+			if (rc < 0)
+				return NULL;
+
+			return wq;
+		}
+	}
+
+	return NULL;
+}
+
 static uint32_t bsr(uint32_t val)
 {
 	uint32_t msb;
@@ -154,7 +197,7 @@ static uint32_t bsr(uint32_t val)
 	return msb - 1;
 }
 
-int dsa_alloc(struct dsa_context *ctx, int shared)
+int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 {
 	struct accfg_device *dev;
 
@@ -162,14 +205,17 @@ int dsa_alloc(struct dsa_context *ctx, int shared)
 	if (ctx->wq_reg)
 		return 0;
 
-	ctx->wq = dsa_get_wq(ctx, -1, shared);
+	if (wq_id != DSA_DEVICE_ID_NO_INPUT)
+		ctx->wq = dsa_get_wq_byid(ctx, dev_id, wq_id);
+	else
+		ctx->wq = dsa_get_wq(ctx, dev_id, shared);
+
 	if (!ctx->wq) {
 		err("No usable wq found\n");
 		return -ENODEV;
 	}
 	dev = accfg_wq_get_device(ctx->wq);
-
-	ctx->dedicated = !shared;
+	ctx->dedicated = accfg_wq_get_mode(ctx->wq);
 	ctx->wq_size = accfg_wq_get_size(ctx->wq);
 	ctx->wq_idx = accfg_wq_get_id(ctx->wq);
 	ctx->bof = accfg_wq_get_block_on_fault(ctx->wq);
@@ -182,7 +228,7 @@ int dsa_alloc(struct dsa_context *ctx, int shared)
 	ctx->max_xfer_bits = bsr(ctx->max_xfer_size);
 
 	info("alloc wq %d shared %d size %d addr %p batch sz %#x xfer sz %#x\n",
-			ctx->wq_idx, shared, ctx->wq_size, ctx->wq_reg,
+			ctx->wq_idx, ctx->dedicated, ctx->wq_size, ctx->wq_reg,
 			ctx->max_batch_size, ctx->max_xfer_size);
 
 	return 0;
@@ -393,9 +439,6 @@ static inline int umwait(unsigned long timeout, unsigned int state)
 	uint32_t timeout_low = (uint32_t)timeout;
 	uint32_t timeout_high = (uint32_t)(timeout >> 32);
 
-	timeout_low = (uint32_t)timeout;
-	timeout_high = (uint32_t)(timeout >> 32);
-
 	asm volatile(".byte 0xf2, 0x48, 0x0f, 0xae, 0xf1\t\n"
 		"setc %0\t\n"
 		: "=r"(r)
@@ -552,6 +595,34 @@ void free_batch_task(struct batch_task *btsk)
 	free(btsk->sub_descs);
 	free(btsk->sub_comps);
 	free(btsk);
+}
+
+int dsa_wait_noop(struct dsa_context *ctx)
+{
+	struct dsa_completion_record *comp = ctx->single_task->comp;
+	int rc;
+
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("noop desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_noop(struct dsa_context *ctx)
+{
+	struct task *tsk = ctx->single_task;
+	int ret = DSA_STATUS_OK;
+
+	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+
+	dsa_prep_noop(tsk);
+	dsa_desc_submit(ctx, tsk->desc);
+	ret = dsa_wait_noop(ctx);
+
+	return ret;
 }
 
 int dsa_wait_batch(struct dsa_context *ctx)

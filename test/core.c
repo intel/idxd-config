@@ -3,7 +3,6 @@
 
 #include <linux/version.h>
 #include <sys/utsname.h>
-#include <libkmod.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>

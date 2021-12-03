@@ -97,8 +97,6 @@ AM_CONDITIONAL([ENABLE_TEST], [test "x$enable_test" = "xyes"])
 PKG_CHECK_MODULES([UUID], [uuid],
         [AC_DEFINE([HAVE_UUID], [1], [Define to 1 if using libuuid])])
 PKG_CHECK_MODULES([JSON], [json-c])
-PKG_CHECK_MODULES([KMOD], [libkmod])
-PKG_CHECK_MODULES([UDEV], [libudev])
 
 AC_ARG_WITH([bash-completion-dir],
 	AS_HELP_STRING([--with-bash-completion-dir[=PATH]],

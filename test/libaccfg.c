@@ -15,7 +15,6 @@
 #include <util/json.h>
 #include <util/filter.h>
 #include <syslog.h>
-#include <libkmod.h>
 #include <sys/wait.h>
 #include <uuid/uuid.h>
 #include <sys/types.h>
@@ -954,65 +953,29 @@ static struct _test_case test_cases[] = {
 	},
 };
 
-static int idxd_kmod_init(struct kmod_ctx **ctx, struct kmod_module **mod,
-		struct kmod_module **mdev_mod, int log_level)
-{
-	struct log_ctx log_ctx;
-	int rc;
-
-	log_init(&log_ctx, "test/init", "LIB-ACCELCONFIG_TEST");
-	log_ctx.log_priority = log_level;
-
-	*ctx = kmod_new(NULL, NULL);
-	if (!*ctx)
-		return -ENXIO;
-	kmod_set_log_priority(*ctx, log_level);
-
-	rc = kmod_module_new_from_name(*ctx, "idxd", mod);
-	if (rc < 0) {
-		kmod_unref(*ctx);
-		return rc;
-	}
-	rc = kmod_module_new_from_name(*ctx, "idxd_mdev", mdev_mod);
-	if (rc < 0) {
-		kmod_module_unref(*mod);
-		kmod_unref(*ctx);
-		return rc;
-	}
-	rc = kmod_module_get_initstate(*mdev_mod);
-	if (rc < 0) {
-		kmod_module_unref(*mdev_mod);
-		*mdev_mod = NULL;
-		mdev_disabled = true;
-	}
-	rc = kmod_module_get_initstate(*mod);
-	if (rc < 0) {
-		kmod_module_unref(*mod);
-		kmod_unref(*ctx);
-	}
-
-	return rc;
-}
-
 int test_libaccfg(int loglevel, struct accfg_test *test,
 		struct accfg_ctx *ctx)
 {
 	unsigned int i;
 	int err, result = EXIT_FAILURE;
-	struct kmod_ctx *kmod_ctx;
-	struct kmod_module *mod, *mdev_mod;
 	struct accfg_device *device;
+	struct log_ctx log_ctx;
 
 	if (!accfg_test_attempt(test, KERNEL_VERSION(5, 6, 0)))
 		return EXIT_SKIP;
 
 	accfg_set_log_priority(ctx, loglevel);
-	err = idxd_kmod_init(&kmod_ctx, &mod, &mdev_mod, loglevel);
-	if (err < 0) {
+	log_init(&log_ctx, "test/init", "LIB-ACCELCONFIG_TEST");
+	log_ctx.log_priority = loglevel;
+
+	if (access("/sys/module/idxd", F_OK)) {
 		accfg_test_skip(test);
-		fprintf(stderr, "idxd kmod unavailable skipping tests\n");
+		fprintf(stderr, "idxd kernel module not loaded\n");
 		return EXIT_SKIP;
 	}
+
+	if (access("/sys/module/idxd_mdev", F_OK))
+		mdev_disabled = true;
 
 	/*
 	 * iterate to check the state of each device, skip entire test if any of
@@ -1073,12 +1036,6 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 		result = EXIT_SUCCESS;
 
 	test_cleanup(ctx);
-
-	if (mdev_mod)
-		kmod_module_unref(mdev_mod);
-
-	kmod_module_unref(mod);
-	kmod_unref(kmod_ctx);
 
 	return result;
 }

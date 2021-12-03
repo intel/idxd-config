@@ -8,8 +8,7 @@
 #include <stdbool.h>
 #include <syslog.h>
 #include <string.h>
-#include <libudev.h>
-#include <libkmod.h>
+#include <inttypes.h>
 #include <util/log.h>
 #include <uuid/uuid.h>
 #include <ccan/list/list.h>
@@ -160,13 +159,4 @@ struct accfg_ctx {
 	struct accfg_error_ctx *error_ctx;
 };
 
-static inline int check_udev(struct udev *udev)
-{
-	return udev ? 0 : -ENXIO;
-}
-
-static inline int check_kmod(struct kmod_ctx *kmod_ctx)
-{
-	return kmod_ctx ? 0 : -ENXIO;
-}
 #endif /* _LIBACCFG_PRIVATE_H_ */

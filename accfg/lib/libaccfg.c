@@ -151,7 +151,7 @@ static void save_last_error(struct accfg_device *device, struct accfg_wq *wq,
 
 static inline bool is_mdev_registered(struct accfg_device *device)
 {
-	return device->mdev_path && !access(device->mdev_path, R_OK);
+	return device->mdev_path && !access(device->mdev_path, F_OK);
 }
 
 static int accfg_set_param(struct accfg_ctx *ctx, int dfd, char *name,
@@ -398,7 +398,7 @@ ACCFG_EXPORT int accfg_new(struct accfg_ctx **ctx)
 	c->refcount = 1;
 	log_init(&c->ctx, "libaccfg", "ACCFG_LOG");
 	c->timeout = 5000;
-	if (access(IDXD_DRIVER_BIND_PATH, R_OK))
+	if (access(IDXD_DRIVER_BIND_PATH, F_OK))
 		c->compat = true;
 
 	list_head_init(&c->devices);
@@ -870,13 +870,11 @@ static void *add_group(void *parent, int id, const char *group_base,
 	group_base_string = strdup(group_base);
 	if (!group_base_string) {
 		err(ctx, "conversion of group_base_string failed\n");
-		free(group);
 		close(dfd);
 		goto err_group;
 	}
 	if (sscanf(basename(group_base_string),
 				"group%" SCNu64 ".%" SCNu64, &device_id, &group_id) != 2) {
-		free(group);
 		close(dfd);
 		goto err_group;
 	}

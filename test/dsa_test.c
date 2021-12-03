@@ -23,6 +23,7 @@ static void usage(void)
 	"-o <opcode>     ; opcode, same value as in DSA spec\n"
 	"-b <opcode> ; if batch opcode, opcode in the batch\n"
 	"-c <batch_size> ; if batch opcode, number of descriptors for batch\n"
+	"-d              ; wq device such as dsa0/wq0.0\n"
 	"-t <ms timeout> ; ms to wait for descs to complete\n"
 	"-v              ; verbose\n"
 	"-h              ; print this message\n");
@@ -58,6 +59,9 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 		return rc;
 
 	switch (bopcode) {
+	case DSA_OPCODE_NOOP:
+		dsa_prep_batch_noop(ctx->batch_task);
+		break;
 	case DSA_OPCODE_MEMMOVE:
 		dsa_prep_batch_memcpy(ctx->batch_task);
 		break;
@@ -107,8 +111,12 @@ int main(int argc, char *argv[])
 	int tflags = TEST_FLAGS_BOF;
 	int opt;
 	unsigned int bsize = 0;
+	char dev_type[MAX_DEV_LEN];
+	int wq_id = DSA_DEVICE_ID_NO_INPUT;
+	int dev_id = DSA_DEVICE_ID_NO_INPUT;
+	int dev_wq_id = DSA_DEVICE_ID_NO_INPUT;
 
-	while ((opt = getopt(argc, argv, "w:l:f:o:b:c:t:p:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "w:l:f:o:b:c:d:t:p:vh")) != -1) {
 		switch (opt) {
 		case 'w':
 			wq_type = atoi(optarg);
@@ -127,6 +135,13 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			bsize = strtoul(optarg, NULL, 0);
+			break;
+		case 'd':
+			if (sscanf(optarg, "%[a-z]%u/%*[a-z]%u.%u", dev_type,
+						&dev_id, &dev_wq_id, &wq_id) != 4) {
+				err("invalid input device:dev_wq_id:%d ,wq_id:%d\n", dev_wq_id, wq_id);
+				return -EINVAL;
+			}
 			break;
 		case 't':
 			ms_timeout = strtoul(optarg, NULL, 0);
@@ -147,7 +162,7 @@ int main(int argc, char *argv[])
 	if (dsa == NULL)
 		return -ENOMEM;
 
-	rc = dsa_alloc(dsa, wq_type);
+	rc = dsa_alloc(dsa, wq_type, dev_id, wq_id);
 	if (rc < 0)
 		return -ENOMEM;
 
@@ -157,6 +172,33 @@ int main(int argc, char *argv[])
 	}
 
 	switch (opcode) {
+	case DSA_OPCODE_NOOP: {
+		struct task *tsk;
+
+		info("noop: len %#lx tflags %#x\n", buf_size, tflags);
+
+		rc = alloc_task(dsa);
+		if (rc != DSA_STATUS_OK) {
+			err("noop: alloc task failed, rc=%d\n", rc);
+			goto error;
+		}
+
+		tsk = dsa->single_task;
+
+		rc = dsa_noop(dsa);
+		if (rc != DSA_STATUS_OK) {
+			err("noop failed stat %d\n", rc);
+			rc = -ENXIO;
+			break;
+		}
+
+		rc = task_result_verify(tsk, 0);
+		if (rc != DSA_STATUS_OK)
+			goto error;
+
+		break;
+	}
+
 	case DSA_OPCODE_BATCH:
 		if (bsize > dsa->max_batch_size || bsize < 2) {
 			err("invalid num descs: %d\n", bsize);

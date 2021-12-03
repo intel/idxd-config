@@ -8,6 +8,8 @@
 
 #define MAX_PATH_LENGTH 1024
 
+#define DSA_DEVICE_ID_NO_INPUT -1
+
 #define DSA_MAX_OPS 0x20
 
 #define TEST_FLAGS_BOF     0x1     /* Block on page faults */
@@ -211,11 +213,14 @@ int memcmp_pattern(const void *src, const uint64_t pattern, size_t len);
 int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw);
 
 struct dsa_context *dsa_init(void);
-int dsa_alloc(struct dsa_context *ctx, int shared);
+int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
 int alloc_task(struct dsa_context *ctx);
 struct task *__alloc_task(void);
 int init_task(struct task *tsk, int tflags, int opcode,
 		unsigned long xfer_size);
+
+int dsa_noop(struct dsa_context *ctx);
+int dsa_wait_noop(struct dsa_context *ctx);
 
 int dsa_memcpy(struct dsa_context *ctx);
 int dsa_wait_memcpy(struct dsa_context *ctx);
@@ -232,6 +237,7 @@ int dsa_wait_compval(struct dsa_context *ctx);
 int dsa_dualcast(struct dsa_context *ctx);
 int dsa_wait_dualcast(struct dsa_context *ctx);
 
+void dsa_prep_noop(struct task *tsk);
 void dsa_prep_memcpy(struct task *tsk);
 void dsa_reprep_memcpy(struct dsa_context *ctx);
 void dsa_prep_memfill(struct task *tsk);
@@ -256,6 +262,7 @@ int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
 		int opcode, unsigned long xfer_size, unsigned long dflags);
 
 void dsa_prep_batch(struct batch_task *btsk, unsigned long desc_flags);
+void dsa_prep_batch_noop(struct batch_task *btsk);
 void dsa_prep_batch_memcpy(struct batch_task *btsk);
 void dsa_prep_batch_memfill(struct batch_task *btsk);
 void dsa_prep_batch_compare(struct batch_task *btsk);

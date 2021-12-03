@@ -13,10 +13,8 @@ BuildRequires:	xmlto
 BuildRequires:	automake
 BuildRequires:	libtool
 BuildRequires:	pkgconfig
-BuildRequires:	pkgconfig(libkmod)
 BuildRequires:	pkgconfig(uuid)
 BuildRequires:	pkgconfig(json-c)
-BuildRequires:	pkgconfig(libudev)
 BuildRequires:	systemd
 
 %description

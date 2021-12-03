@@ -23,8 +23,7 @@ accel_config_LDADD =\
 	lib/libaccel-config.la \
 	../libutil.a \
 	$(JSON_LIBS) \
-	$(UUID_LIBS) \
-	$(KMOD_LIBS)
+	$(UUID_LIBS)
 
 if ENABLE_TEST
 accel_config_SOURCES += ../test/libaccfg.c \

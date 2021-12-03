@@ -30,6 +30,17 @@ void dsa_desc_submit(struct dsa_context *ctx, struct dsa_hw_desc *hw)
 			usleep(10000);
 }
 
+void dsa_prep_noop(struct task *tsk)
+{
+	info("preparing descriptor for noop\n");
+
+	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			(uint64_t)(tsk->src1), 0, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+}
+
 void dsa_prep_memcpy(struct task *tsk)
 {
 	info("preparing descriptor for memcpy\n");
@@ -61,6 +72,23 @@ void dsa_reprep_memcpy(struct dsa_context *ctx)
 	compl->status = 0;
 
 	dsa_desc_submit(ctx, hw);
+}
+
+void dsa_prep_batch_noop(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	uint32_t dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &(btsk->sub_tasks[i]);
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				(uint64_t)(sub_task->dst1),
+				(uint64_t)(sub_task->src1),
+				0, dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
+	}
 }
 
 /* Performs no error or bound checking */

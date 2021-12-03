@@ -38,7 +38,6 @@ int cmd_test(int argc, const char **argv, struct accfg_ctx *ctx)
 
 	if (argc)
 		usage_with_options(u, options);
-
 	else
 		test = accfg_test_new(0);
 	if (!test)
