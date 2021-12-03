@@ -105,6 +105,9 @@ _cleanup()
 	lsmod | grep -q "idxd_uacce" && {
 		rmmod idxd_uacce
 	}
+	lsmod | grep -q "iax_crypto" && {
+		rmmod iax_crypto
+	}
 	lsmod | grep -q "idxd" && {
 		rmmod idxd
 	}
