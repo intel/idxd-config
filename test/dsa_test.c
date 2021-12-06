@@ -130,6 +130,118 @@ static int test_noop(struct dsa_context *ctx, int tflags)
 	return rc;
 }
 
+static int test_memory(struct dsa_context *ctx, size_t buf_size,
+		       int tflags, uint32_t opcode)
+{
+	struct task *tsk;
+	int rc;
+
+	info("mem: len %#lx tflags %#x opcode %d\n", buf_size, tflags, opcode);
+
+	ctx->is_batch = 0;
+
+	rc = alloc_task(ctx);
+	if (rc != DSA_STATUS_OK) {
+		err("mem: alloc task failed opcode %d, rc=%d\n", opcode, rc);
+		return rc;
+	}
+
+	tsk = ctx->single_task;
+	rc = init_task(tsk, tflags, opcode, buf_size);
+	if (rc != DSA_STATUS_OK) {
+		err("mem: init task failed opcode %d, rc=%d\n", opcode, rc);
+		return rc;
+	}
+
+	switch (opcode) {
+	case DSA_OPCODE_MEMMOVE:
+		rc = dsa_memcpy(ctx);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		rc = task_result_verify(tsk, 0);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+		break;
+
+	case DSA_OPCODE_MEMFILL:
+		rc = dsa_memfill(ctx);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		rc = task_result_verify(tsk, 0);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+		break;
+
+	case DSA_OPCODE_COMPARE:
+		rc = dsa_compare(ctx);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		rc = task_result_verify(tsk, 0);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		info("Testing mismatch buffers\n");
+		info("creating a diff at index %#lx\n", tsk->xfer_size / 2);
+		((uint8_t *)(tsk->src1))[tsk->xfer_size / 2] = 0;
+		((uint8_t *)(tsk->src2))[tsk->xfer_size / 2] = 1;
+
+		memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
+
+		rc = dsa_compare(ctx);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		rc = task_result_verify(tsk, 1);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+		break;
+
+	case DSA_OPCODE_COMPVAL:
+		rc = dsa_compval(ctx);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		rc = task_result_verify(tsk, 0);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		info("Testing mismatching buffers\n");
+		info("creating a diff at index %#lx\n", tsk->xfer_size / 2);
+		((uint8_t *)(tsk->src1))[tsk->xfer_size / 2] =
+				~(((uint8_t *)(tsk->src1))[tsk->xfer_size / 2]);
+
+		memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
+
+		rc = dsa_compval(ctx);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		rc = task_result_verify(tsk, 1);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+		break;
+
+	case DSA_OPCODE_DUALCAST:
+		rc = dsa_dualcast(ctx);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		rc = task_result_verify(tsk, 0);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+		break;
+
+	default:
+		err("Unsupported opcode %#x\n", opcode);
+		return -EINVAL;
+	}
+
+	return rc;
+}
+
 int main(int argc, char *argv[])
 {
 	struct dsa_context *dsa;
@@ -220,203 +332,15 @@ int main(int argc, char *argv[])
 			goto error;
 		break;
 
-	case DSA_OPCODE_MEMMOVE: {
-		struct task *tsk;
-
-		info("memcpy: len %#lx tflags %#x\n", buf_size, tflags);
-
-		rc = alloc_task(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("memcpy: alloc task failed, rc=%d\n", rc);
-			goto error;
-		}
-
-		tsk = dsa->single_task;
-		rc = init_task(tsk, tflags, opcode, buf_size);
-		if (rc != DSA_STATUS_OK) {
-			err("memcpy: init task failed\n");
-			goto error;
-		}
-
-		rc = dsa_memcpy(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("memcpy failed stat %d\n", rc);
-			rc = -ENXIO;
-			break;
-		}
-
-		rc = task_result_verify(tsk, 0);
+	case DSA_OPCODE_MEMMOVE:
+	case DSA_OPCODE_MEMFILL:
+	case DSA_OPCODE_COMPARE:
+	case DSA_OPCODE_COMPVAL:
+	case DSA_OPCODE_DUALCAST:
+		rc = test_memory(dsa, buf_size, tflags, opcode);
 		if (rc != DSA_STATUS_OK)
 			goto error;
-
 		break;
-	}
-
-	case DSA_OPCODE_MEMFILL: {
-		struct task *tsk;
-
-		info("memfill: len %#lx tflags %#x\n", buf_size, tflags);
-
-		rc = alloc_task(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("memfill: alloc task failed, rc=%d\n", rc);
-			goto error;
-		}
-
-		tsk = dsa->single_task;
-		rc = init_task(tsk, tflags, opcode, buf_size);
-		if (rc != DSA_STATUS_OK) {
-			err("memfill: init task failed\n");
-			goto error;
-		}
-
-		rc = dsa_memfill(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("memfill failed stat %d\n", rc);
-			rc = -ENXIO;
-			goto error;
-		}
-
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			goto error;
-
-		break;
-	}
-
-	case DSA_OPCODE_COMPARE: {
-		struct task *tsk;
-
-		info("compare: matching buffers len %#lx tflags %#x\n",
-		     buf_size, tflags);
-
-		rc = alloc_task(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("compare: alloc task failed, rc=%d\n", rc);
-			goto error;
-		}
-
-		tsk = dsa->single_task;
-		rc = init_task(tsk, tflags, opcode, buf_size);
-		if (rc != DSA_STATUS_OK) {
-			err("compare: init task failed\n");
-			goto error;
-		}
-
-		rc = dsa_compare(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("compare1 failed stat %d\n", rc);
-			rc = -ENXIO;
-			goto error;
-		}
-
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			goto error;
-
-		info("Testing mismatch buffers\n");
-		info("creating a diff at index %#lx\n", tsk->xfer_size / 2);
-		((uint8_t *)(tsk->src1))[tsk->xfer_size / 2] = 0;
-		((uint8_t *)(tsk->src2))[tsk->xfer_size / 2] = 1;
-
-		memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
-
-		rc = dsa_compare(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("compare2 failed stat %d\n", rc);
-			rc = -ENXIO;
-			goto error;
-		}
-
-		rc = task_result_verify(tsk, 1);
-		if (rc != DSA_STATUS_OK)
-			goto error;
-
-		break;
-	}
-
-	case DSA_OPCODE_COMPVAL: {
-		struct task *tsk;
-
-		info("compval: matching buffer len %#lx tflags %#x\n",
-		     buf_size, tflags);
-
-		rc = alloc_task(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("compval: alloc task failed, rc=%d\n", rc);
-			goto error;
-		}
-
-		tsk = dsa->single_task;
-		rc = init_task(tsk, tflags, opcode, buf_size);
-		if (rc != DSA_STATUS_OK) {
-			err("compval: init task failed\n");
-			goto error;
-		}
-
-		rc = dsa_compval(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("compval1 failed stat %d\n", rc);
-			rc = -ENXIO;
-			goto error;
-		}
-
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			goto error;
-
-		info("Testing mismatching buffers\n");
-		info("creating a diff at index %#lx\n", tsk->xfer_size / 2);
-		((uint8_t *)(tsk->src1))[tsk->xfer_size / 2] =
-				~(((uint8_t *)(tsk->src1))[tsk->xfer_size / 2]);
-
-		memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
-
-		rc = dsa_compval(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("compval2 failed stat %d\n", rc);
-			rc = -ENXIO;
-			goto error;
-		}
-
-		rc = task_result_verify(tsk, 1);
-		if (rc != DSA_STATUS_OK)
-			goto error;
-
-		break;
-	}
-
-	case DSA_OPCODE_DUALCAST: {
-		struct task *tsk;
-
-		info("dualcast: len %#lx tflags %#x\n", buf_size, tflags);
-
-		rc = alloc_task(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("dualcast: alloc task failed, rc=%d\n", rc);
-			goto error;
-		}
-
-		tsk = dsa->single_task;
-		rc = init_task(tsk, tflags, opcode, buf_size);
-		if (rc != DSA_STATUS_OK) {
-			err("dualcast: init task failed\n");
-			goto error;
-		}
-
-		rc = dsa_dualcast(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("dualcast failed stat %d\n", rc);
-			rc = -ENXIO;
-			goto error;
-		}
-
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			goto error;
-
-		break;
-	}
 
 	default:
 		rc = -EINVAL;
