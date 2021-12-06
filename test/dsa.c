@@ -428,7 +428,7 @@ static inline unsigned long rdtsc(void)
 	return ((uint64_t)d << 32) | (uint64_t)a;
 }
 
-static inline void umonitor(volatile void *addr)
+static inline void umonitor(void *addr)
 {
 	asm volatile(".byte 0xf3, 0x48, 0x0f, 0xae, 0xf0" : : "a"(addr));
 }

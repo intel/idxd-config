@@ -78,8 +78,8 @@ void dsa_prep_batch_noop(struct batch_task *btsk)
 {
 	int i;
 	struct task *sub_task;
-
 	uint32_t dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+
 	for (i = 0; i < btsk->task_num; i++) {
 		sub_task = &(btsk->sub_tasks[i]);
 		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
