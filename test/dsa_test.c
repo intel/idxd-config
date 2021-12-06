@@ -100,6 +100,36 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 	return rc;
 }
 
+static int test_noop(struct dsa_context *ctx, int tflags)
+{
+	struct task *tsk;
+	int rc;
+
+	info("noop: tflags %#x\n", tflags);
+
+	ctx->is_batch = 0;
+
+	rc = alloc_task(ctx);
+	if (rc != DSA_STATUS_OK) {
+		err("noop: alloc task failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	tsk = ctx->single_task;
+
+	rc = dsa_noop(ctx);
+	if (rc != DSA_STATUS_OK) {
+		err("noop failed stat %d\n", rc);
+		return rc;
+	}
+
+	rc = task_result_verify(tsk, 0);
+	if (rc != DSA_STATUS_OK)
+		return rc;
+
+	return rc;
+}
+
 int main(int argc, char *argv[])
 {
 	struct dsa_context *dsa;
@@ -173,32 +203,11 @@ int main(int argc, char *argv[])
 	}
 
 	switch (opcode) {
-	case DSA_OPCODE_NOOP: {
-		struct task *tsk;
-
-		info("noop: len %#lx tflags %#x\n", buf_size, tflags);
-
-		rc = alloc_task(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("noop: alloc task failed, rc=%d\n", rc);
-			goto error;
-		}
-
-		tsk = dsa->single_task;
-
-		rc = dsa_noop(dsa);
-		if (rc != DSA_STATUS_OK) {
-			err("noop failed stat %d\n", rc);
-			rc = -ENXIO;
-			break;
-		}
-
-		rc = task_result_verify(tsk, 0);
+	case DSA_OPCODE_NOOP:
+		rc = test_noop(dsa, tflags);
 		if (rc != DSA_STATUS_OK)
 			goto error;
-
 		break;
-	}
 
 	case DSA_OPCODE_BATCH:
 		if (bsize > dsa->max_batch_size || bsize < 2) {
