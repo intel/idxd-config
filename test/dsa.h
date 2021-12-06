@@ -217,7 +217,7 @@ int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
 int alloc_task(struct dsa_context *ctx);
 struct task *__alloc_task(void);
 int init_task(struct task *tsk, int tflags, int opcode,
-		unsigned long xfer_size);
+	      unsigned long xfer_size);
 
 int dsa_noop(struct dsa_context *ctx);
 int dsa_wait_noop(struct dsa_context *ctx);
@@ -259,7 +259,7 @@ int batch_result_verify(struct batch_task *btsk, int bof);
 
 int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num);
 int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
-		int opcode, unsigned long xfer_size, unsigned long dflags);
+		    int opcode, unsigned long xfer_size, unsigned long dflags);
 
 void dsa_prep_batch(struct batch_task *btsk, unsigned long desc_flags);
 void dsa_prep_batch_noop(struct batch_task *btsk);
@@ -277,6 +277,6 @@ void __clean_task(struct task *tsk);
 void free_batch_task(struct batch_task *btsk);
 
 void dsa_prep_desc_common(struct dsa_hw_desc *hw, char opcode,
-		uint64_t dest, uint64_t src, size_t len, unsigned long dflags);
+			  uint64_t dest, uint64_t src, size_t len, unsigned long dflags);
 void dsa_desc_submit(struct dsa_context *ctx, struct dsa_hw_desc *hw);
 #endif

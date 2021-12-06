@@ -30,13 +30,13 @@ static void usage(void)
 }
 
 static int test_batch(struct dsa_context *ctx, size_t buf_size,
-		int tflags, uint32_t bopcode, unsigned int bsize)
+		      int tflags, uint32_t bopcode, unsigned int bsize)
 {
 	unsigned long dflags;
 	int rc = 0;
 
 	info("batch: len %#lx tflags %#x bopcode %#x batch_no %d\n",
-			buf_size, tflags, bopcode, bsize);
+	     buf_size, tflags, bopcode, bsize);
 
 	if (bopcode == DSA_OPCODE_BATCH) {
 		err("Can't have batch op inside batch op\n");
@@ -54,7 +54,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 		dflags |= IDXD_OP_FLAG_BOF;
 
 	rc = init_batch_task(ctx->batch_task, bsize, tflags, bopcode,
-			buf_size, dflags);
+			     buf_size, dflags);
 	if (rc != DSA_STATUS_OK)
 		return rc;
 
@@ -138,8 +138,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'd':
 			if (sscanf(optarg, "%[a-z]%u/%*[a-z]%u.%u", dev_type,
-						&dev_id, &dev_wq_id, &wq_id) != 4) {
-				err("invalid input device:dev_wq_id:%d ,wq_id:%d\n", dev_wq_id, wq_id);
+				   &dev_id, &dev_wq_id, &wq_id) != 4) {
+				err("invalid input device:dev_wq_id:%d ,wq_id:%d\n",
+				    dev_wq_id, wq_id);
 				return -EINVAL;
 			}
 			break;
@@ -159,7 +160,7 @@ int main(int argc, char *argv[])
 
 	dsa = dsa_init();
 
-	if (dsa == NULL)
+	if (!dsa)
 		return -ENOMEM;
 
 	rc = dsa_alloc(dsa, wq_type, dev_id, wq_id);
@@ -278,7 +279,7 @@ int main(int argc, char *argv[])
 		struct task *tsk;
 
 		info("compare: matching buffers len %#lx tflags %#x\n",
-				buf_size, tflags);
+		     buf_size, tflags);
 
 		rc = alloc_task(dsa);
 		if (rc != DSA_STATUS_OK) {
@@ -305,9 +306,9 @@ int main(int argc, char *argv[])
 			goto error;
 
 		info("Testing mismatch buffers\n");
-		info("creating a diff at index %#lx\n", tsk->xfer_size/2);
-		((uint8_t *)(tsk->src1))[tsk->xfer_size/2] = 0;
-		((uint8_t *)(tsk->src2))[tsk->xfer_size/2] = 1;
+		info("creating a diff at index %#lx\n", tsk->xfer_size / 2);
+		((uint8_t *)(tsk->src1))[tsk->xfer_size / 2] = 0;
+		((uint8_t *)(tsk->src2))[tsk->xfer_size / 2] = 1;
 
 		memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
 
@@ -329,7 +330,7 @@ int main(int argc, char *argv[])
 		struct task *tsk;
 
 		info("compval: matching buffer len %#lx tflags %#x\n",
-				buf_size, tflags);
+		     buf_size, tflags);
 
 		rc = alloc_task(dsa);
 		if (rc != DSA_STATUS_OK) {
@@ -356,9 +357,9 @@ int main(int argc, char *argv[])
 			goto error;
 
 		info("Testing mismatching buffers\n");
-		info("creating a diff at index %#lx\n", tsk->xfer_size/2);
-		((uint8_t *)(tsk->src1))[tsk->xfer_size/2] =
-				~(((uint8_t *)(tsk->src1))[tsk->xfer_size/2]);
+		info("creating a diff at index %#lx\n", tsk->xfer_size / 2);
+		((uint8_t *)(tsk->src1))[tsk->xfer_size / 2] =
+				~(((uint8_t *)(tsk->src1))[tsk->xfer_size / 2]);
 
 		memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
 
