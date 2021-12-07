@@ -21,7 +21,15 @@
 #include <accfg.h>
 
 static bool verbose;
+static bool enable;
 static struct util_filter_params util_param;
+
+static LIST_HEAD(activate_dev_list);
+static LIST_HEAD(activate_wq_list);
+struct activate_dev {
+	void *dev;
+	struct list_node list;
+};
 
 static struct config {
 	bool devices;
@@ -418,6 +426,57 @@ static int engine_json_set_val(struct accfg_engine *engine,
 }
 
 /*
+ * Add configured devices and wqs to activation list
+ */
+static int add_to_activation_list(struct list_head *activate_list, void *dev)
+{
+	struct activate_dev *act_dev;
+
+	act_dev = calloc(1, sizeof(struct activate_dev));
+	if (!act_dev) {
+		fprintf(stderr, "Error allocating memory for activation list\n");
+		return -ENOMEM;
+	}
+	act_dev->dev = dev;
+	list_add(activate_list, &act_dev->list);
+
+	return 0;
+}
+
+/*
+ * Enable devices in activation list
+ */
+static int activate_devices(void)
+{
+	struct activate_dev *iter, *next;
+	int rc;
+
+	list_for_each_safe(&activate_dev_list, iter, next, list) {
+		printf("Enabling device %s\n",
+				accfg_device_get_devname(iter->dev));
+		rc = accfg_device_enable(iter->dev);
+		if (rc) {
+			fprintf(stderr, "Error enabling device\n");
+			return rc;
+		}
+
+		free(iter);
+	}
+
+	list_for_each_safe(&activate_wq_list, iter, next, list) {
+		printf("Enabling wq %s\n", accfg_wq_get_devname(iter->dev));
+		rc = accfg_wq_enable(iter->dev);
+		if (rc) {
+			fprintf(stderr, "Error enabling wq\n");
+			return rc;
+		}
+		free(iter);
+	}
+
+	return 0;
+}
+
+/*
  * Configuring the value corresponding to integer and strings
  */
 static int configure_json_value(struct accfg_ctx *ctx,
@@ -471,6 +530,12 @@ static int configure_json_value(struct accfg_ctx *ctx,
 				wq = NULL;
 				engine = NULL;
 				group = NULL;
+
+				if (enable) {
+					rc = add_to_activation_list(&activate_dev_list, dev);
+					if (rc)
+						return rc;
+				}
 				break;
 			}
 			accel_type = accfg_basenames[i];
@@ -500,6 +565,12 @@ static int configure_json_value(struct accfg_ctx *ctx,
 			dev = NULL;
 			engine = NULL;
 			group = NULL;
+
+			if (enable) {
+				rc = add_to_activation_list(&activate_wq_list, wq);
+				if (rc)
+					return rc;
+			}
 		}
 
 		if (strstr(parsed_string, "engine") != NULL) {
@@ -1004,6 +1075,8 @@ int cmd_config(int argc, const char **argv, void *ctx)
 			     "override the default config"),
 		OPT_BOOLEAN('v', "verbose", &verbose,
 				"emit extra debug messages to stderr"),
+		OPT_BOOLEAN('e', "enable", &enable,
+				"enable configured devices and wqs"),
 		OPT_END(),
 	};
 	const char *const u[] = {
@@ -1049,5 +1122,9 @@ int cmd_config(int argc, const char **argv, void *ctx)
 		fprintf(stderr, "Parse json and set device fail: %d\n", rc);
 
 	free_containers(&cfa);
+
+	if (enable && !rc)
+		rc = activate_devices();
+
 	return rc;
 }
