@@ -24,19 +24,22 @@ static void usage(void)
 	"-b <opcode> ; if batch opcode, opcode in the batch\n"
 	"-c <batch_size> ; if batch opcode, number of descriptors for batch\n"
 	"-d              ; wq device such as dsa0/wq0.0\n"
+	"-n <number of descriptors> ;descriptor count to submit\n"
 	"-t <ms timeout> ; ms to wait for descs to complete\n"
 	"-v              ; verbose\n"
 	"-h              ; print this message\n");
 }
 
 static int test_batch(struct dsa_context *ctx, size_t buf_size,
-		      int tflags, uint32_t bopcode, unsigned int bsize)
+		      int tflags, uint32_t bopcode, unsigned int bsize, int num_desc)
 {
+	struct btask_node *btsk_node;
 	unsigned long dflags;
-	int rc = 0;
+	int rc = DSA_STATUS_OK;
+	int itr = num_desc, i = 0, range = 0;
 
-	info("batch: len %#lx tflags %#x bopcode %#x batch_no %d\n",
-	     buf_size, tflags, bopcode, bsize);
+	info("batch: len %#lx tflags %#x bopcode %#x batch_no %d num_desc %ld\n",
+	     buf_size, tflags, bopcode, bsize, num_desc);
 
 	if (bopcode == DSA_OPCODE_BATCH) {
 		err("Can't have batch op inside batch op\n");
@@ -45,198 +48,279 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 
 	ctx->is_batch = 1;
 
-	rc = alloc_batch_task(ctx, bsize);
-	if (rc != DSA_STATUS_OK)
-		return rc;
+	if (ctx->dedicated == ACCFG_WQ_SHARED)
+		range = ctx->threshold;
+	else
+		range = ctx->wq_size - 1;
 
-	dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((tflags & TEST_FLAGS_BOF) && ctx->bof)
-		dflags |= IDXD_OP_FLAG_BOF;
+	while (itr > 0 && rc == DSA_STATUS_OK) {
+		i = (itr < range) ? itr : range;
+		rc = alloc_batch_task(ctx, bsize, i);
+		if (rc != DSA_STATUS_OK)
+			return rc;
 
-	rc = init_batch_task(ctx->batch_task, bsize, tflags, bopcode,
-			     buf_size, dflags);
-	if (rc != DSA_STATUS_OK)
-		return rc;
+		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tflags & TEST_FLAGS_BOF) && ctx->bof)
+			dflags |= IDXD_OP_FLAG_BOF;
 
-	switch (bopcode) {
-	case DSA_OPCODE_NOOP:
-		dsa_prep_batch_noop(ctx->batch_task);
-		break;
-	case DSA_OPCODE_MEMMOVE:
-		dsa_prep_batch_memcpy(ctx->batch_task);
-		break;
+		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
+		btsk_node = ctx->multi_btask_node;
+		while (btsk_node) {
+			rc = init_batch_task(btsk_node->btsk, bsize, tflags, bopcode,
+					     buf_size, dflags);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-	case DSA_OPCODE_MEMFILL:
-		dsa_prep_batch_memfill(ctx->batch_task);
-		break;
+			switch (bopcode) {
+			case DSA_OPCODE_NOOP:
+				dsa_prep_batch_noop(btsk_node->btsk);
+				break;
 
-	case DSA_OPCODE_COMPARE:
-		dsa_prep_batch_compare(ctx->batch_task);
-		break;
+			case DSA_OPCODE_MEMMOVE:
+				dsa_prep_batch_memcpy(btsk_node->btsk);
+				break;
 
-	case DSA_OPCODE_COMPVAL:
-		dsa_prep_batch_compval(ctx->batch_task);
-		break;
-	case DSA_OPCODE_DUALCAST:
-		dsa_prep_batch_dualcast(ctx->batch_task);
-		break;
-	default:
-		err("Unsupported op %#x\n", bopcode);
-		return -EINVAL;
+			case DSA_OPCODE_MEMFILL:
+				dsa_prep_batch_memfill(btsk_node->btsk);
+				break;
+
+			case DSA_OPCODE_COMPARE:
+				dsa_prep_batch_compare(btsk_node->btsk);
+				break;
+			case DSA_OPCODE_COMPVAL:
+				dsa_prep_batch_compval(btsk_node->btsk);
+				break;
+
+			case DSA_OPCODE_DUALCAST:
+				dsa_prep_batch_dualcast(btsk_node->btsk);
+				break;
+			default:
+				err("Unsupported op %#x\n", bopcode);
+				return -EINVAL;
+			}
+
+			btsk_node = btsk_node->next;
+		}
+
+		btsk_node = ctx->multi_btask_node;
+		while (btsk_node) {
+			dsa_prep_batch(btsk_node->btsk, dflags);
+			dump_sub_desc(btsk_node->btsk);
+			btsk_node = btsk_node->next;
+		}
+
+		btsk_node = ctx->multi_btask_node;
+		while (btsk_node) {
+			dsa_desc_submit(ctx, btsk_node->btsk->core_task->desc);
+			btsk_node = btsk_node->next;
+		}
+
+		btsk_node = ctx->multi_btask_node;
+		while (btsk_node) {
+			rc = dsa_wait_batch(btsk_node->btsk);
+			if (rc != DSA_STATUS_OK)
+				err("batch failed stat %d\n", rc);
+			btsk_node = btsk_node->next;
+		}
+
+		btsk_node = ctx->multi_btask_node;
+		while (btsk_node) {
+			rc = batch_result_verify(btsk_node->btsk, dflags & IDXD_OP_FLAG_BOF);
+			btsk_node = btsk_node->next;
+		}
+
+		dsa_free_task(ctx);
+		itr = itr - range;
 	}
-
-	dsa_prep_batch(ctx->batch_task, dflags);
-	dump_sub_desc(ctx->batch_task);
-	dsa_desc_submit(ctx, ctx->batch_task->core_task->desc);
-
-	rc = dsa_wait_batch(ctx);
-	if (rc != DSA_STATUS_OK) {
-		err("batch failed stat %d\n", rc);
-		rc = -ENXIO;
-	}
-
-	rc = batch_result_verify(ctx->batch_task, dflags & IDXD_OP_FLAG_BOF);
 
 	return rc;
 }
 
-static int test_noop(struct dsa_context *ctx, int tflags)
+static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
 {
-	struct task *tsk;
-	int rc;
+	struct task_node *tsk_node;
+	int rc = DSA_STATUS_OK;
+	int itr = num_desc, i = 0, range = 0;
 
-	info("noop: tflags %#x\n", tflags);
+	info("testnoop: tflags %#x num_desc %ld\n", tflags, num_desc);
 
 	ctx->is_batch = 0;
 
-	rc = alloc_task(ctx);
-	if (rc != DSA_STATUS_OK) {
-		err("noop: alloc task failed, rc=%d\n", rc);
-		return rc;
+	if (ctx->dedicated == ACCFG_WQ_SHARED)
+		range = ctx->threshold;
+	else
+		range = ctx->wq_size - 1;
+
+	while (itr > 0 && rc == DSA_STATUS_OK) {
+		i = (itr < range) ? itr : range;
+		/* Allocate memory to all the task nodes, desc, completion record*/
+		rc = alloc_multiple_tasks(ctx, i);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
+		tsk_node = ctx->multi_task_node;
+		while (tsk_node) {
+			tsk_node->tsk->opcode = DSA_OPCODE_NOOP;
+			tsk_node->tsk->test_flags = tflags;
+			tsk_node = tsk_node->next;
+		}
+
+		rc = dsa_noop_multi_task_nodes(ctx);
+		if (rc != DSA_STATUS_OK)
+			return rc;
+
+		/* Verification of all the nodes*/
+		tsk_node = ctx->multi_task_node;
+		while (tsk_node) {
+			rc = task_result_verify(tsk_node->tsk, 0);
+			tsk_node = tsk_node->next;
+		}
+
+		dsa_free_task(ctx);
+		itr = itr - range;
 	}
-
-	tsk = ctx->single_task;
-
-	rc = dsa_noop(ctx);
-	if (rc != DSA_STATUS_OK) {
-		err("noop failed stat %d\n", rc);
-		return rc;
-	}
-
-	rc = task_result_verify(tsk, 0);
-	if (rc != DSA_STATUS_OK)
-		return rc;
 
 	return rc;
 }
 
 static int test_memory(struct dsa_context *ctx, size_t buf_size,
-		       int tflags, uint32_t opcode)
+		       int tflags, uint32_t opcode, int num_desc)
 {
-	struct task *tsk;
-	int rc;
+	struct task_node *tsk_node;
+	int rc = DSA_STATUS_OK;
+	int itr = num_desc, i = 0, range = 0;
 
-	info("mem: len %#lx tflags %#x opcode %d\n", buf_size, tflags, opcode);
+	info("testmemory: opcode %d len %#lx tflags %#x num_desc %ld\n",
+	     opcode, buf_size, tflags, num_desc);
 
 	ctx->is_batch = 0;
 
-	rc = alloc_task(ctx);
-	if (rc != DSA_STATUS_OK) {
-		err("mem: alloc task failed opcode %d, rc=%d\n", opcode, rc);
-		return rc;
-	}
+	if (ctx->dedicated == ACCFG_WQ_SHARED)
+		range = ctx->threshold;
+	else
+		range = ctx->wq_size - 1;
 
-	tsk = ctx->single_task;
-	rc = init_task(tsk, tflags, opcode, buf_size);
-	if (rc != DSA_STATUS_OK) {
-		err("mem: init task failed opcode %d, rc=%d\n", opcode, rc);
-		return rc;
-	}
-
-	switch (opcode) {
-	case DSA_OPCODE_MEMMOVE:
-		rc = dsa_memcpy(ctx);
+	while (itr > 0 && rc == DSA_STATUS_OK) {
+		i = (itr < range) ? itr : range;
+		/* Allocate memory to all the task nodes, desc, completion record*/
+		rc = alloc_multiple_tasks(ctx, i);
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			return rc;
-		break;
+		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
+		tsk_node = ctx->multi_task_node;
+		while (tsk_node) {
+			tsk_node->tsk->xfer_size = buf_size;
 
-	case DSA_OPCODE_MEMFILL:
-		rc = dsa_memfill(ctx);
-		if (rc != DSA_STATUS_OK)
-			return rc;
+			rc = init_task(tsk_node->tsk, tflags, opcode, buf_size);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			return rc;
-		break;
+			tsk_node = tsk_node->next;
+		}
 
-	case DSA_OPCODE_COMPARE:
-		rc = dsa_compare(ctx);
-		if (rc != DSA_STATUS_OK)
-			return rc;
+		switch (opcode) {
+		case DSA_OPCODE_MEMMOVE:
+			rc = dsa_memcpy_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			return rc;
+			/* Verification of all the nodes*/
+			rc = task_result_verify_task_nodes(ctx, 0);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+			break;
 
-		info("Testing mismatch buffers\n");
-		info("creating a diff at index %#lx\n", tsk->xfer_size / 2);
-		((uint8_t *)(tsk->src1))[tsk->xfer_size / 2] = 0;
-		((uint8_t *)(tsk->src2))[tsk->xfer_size / 2] = 1;
+		case DSA_OPCODE_MEMFILL:
+			rc = dsa_memfill_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-		memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
+			/* Verification of all the nodes*/
+			rc = task_result_verify_task_nodes(ctx, 0);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+			break;
 
-		rc = dsa_compare(ctx);
-		if (rc != DSA_STATUS_OK)
-			return rc;
+		case DSA_OPCODE_COMPARE:
+			rc = dsa_compare_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-		rc = task_result_verify(tsk, 1);
-		if (rc != DSA_STATUS_OK)
-			return rc;
-		break;
+			/* Verification of all the nodes*/
+			rc = task_result_verify_task_nodes(ctx, 0);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-	case DSA_OPCODE_COMPVAL:
-		rc = dsa_compval(ctx);
-		if (rc != DSA_STATUS_OK)
-			return rc;
+			info("Testing mismatch buffers\n");
+			tsk_node = ctx->multi_task_node;
+			while (tsk_node) {
+				((uint8_t *)(tsk_node->tsk->src1))[tsk_node->tsk->xfer_size / 2] =
+					0;
+				((uint8_t *)(tsk_node->tsk->src2))[tsk_node->tsk->xfer_size / 2] =
+					1;
+				memset(tsk_node->tsk->comp, 0,
+				       sizeof(struct dsa_completion_record));
+				tsk_node = tsk_node->next;
+			}
 
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			return rc;
+			rc = dsa_compare_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-		info("Testing mismatching buffers\n");
-		info("creating a diff at index %#lx\n", tsk->xfer_size / 2);
-		((uint8_t *)(tsk->src1))[tsk->xfer_size / 2] =
-				~(((uint8_t *)(tsk->src1))[tsk->xfer_size / 2]);
+			/* Verification of all the nodes*/
+			rc = task_result_verify_task_nodes(ctx, 1);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+			break;
 
-		memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
+		case DSA_OPCODE_COMPVAL:
+			rc = dsa_compval_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-		rc = dsa_compval(ctx);
-		if (rc != DSA_STATUS_OK)
-			return rc;
+			/* Verification of all the nodes*/
+			rc = task_result_verify_task_nodes(ctx, 0);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-		rc = task_result_verify(tsk, 1);
-		if (rc != DSA_STATUS_OK)
-			return rc;
-		break;
+			info("Testing mismatching buffers\n");
+			tsk_node = ctx->multi_task_node;
+			while (tsk_node) {
+				((uint8_t *)(tsk_node->tsk->src1))[tsk_node->tsk->xfer_size / 2] =
+				~(((uint8_t *)(tsk_node->tsk->src1))[tsk_node->tsk->xfer_size / 2]);
+				memset(tsk_node->tsk->comp, 0,
+				       sizeof(struct dsa_completion_record));
+				tsk_node = tsk_node->next;
+			}
 
-	case DSA_OPCODE_DUALCAST:
-		rc = dsa_dualcast(ctx);
-		if (rc != DSA_STATUS_OK)
-			return rc;
+			rc = dsa_compval_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-		rc = task_result_verify(tsk, 0);
-		if (rc != DSA_STATUS_OK)
-			return rc;
-		break;
+			/* Verification of all the nodes*/
+			rc = task_result_verify_task_nodes(ctx, 1);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+			break;
+		case DSA_OPCODE_DUALCAST:
+			rc = dsa_dualcast_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
 
-	default:
-		err("Unsupported opcode %#x\n", opcode);
-		return -EINVAL;
+			/* Verification of all the nodes*/
+			rc = task_result_verify_task_nodes(ctx, 0);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+			break;
+		default:
+			err("Unsupported op %#x\n", opcode);
+			return -EINVAL;
+		}
+
+		dsa_free_task(ctx);
+		itr = itr - range;
 	}
 
 	return rc;
@@ -257,8 +341,9 @@ int main(int argc, char *argv[])
 	int wq_id = DSA_DEVICE_ID_NO_INPUT;
 	int dev_id = DSA_DEVICE_ID_NO_INPUT;
 	int dev_wq_id = DSA_DEVICE_ID_NO_INPUT;
+	unsigned int num_desc = 1;
 
-	while ((opt = getopt(argc, argv, "w:l:f:o:b:c:d:t:p:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "w:l:f:o:b:c:d:n:t:p:vh")) != -1) {
 		switch (opt) {
 		case 'w':
 			wq_type = atoi(optarg);
@@ -285,6 +370,9 @@ int main(int argc, char *argv[])
 				    dev_wq_id, wq_id);
 				return -EINVAL;
 			}
+			break;
+		case 'n':
+			num_desc = strtoul(optarg, NULL, 0);
 			break;
 		case 't':
 			ms_timeout = strtoul(optarg, NULL, 0);
@@ -316,7 +404,7 @@ int main(int argc, char *argv[])
 
 	switch (opcode) {
 	case DSA_OPCODE_NOOP:
-		rc = test_noop(dsa, tflags);
+		rc = test_noop(dsa, tflags, num_desc);
 		if (rc != DSA_STATUS_OK)
 			goto error;
 		break;
@@ -327,7 +415,7 @@ int main(int argc, char *argv[])
 			rc = -EINVAL;
 			goto error;
 		}
-		rc = test_batch(dsa, buf_size, tflags, bopcode, bsize);
+		rc = test_batch(dsa, buf_size, tflags, bopcode, bsize, num_desc);
 		if (rc < 0)
 			goto error;
 		break;
@@ -337,7 +425,7 @@ int main(int argc, char *argv[])
 	case DSA_OPCODE_COMPARE:
 	case DSA_OPCODE_COMPVAL:
 	case DSA_OPCODE_DUALCAST:
-		rc = test_memory(dsa, buf_size, tflags, opcode);
+		rc = test_memory(dsa, buf_size, tflags, opcode, num_desc);
 		if (rc != DSA_STATUS_OK)
 			goto error;
 		break;
