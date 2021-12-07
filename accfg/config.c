@@ -486,8 +486,7 @@ static int configure_json_value(struct accfg_ctx *ctx,
 	char *parsed_string;
 	char dev_type[MAX_DEV_LEN];
 	char *accel_type = NULL;
-	static char *dev_name;
-	static struct accfg_device *dev;
+	static struct accfg_device *dev, *parent;
 	static struct accfg_wq *wq;
 	static struct accfg_engine *engine;
 	static struct accfg_group *group;
@@ -501,6 +500,10 @@ static int configure_json_value(struct accfg_ctx *ctx,
 		parsed_string = (char *)json_object_get_string(jobj);
 		if (!parsed_string)
 			return -EINVAL;
+		dev = NULL;
+		group = NULL;
+		wq = NULL;
+		engine = NULL;
 		for (accel_type = accfg_basenames[0]; accel_type != NULL; i++) {
 			memset(dev_type, 0, MAX_DEV_LEN);
 			if (strstr(parsed_string, accel_type) != NULL) {
@@ -514,6 +517,7 @@ static int configure_json_value(struct accfg_ctx *ctx,
 			}
 
 			if (!strcmp(dev_type, accel_type)) {
+				parent = NULL;
 				dev = accfg_ctx_device_get_by_name(ctx,
 						parsed_string);
 				if (!dev) {
@@ -524,22 +528,26 @@ static int configure_json_value(struct accfg_ctx *ctx,
 				if (dev_state == ACCFG_DEVICE_ENABLED) {
 					fprintf(stderr,
 						"%s is active, will skip...\n", parsed_string);
+					dev = NULL;
 					return 0;
 				}
-				dev_name = parsed_string;
-				wq = NULL;
-				engine = NULL;
-				group = NULL;
 
 				if (enable) {
 					rc = add_to_activation_list(&activate_dev_list, dev);
 					if (rc)
 						return rc;
 				}
+
+				parent = dev;
+
 				break;
 			}
 			accel_type = accfg_basenames[i];
 		}
+
+		/* Skip if device configuration was skipped */
+		if (!parent)
+			return 0;
 
 		if (strstr(parsed_string, "wq") != NULL) {
 			rc = sscanf(&parsed_string[strlen("wq")], "%d.%d",
@@ -547,24 +555,15 @@ static int configure_json_value(struct accfg_ctx *ctx,
 			if (rc != 2)
 				return -EINVAL;
 
-			if (dev_name)
-				dev = accfg_ctx_device_get_by_name(ctx, dev_name);
-
-			if (!dev)
-				return -ENOENT;
-
-			wq = accfg_device_wq_get_by_id(dev, id);
+			wq = accfg_device_wq_get_by_id(parent, id);
 			if (!wq)
 				return -ENOENT;
 			wq_state = accfg_wq_get_state(wq);
 			if (wq_state == ACCFG_WQ_ENABLED || wq_state == ACCFG_WQ_LOCKED) {
 				fprintf(stderr, "%s is active, will skip...\n", parsed_string);
+				wq = NULL;
 				return 0;
 			}
-
-			dev = NULL;
-			engine = NULL;
-			group = NULL;
 
 			if (enable) {
 				rc = add_to_activation_list(&activate_wq_list, wq);
@@ -579,19 +578,10 @@ static int configure_json_value(struct accfg_ctx *ctx,
 			if (rc != 2)
 				return -EINVAL;
 
-			if (dev_name)
-				dev = accfg_ctx_device_get_by_name(ctx, dev_name);
-
-			if (!dev)
-				return -ENOENT;
-
-			engine = accfg_device_engine_get_by_id(dev, id);
+			engine = accfg_device_engine_get_by_id(parent, id);
 			if (!engine)
 				return -ENOENT;
 
-			dev = NULL;
-			wq = NULL;
-			group = NULL;
 		}
 
 		if (strstr(parsed_string, "group") != NULL) {
@@ -600,19 +590,17 @@ static int configure_json_value(struct accfg_ctx *ctx,
 			if (rc != 2)
 				return -EINVAL;
 
-			if (dev_name)
-				dev = accfg_ctx_device_get_by_name(ctx, dev_name);
-
-			if (!dev)
-				return -ENOENT;
-			group = accfg_device_group_get_by_id(dev, id);
+			group = accfg_device_group_get_by_id(parent, id);
 			if (!group)
 				return -ENOENT;
-			dev = NULL;
-			wq = NULL;
-			engine = NULL;
 		}
+
+		return 0;
 	}
+
+	/* Skip if device configuration was skipped */
+	if (!parent)
+		return 0;
 
 	if (dev && dev_state != ACCFG_DEVICE_ENABLED) {
 		rc = device_json_set_val(dev, jobj, key);
