@@ -22,6 +22,7 @@
 
 static bool verbose;
 static bool enable;
+static bool forced;
 static struct util_filter_params util_param;
 
 static LIST_HEAD(activate_dev_list);
@@ -526,10 +527,21 @@ static int configure_json_value(struct accfg_ctx *ctx,
 				}
 				dev_state = accfg_device_get_state(dev);
 				if (dev_state == ACCFG_DEVICE_ENABLED) {
-					fprintf(stderr,
-						"%s is active, will skip...\n", parsed_string);
-					dev = NULL;
-					return 0;
+					fprintf(stderr, "%s is active. ",
+							parsed_string);
+					if (forced) {
+						fprintf(stderr, "Disabling...\n");
+						rc = accfg_device_disable(dev, true);
+						if (rc) {
+							fprintf(stderr,
+								"Failed disabling device\n");
+							return rc;
+						}
+					} else {
+						fprintf(stderr, "Skipping...\n");
+						dev = NULL;
+						return 0;
+					}
 				}
 
 				if (enable) {
@@ -1065,6 +1077,8 @@ int cmd_config(int argc, const char **argv, void *ctx)
 				"emit extra debug messages to stderr"),
 		OPT_BOOLEAN('e', "enable", &enable,
 				"enable configured devices and wqs"),
+		OPT_BOOLEAN('f', "forced", &forced,
+				"enabled devices will be disabled before configuring"),
 		OPT_END(),
 	};
 	const char *const u[] = {
