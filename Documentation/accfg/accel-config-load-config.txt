@@ -49,3 +49,11 @@ OPTIONS
 -c::
 --config-file::
 	to specify the location of the customized config file
+
+-e::
+--enable::
+	to enable the configured devices and wqs
+
+-f::
+--forced::
+	to disable enabled devices before configuring

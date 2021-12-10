@@ -23,7 +23,7 @@ int debug_logging;
 static int umwait_support;
 
 static inline void cpuid(unsigned int *eax, unsigned int *ebx,
-		unsigned int *ecx, unsigned int *edx)
+			 unsigned int *ecx, unsigned int *edx)
 {
 	/* ecx is often an input as well as an output. */
 	asm volatile("cpuid"
@@ -46,7 +46,7 @@ struct dsa_context *dsa_init(void)
 	/* detect umwait support */
 	leaf = 7;
 	waitpkg = 0;
-	cpuid(&leaf, unused, &waitpkg, unused+1);
+	cpuid(&leaf, unused, &waitpkg, unused + 1);
 	if (waitpkg & 0x20) {
 		dbg("umwait supported\n");
 		umwait_support = 1;
@@ -85,7 +85,7 @@ static int dsa_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
 	}
 
 	ctx->wq_reg = mmap(NULL, 0x1000, PROT_WRITE,
-			MAP_SHARED | MAP_POPULATE, ctx->fd, 0);
+			   MAP_SHARED | MAP_POPULATE, ctx->fd, 0);
 	if (ctx->wq_reg == MAP_FAILED) {
 		perror("mmap");
 		return -errno;
@@ -95,7 +95,7 @@ static int dsa_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
 }
 
 static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
-		int dev_id, int shared)
+				   int dev_id, int shared)
 {
 	struct accfg_device *device;
 	struct accfg_wq *wq;
@@ -111,7 +111,7 @@ static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
 
 		/* Match the device to the id requested */
 		if (accfg_device_get_id(device) != dev_id &&
-				dev_id != -1)
+		    dev_id != -1)
 			continue;
 
 		accfg_wq_foreach(device, wq) {
@@ -131,8 +131,8 @@ static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
 
 			/* Make sure the mode is correct */
 			mode = accfg_wq_get_mode(wq);
-			if ((mode == ACCFG_WQ_SHARED && !shared)
-				|| (mode == ACCFG_WQ_DEDICATED && shared))
+			if ((mode == ACCFG_WQ_SHARED && !shared) ||
+			    (mode == ACCFG_WQ_DEDICATED && shared))
 				continue;
 
 			rc = dsa_setup_wq(ctx, wq);
@@ -147,25 +147,23 @@ static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
 }
 
 static struct accfg_wq *dsa_get_wq_byid(struct dsa_context *ctx,
-					 int dev_id, int wq_id)
+					int dev_id, int wq_id)
 {
 	struct accfg_device *device;
 	struct accfg_wq *wq;
 	int rc;
 
 	accfg_device_foreach(ctx->ctx, device) {
-
 		/* Make sure that the device is enabled */
 		if (accfg_device_get_state(device) != ACCFG_DEVICE_ENABLED)
 			continue;
 
 		/* Match the device to the id requested */
 		if (accfg_device_get_id(device) != dev_id &&
-				dev_id != DSA_DEVICE_ID_NO_INPUT)
+		    dev_id != DSA_DEVICE_ID_NO_INPUT)
 			continue;
 
 		accfg_wq_foreach(device, wq) {
-
 			/* Get a workqueue that's enabled */
 			if (accfg_wq_get_state(wq) != ACCFG_WQ_ENABLED)
 				continue;
@@ -217,6 +215,7 @@ int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 	dev = accfg_wq_get_device(ctx->wq);
 	ctx->dedicated = accfg_wq_get_mode(ctx->wq);
 	ctx->wq_size = accfg_wq_get_size(ctx->wq);
+	ctx->threshold = accfg_wq_get_threshold(ctx->wq);
 	ctx->wq_idx = accfg_wq_get_id(ctx->wq);
 	ctx->bof = accfg_wq_get_block_on_fault(ctx->wq);
 	ctx->wq_max_batch_size = accfg_wq_get_max_batch_size(ctx->wq);
@@ -228,21 +227,29 @@ int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 	ctx->max_xfer_bits = bsr(ctx->max_xfer_size);
 
 	info("alloc wq %d shared %d size %d addr %p batch sz %#x xfer sz %#x\n",
-			ctx->wq_idx, ctx->dedicated, ctx->wq_size, ctx->wq_reg,
-			ctx->max_batch_size, ctx->max_xfer_size);
+	     ctx->wq_idx, ctx->dedicated, ctx->wq_size, ctx->wq_reg,
+	     ctx->max_batch_size, ctx->max_xfer_size);
 
 	return 0;
 }
 
-int alloc_task(struct dsa_context *ctx)
+int alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
 {
-	ctx->single_task = __alloc_task();
-	if (!ctx->single_task)
-		return -ENOMEM;
+	struct task_node *tmp_tsk_node;
+	int cnt = 0;
 
-	dbg("single task allocated, desc %#lx comp %#lx\n",
-			ctx->single_task->desc, ctx->single_task->comp);
+	while (cnt < num_itr) {
+		tmp_tsk_node = ctx->multi_task_node;
+		ctx->multi_task_node = (struct task_node *)malloc(sizeof(struct task_node));
+		if (!ctx->multi_task_node)
+			return -ENOMEM;
 
+		ctx->multi_task_node->tsk = __alloc_task();
+		if (!ctx->multi_task_node->tsk)
+			return -ENOMEM;
+		ctx->multi_task_node->next = tmp_tsk_node;
+		cnt++;
+	}
 	return DSA_STATUS_OK;
 }
 
@@ -275,7 +282,7 @@ struct task *__alloc_task(void)
 
 /* this function is re-used by batch task */
 int init_task(struct task *tsk, int tflags, int opcode,
-		unsigned long xfer_size)
+	      unsigned long xfer_size)
 {
 	dbg("initilizing single task %#lx\n", tsk);
 
@@ -311,7 +318,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	case DSA_OPCODE_MEMFILL: /* intentionally empty */
 	case DSA_OPCODE_DUALCAST:
 		/* DUALCAST: dst1/dst2 lower 12 bits must be same */
-		tsk->dst1 = aligned_alloc(1<<12, xfer_size);
+		tsk->dst1 = aligned_alloc(1 << 12, xfer_size);
 		if (!tsk->dst1)
 			return -ENOMEM;
 		if (tflags & TEST_FLAGS_PREF)
@@ -322,7 +329,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	switch (opcode) {
 	case DSA_OPCODE_DUALCAST:
 		/* DUALCAST: dst1/dst2 lower 12 bits must be same */
-		tsk->dst2 = aligned_alloc(1<<12, xfer_size);
+		tsk->dst2 = aligned_alloc(1 << 12, xfer_size);
 		if (!tsk->dst2)
 			return -ENOMEM;
 		if (tflags & TEST_FLAGS_PREF)
@@ -330,59 +337,71 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	}
 
 	dbg("Mem allocated: s1 %#lx s2 %#lx d1 %#lx d2 %#lx\n",
-			tsk->src1, tsk->src2, tsk->dst1, tsk->dst2);
+	    tsk->src1, tsk->src2, tsk->dst1, tsk->dst2);
 
 	return DSA_STATUS_OK;
 }
 
-int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num)
+int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr)
 {
+	struct btask_node *btsk_node;
 	struct batch_task *btsk;
+	int cnt = 0;
 
 	if (!ctx->is_batch) {
 		err("%s is valid only if 'is_batch' is enabled", __func__);
 		return -EINVAL;
 	}
 
-	ctx->batch_task = malloc(sizeof(struct batch_task));
-	if (!ctx->batch_task)
-		return -ENOMEM;
-	memset(ctx->batch_task, 0, sizeof(struct batch_task));
+	while (cnt < num_itr) {
+		btsk_node = ctx->multi_btask_node;
 
-	btsk = ctx->batch_task;
+		ctx->multi_btask_node = (struct btask_node *)
+			malloc(sizeof(struct btask_node));
+		if (!ctx->multi_btask_node)
+			return -ENOMEM;
 
-	btsk->core_task = __alloc_task();
-	if (!btsk->core_task)
-		return -ENOMEM;
+		ctx->multi_btask_node->btsk = malloc(sizeof(struct batch_task));
+		if (!ctx->multi_btask_node->btsk)
+			return -ENOMEM;
+		memset(ctx->multi_btask_node->btsk, 0, sizeof(struct batch_task));
 
-	btsk->sub_tasks = malloc(task_num * sizeof(struct task));
-	if (!btsk->sub_tasks)
-		return -ENOMEM;
-	memset(btsk->sub_tasks, 0, task_num * sizeof(struct task));
+		btsk = ctx->multi_btask_node->btsk;
 
-	btsk->sub_descs = aligned_alloc(64,
-			task_num * sizeof(struct dsa_hw_desc));
-	if (!btsk->sub_descs)
-		return -ENOMEM;
-	memset(btsk->sub_descs, 0, task_num * sizeof(struct dsa_hw_desc));
+		btsk->core_task = __alloc_task();
+		if (!btsk->core_task)
+			return -ENOMEM;
 
-	btsk->sub_comps = aligned_alloc(32,
-			task_num * sizeof(struct dsa_completion_record));
-	if (!btsk->sub_comps)
-		return -ENOMEM;
-	memset(btsk->sub_comps, 0,
-			task_num * sizeof(struct dsa_completion_record));
+		btsk->sub_tasks = malloc(task_num * sizeof(struct task));
+		if (!btsk->sub_tasks)
+			return -ENOMEM;
+		memset(btsk->sub_tasks, 0, task_num * sizeof(struct task));
 
-	dbg("batch task allocated %#lx, ctask %#lx, sub_tasks %#lx\n",
-			btsk, btsk->core_task, btsk->sub_tasks);
-	dbg("sub_descs %#lx, sub_comps %#lx\n",
-			btsk->sub_descs, btsk->sub_comps);
+		btsk->sub_descs = aligned_alloc(64, task_num * sizeof(struct dsa_hw_desc));
+		if (!btsk->sub_descs)
+			return -ENOMEM;
+		memset(btsk->sub_descs, 0, task_num * sizeof(struct dsa_hw_desc));
+
+		btsk->sub_comps =
+			aligned_alloc(32, task_num * sizeof(struct dsa_completion_record));
+		if (!btsk->sub_comps)
+			return -ENOMEM;
+		memset(btsk->sub_comps, 0,
+		       task_num * sizeof(struct dsa_completion_record));
+
+		dbg("batch task allocated %#lx, ctask %#lx, sub_tasks %#lx\n",
+		    btsk, btsk->core_task, btsk->sub_tasks);
+		dbg("sub_descs %#lx, sub_comps %#lx\n",
+		    btsk->sub_descs, btsk->sub_comps);
+		ctx->multi_btask_node->next = btsk_node;
+		cnt++;
+	}
 
 	return DSA_STATUS_OK;
 }
 
 int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
-		int opcode, unsigned long xfer_size, unsigned long dflags)
+		    int opcode, unsigned long xfer_size, unsigned long dflags)
 {
 	int i, rc;
 
@@ -390,11 +409,10 @@ int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
 	btsk->test_flags = tflags;
 
 	for (i = 0; i < task_num; i++) {
-		btsk->sub_tasks[i].desc = &(btsk->sub_descs[i]);
-		btsk->sub_tasks[i].comp = &(btsk->sub_comps[i]);
+		btsk->sub_tasks[i].desc = &btsk->sub_descs[i];
+		btsk->sub_tasks[i].comp = &btsk->sub_comps[i];
 		btsk->sub_tasks[i].dflags = dflags;
-		rc = init_task(&(btsk->sub_tasks[i]), tflags, opcode,
-				xfer_size);
+		rc = init_task(&btsk->sub_tasks[i], tflags, opcode, xfer_size);
 		if (rc != DSA_STATUS_OK) {
 			err("batch: init sub-task failed\n");
 			return rc;
@@ -428,7 +446,7 @@ static inline unsigned long rdtsc(void)
 	return ((uint64_t)d << 32) | (uint64_t)a;
 }
 
-static inline void umonitor(volatile void *addr)
+static inline void umonitor(void *addr)
 {
 	asm volatile(".byte 0xf3, 0x48, 0x0f, 0xae, 0xf0" : : "a"(addr));
 }
@@ -447,7 +465,7 @@ static inline int umwait(unsigned long timeout, unsigned int state)
 }
 
 static int dsa_wait_on_desc_timeout(struct dsa_completion_record *comp,
-		unsigned int msec_timeout)
+				    unsigned int msec_timeout)
 {
 	unsigned int j = 0;
 
@@ -544,10 +562,31 @@ void dsa_free(struct dsa_context *ctx)
 
 void dsa_free_task(struct dsa_context *ctx)
 {
-	if (!ctx->is_batch)
-		free_task(ctx->single_task);
-	else
-		free_batch_task(ctx->batch_task);
+	if (!ctx->is_batch) {
+		struct task_node *tsk_node = NULL, *tmp_node = NULL;
+
+		tsk_node = ctx->multi_task_node;
+		while (tsk_node) {
+			tmp_node = tsk_node->next;
+			free_task(tsk_node->tsk);
+			tsk_node->tsk = NULL;
+			free(tsk_node);
+			tsk_node = tmp_node;
+		}
+		ctx->multi_task_node = NULL;
+	} else {
+		struct btask_node *tsk_node = NULL, *tmp_node = NULL;
+
+		tsk_node = ctx->multi_btask_node;
+		while (tsk_node) {
+			tmp_node = tsk_node->next;
+			free_batch_task(tsk_node->btsk);
+			tsk_node->btsk = NULL;
+			free(tsk_node);
+			tsk_node = tmp_node;
+		}
+		ctx->multi_task_node = NULL;
+	}
 }
 
 void free_task(struct task *tsk)
@@ -588,7 +627,7 @@ void free_batch_task(struct batch_task *btsk)
 		btsk->sub_tasks[i].comp = NULL;
 		/* sub_tasks is an array "btsk->sub_tasks", we don't free */
 		/* btsk->sub_tasks[i] itself here */
-		__clean_task(&(btsk->sub_tasks[i]));
+		__clean_task(&btsk->sub_tasks[i]);
 	}
 
 	free(btsk->sub_tasks);
@@ -597,9 +636,9 @@ void free_batch_task(struct batch_task *btsk)
 	free(btsk);
 }
 
-int dsa_wait_noop(struct dsa_context *ctx)
+int dsa_wait_noop(struct dsa_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *comp = ctx->single_task->comp;
+	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
 	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
@@ -611,25 +650,40 @@ int dsa_wait_noop(struct dsa_context *ctx)
 	return DSA_STATUS_OK;
 }
 
-int dsa_noop(struct dsa_context *ctx)
+int dsa_noop_multi_task_nodes(struct dsa_context *ctx)
 {
-	struct task *tsk = ctx->single_task;
+	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = DSA_STATUS_OK;
 
-	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
 
-	dsa_prep_noop(tsk);
-	dsa_desc_submit(ctx, tsk->desc);
-	ret = dsa_wait_noop(ctx);
+		dsa_prep_noop(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
 
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+	tsk_node = ctx->multi_task_node;
+	info("Submitted all noop jobs\n");
+
+	while (tsk_node) {
+		ret = dsa_wait_noop(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
 	return ret;
 }
 
-int dsa_wait_batch(struct dsa_context *ctx)
+int dsa_wait_batch(struct batch_task *btsk)
 {
 	int rc;
 
-	struct batch_task *btsk = ctx->batch_task;
 	struct task *ctsk = btsk->core_task;
 
 	info("wait batch\n");
@@ -644,10 +698,10 @@ int dsa_wait_batch(struct dsa_context *ctx)
 	return DSA_STATUS_OK;
 }
 
-int dsa_wait_memcpy(struct dsa_context *ctx)
+int dsa_wait_memcpy(struct dsa_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = ctx->single_task->desc;
-	struct dsa_completion_record *comp = ctx->single_task->comp;
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -659,34 +713,51 @@ again:
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
 	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
-			!(desc->flags & IDXD_OP_FLAG_BOF)) {
-		dsa_reprep_memcpy(ctx);
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_memcpy(ctx, tsk);
 		goto again;
 	}
 
 	return DSA_STATUS_OK;
 }
 
-int dsa_memcpy(struct dsa_context *ctx)
+int dsa_memcpy_multi_task_nodes(struct dsa_context *ctx)
 {
-	struct task *tsk = ctx->single_task;
+	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = DSA_STATUS_OK;
 
-	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
-		tsk->dflags |= IDXD_OP_FLAG_BOF;
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
 
-	dsa_prep_memcpy(tsk);
-	dsa_desc_submit(ctx, tsk->desc);
-	ret = dsa_wait_memcpy(ctx);
+		dsa_prep_memcpy(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all memcpy jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_memcpy(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
 
 	return ret;
 }
 
-int dsa_wait_memfill(struct dsa_context *ctx)
+int dsa_wait_memfill(struct dsa_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = ctx->single_task->desc;
-	struct dsa_completion_record *comp = ctx->single_task->comp;
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -699,34 +770,51 @@ again:
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
 	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
-			!(desc->flags & IDXD_OP_FLAG_BOF)) {
-		dsa_reprep_memfill(ctx);
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_memfill(ctx, tsk);
 		goto again;
 	}
 
 	return DSA_STATUS_OK;
 }
 
-int dsa_memfill(struct dsa_context *ctx)
+int dsa_memfill_multi_task_nodes(struct dsa_context *ctx)
 {
-	struct task *tsk = ctx->single_task;
+	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = DSA_STATUS_OK;
 
-	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
-		tsk->dflags |= IDXD_OP_FLAG_BOF;
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
 
-	dsa_prep_memfill(tsk);
-	dsa_desc_submit(ctx, tsk->desc);
-	ret = dsa_wait_memfill(ctx);
+		dsa_prep_memfill(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all memcpy jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_memfill(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
 
 	return ret;
 }
 
-int dsa_wait_compare(struct dsa_context *ctx)
+int dsa_wait_compare(struct dsa_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = ctx->single_task->desc;
-	struct dsa_completion_record *comp = ctx->single_task->comp;
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -739,34 +827,51 @@ again:
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
 	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
-			!(desc->flags & IDXD_OP_FLAG_BOF)) {
-		dsa_reprep_compare(ctx);
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_compare(ctx, tsk);
 		goto again;
 	}
 
 	return DSA_STATUS_OK;
 }
 
-int dsa_compare(struct dsa_context *ctx)
+int dsa_compare_multi_task_nodes(struct dsa_context *ctx)
 {
-	struct task *tsk = ctx->single_task;
+	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = DSA_STATUS_OK;
 
-	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
-		tsk->dflags |= IDXD_OP_FLAG_BOF;
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
 
-	dsa_prep_compare(tsk);
-	dsa_desc_submit(ctx, tsk->desc);
-	ret = dsa_wait_compare(ctx);
+		dsa_prep_compare(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all memcpy jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_compare(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
 
 	return ret;
 }
 
-int dsa_wait_compval(struct dsa_context *ctx)
+int dsa_wait_compval(struct dsa_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = ctx->single_task->desc;
-	struct dsa_completion_record *comp = ctx->single_task->comp;
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -779,34 +884,51 @@ again:
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
 	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
-			!(desc->flags & IDXD_OP_FLAG_BOF)) {
-		dsa_reprep_compval(ctx);
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_compval(ctx, tsk);
 		goto again;
 	}
 
 	return DSA_STATUS_OK;
 }
 
-int dsa_compval(struct dsa_context *ctx)
+int dsa_compval_multi_task_nodes(struct dsa_context *ctx)
 {
-	struct task *tsk = ctx->single_task;
+	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = DSA_STATUS_OK;
 
-	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
-		tsk->dflags |= IDXD_OP_FLAG_BOF;
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
 
-	dsa_prep_compval(tsk);
-	dsa_desc_submit(ctx, tsk->desc);
-	ret = dsa_wait_compval(ctx);
+		dsa_prep_compval(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all memcpy jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_compval(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
 
 	return ret;
 }
 
-int dsa_wait_dualcast(struct dsa_context *ctx)
+int dsa_wait_dualcast(struct dsa_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = ctx->single_task->desc;
-	struct dsa_completion_record *comp = ctx->single_task->comp;
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -818,26 +940,43 @@ again:
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
 	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
-			!(desc->flags & IDXD_OP_FLAG_BOF)) {
-		dsa_reprep_dualcast(ctx);
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_dualcast(ctx, tsk);
 		goto again;
 	}
 
 	return DSA_STATUS_OK;
 }
 
-int dsa_dualcast(struct dsa_context *ctx)
+int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx)
 {
-	struct task *tsk = ctx->single_task;
+	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = DSA_STATUS_OK;
 
-	tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
-	if ((tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
-		tsk->dflags |= IDXD_OP_FLAG_BOF;
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
 
-	dsa_prep_dualcast(tsk);
-	dsa_desc_submit(ctx, tsk->desc);
-	ret = dsa_wait_dualcast(ctx);
+		dsa_prep_dualcast(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all memcpy jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_dualcast(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
 
 	return ret;
 }
@@ -875,6 +1014,23 @@ int task_result_verify(struct task *tsk, int mismatch_expected)
 	return DSA_STATUS_OK;
 }
 
+int task_result_verify_task_nodes(struct dsa_context *ctx, int mismatch_expected)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		ret = task_result_verify(tsk_node->tsk, mismatch_expected);
+		if (ret != DSA_STATUS_OK) {
+			err("memory result verify failed %d\n", ret);
+			return ret;
+		}
+		tsk_node = tsk_node->next;
+	}
+
+	return ret;
+}
+
 int task_result_verify_memcpy(struct task *tsk, int mismatch_expected)
 {
 	int rc;
@@ -909,7 +1065,7 @@ int task_result_verify_compare(struct task *tsk, int mismatch_expected)
 	if (!mismatch_expected) {
 		if (tsk->comp->result) {
 			err("compval failed at %#x\n",
-					tsk->comp->bytes_completed);
+			    tsk->comp->bytes_completed);
 			return -ENXIO;
 		}
 		return DSA_STATUS_OK;
@@ -918,7 +1074,7 @@ int task_result_verify_compare(struct task *tsk, int mismatch_expected)
 	/* mismatch_expected */
 	if (tsk->comp->result) {
 		info("expected mismatch at index %#x\n",
-				tsk->comp->bytes_completed);
+		     tsk->comp->bytes_completed);
 		return DSA_STATUS_OK;
 	}
 
@@ -931,7 +1087,7 @@ int task_result_verify_compval(struct task *tsk, int mismatch_expected)
 	if (!mismatch_expected) {
 		if (tsk->comp->result) {
 			err("compval failed at %#x\n",
-					tsk->comp->bytes_completed);
+			    tsk->comp->bytes_completed);
 			return -ENXIO;
 		}
 		return DSA_STATUS_OK;
@@ -940,7 +1096,7 @@ int task_result_verify_compval(struct task *tsk, int mismatch_expected)
 	/* mismatch_expected */
 	if (tsk->comp->result) {
 		info("expected mismatch at index %#x\n",
-				tsk->comp->bytes_completed);
+		     tsk->comp->bytes_completed);
 		return DSA_STATUS_OK;
 	}
 
@@ -977,22 +1133,22 @@ int batch_result_verify(struct batch_task *btsk, int bof)
 	struct task *tsk;
 
 	core_stat = stat_val(btsk->core_task->comp->status);
-	if (core_stat == DSA_COMP_SUCCESS)
+	if (core_stat == DSA_COMP_SUCCESS) {
 		info("core task success, chekcing sub-tasks\n");
-	else if (!bof && core_stat == DSA_COMP_BATCH_FAIL)
+	} else if (!bof && core_stat == DSA_COMP_BATCH_FAIL) {
 		info("partial complete with NBOF, checking sub-tasks\n");
-	else {
+	} else {
 		err("batch core task failed with status %d\n", core_stat);
 		return DSA_STATUS_FAIL;
 	}
 
 	for (i = 0; i < btsk->task_num; i++) {
-		tsk = &(btsk->sub_tasks[i]);
+		tsk = &btsk->sub_tasks[i];
 		sub_stat = stat_val(tsk->comp->status);
 
-		if (!bof && sub_stat == DSA_COMP_PAGE_FAULT_NOBOF)
+		if (!bof && sub_stat == DSA_COMP_PAGE_FAULT_NOBOF) {
 			dbg("PF in sub-task[%d], consider as passed\n", i);
-		else if (sub_stat == DSA_COMP_SUCCESS) {
+		} else if (sub_stat == DSA_COMP_SUCCESS) {
 			rc = task_result_verify(tsk, 0);
 			if (rc != DSA_STATUS_OK) {
 				err("Sub-task[%d] failed with rc=%d", i, rc);

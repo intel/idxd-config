@@ -1,0 +1,40 @@
+The purpose of this doc is about the config profile statements. Json
+doesn't support comments. List all the example config files along with
+profile descriptions.
+
+1. os_profile.conf
+    Recommended dsa config for OS usage such as page zeroing,compaction etc.
+    - 1 group
+            - 1 SWQ@16qd/1eng
+            - max xfer size=2MB, max batch sz=32, bof=0
+            - priority 10
+            - threshold 15
+	    - tokens_allowed 0
+
+2. app_profile.conf
+    Recommended dsa default application profile.
+    - 2 groups
+            - Grp1 - SWQ1@8qd, 1eng
+              max xfer size=16KB, max batch sz=32, bof=0, threshold=6
+            - Grp2 - SWQ2@32qd, 1eng
+              max xfer size=2MB, max batch sz=32, bof=0, threshold=28
+	    - tokens_allowed 0
+            - Use group1 for smaller size ops with better latency characteristics
+
+3. net_profile.conf
+    Recommended dsa network accel profile
+    - 4 groups, each with 1 DWQ@32qd/1 eng per group
+            - Each DWQ has max xfer size=16KB
+	    - DWQ threshold default 0
+	    - tokens_allowed 0
+
+4. storage_profile.conf
+    Recommended dsa storage accel profile
+    - 2 groups each with 1 DWQ@32qd/1 eng per group
+            - DWQ1 - max xfer size=16KB, max batch sz=32, bof=0
+              for lower latency or synchronous ops
+            - DWQ2 - max xfer size=2MB, max batch sz=32, bof=0
+              for throughput ops
+            - targeting SPDK-like uses
+	    - DWQ threshold default 0
+	    - tokens_allowed 0
