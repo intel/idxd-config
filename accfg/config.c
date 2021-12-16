@@ -24,6 +24,7 @@ static bool verbose;
 static bool enable;
 static bool forced;
 static struct util_filter_params util_param;
+static bool warn_once = true;
 
 static LIST_HEAD(activate_dev_list);
 static LIST_HEAD(activate_wq_list);
@@ -629,6 +630,11 @@ static int configure_json_value(struct accfg_ctx *ctx,
 	/* Skip if device configuration was skipped */
 	if (!parent)
 		return 0;
+
+	if (warn_once && strstr(key, "token")) {
+		fprintf(stderr, "Warning: \"token\" attributes are deprecated\n");
+		warn_once = false;
+	}
 
 	if (dev && dev_state != ACCFG_DEVICE_ENABLED) {
 		rc = device_json_set_val(dev, jobj, key);

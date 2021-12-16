@@ -90,7 +90,7 @@ struct accfg_op_cap {
 
 /* parameters read from sysfs of accfg driver */
 struct dev_parameters {
-	unsigned int token_limit;
+	unsigned int token_limit __attribute((deprecated));
 	unsigned int read_buffer_limit;
 };
 
@@ -98,9 +98,9 @@ extern char *accfg_basenames[];
 extern char *accfg_mdev_basenames[];
 
 struct group_parameters {
-	unsigned int tokens_reserved;
-	unsigned int tokens_allowed;
-	unsigned int use_token_limit;
+	unsigned int tokens_reserved __attribute((deprecated));
+	unsigned int tokens_allowed __attribute((deprecated));
+	unsigned int use_token_limit __attribute((deprecated));
 	unsigned int read_buffers_reserved;
 	unsigned int read_buffers_allowed;
 	unsigned int use_read_buffer_limit;
@@ -190,15 +190,18 @@ bool accfg_device_get_pasid_enabled(struct accfg_device  *device);
 bool accfg_device_get_mdev_enabled(struct accfg_device *device);
 int accfg_device_get_errors(struct accfg_device *device, struct accfg_error *error);
 enum accfg_device_state accfg_device_get_state(struct accfg_device *device);
-unsigned int accfg_device_get_max_tokens(struct accfg_device *device);
+unsigned int accfg_device_get_max_tokens(struct accfg_device *device)
+	__attribute((deprecated));
 unsigned int accfg_device_get_max_read_buffers(struct accfg_device *device);
 unsigned int accfg_device_get_max_batch_size(struct accfg_device *device);
-unsigned int accfg_device_get_token_limit(struct accfg_device *device);
+unsigned int accfg_device_get_token_limit(struct accfg_device *device)
+	__attribute((deprecated));
 unsigned int accfg_device_get_read_buffer_limit(struct accfg_device *device);
 unsigned int accfg_device_get_cdev_major(struct accfg_device *device);
 unsigned int accfg_device_get_version(struct accfg_device *device);
 int accfg_device_get_clients(struct accfg_device *device);
-int accfg_device_set_token_limit(struct accfg_device *dev, int val);
+int accfg_device_set_token_limit(struct accfg_device *dev, int val)
+	__attribute((deprecated));
 int accfg_device_set_read_buffer_limit(struct accfg_device *dev, int val);
 int accfg_device_is_active(struct accfg_device *device);
 unsigned int accfg_device_get_cmd_status(struct accfg_device *device);
@@ -240,19 +243,25 @@ uint64_t accfg_group_get_size(struct accfg_group *group);
 uint64_t accfg_group_get_available_size(struct accfg_group *group);
 struct accfg_device *accfg_group_get_device(struct accfg_group *group);
 struct accfg_ctx *accfg_group_get_ctx(struct accfg_group *group);
-int accfg_group_get_tokens_reserved(struct accfg_group *group);
+int accfg_group_get_tokens_reserved(struct accfg_group *group)
+	__attribute((deprecated));
 int accfg_group_get_read_buffers_reserved(struct accfg_group *group);
-int accfg_group_get_tokens_allowed(struct accfg_group *group);
+int accfg_group_get_tokens_allowed(struct accfg_group *group)
+	__attribute((deprecated));
 int accfg_group_get_read_buffers_allowed(struct accfg_group *group);
-int accfg_group_get_use_token_limit(struct accfg_group *group);
+int accfg_group_get_use_token_limit(struct accfg_group *group)
+	__attribute((deprecated));
 int accfg_group_get_use_read_buffer_limit(struct accfg_group *group);
 int accfg_group_get_traffic_class_a(struct accfg_group *group);
 int accfg_group_get_traffic_class_b(struct accfg_group *group);
-int accfg_group_set_tokens_reserved(struct accfg_group *group, int val);
+int accfg_group_set_tokens_reserved(struct accfg_group *group, int val)
+	__attribute((deprecated));
 int accfg_group_set_read_buffers_reserved(struct accfg_group *group, int val);
-int accfg_group_set_tokens_allowed(struct accfg_group *group, int val);
+int accfg_group_set_tokens_allowed(struct accfg_group *group, int val)
+	__attribute((deprecated));
 int accfg_group_set_read_buffers_allowed(struct accfg_group *group, int val);
-int accfg_group_set_use_token_limit(struct accfg_group *group, int val);
+int accfg_group_set_use_token_limit(struct accfg_group *group, int val)
+	__attribute((deprecated));
 int accfg_group_set_use_read_buffer_limit(struct accfg_group *group, int val);
 int accfg_group_set_traffic_class_a(struct accfg_group *group, int val);
 int accfg_group_set_traffic_class_b(struct accfg_group *group, int val);
