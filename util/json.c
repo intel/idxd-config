@@ -165,11 +165,11 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		goto err;
 	json_object_object_add(jdevice, "dev", jobj);
 
-	jobj = json_object_new_int(accfg_device_get_token_limit(device));
+	jobj = json_object_new_int(accfg_device_get_read_buffer_limit(device));
 	if (!jobj)
 		goto err;
 	if (accfg_device_get_type(device) != ACCFG_DEVICE_IAX)
-		json_object_object_add(jdevice, "token_limit", jobj);
+		json_object_object_add(jdevice, "read_buffer_limit", jobj);
 
 	if (flags & UTIL_JSON_SAVE) {
 		free(error);
@@ -270,11 +270,11 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		goto err;
 	json_object_object_add(jdevice, "state", jobj);
 
-	jobj = json_object_new_int(accfg_device_get_max_tokens(device));
+	jobj = json_object_new_int(accfg_device_get_max_read_buffers(device));
 	if (!jobj)
 		goto err;
 	if (accfg_device_get_type(device) != ACCFG_DEVICE_IAX)
-		json_object_object_add(jdevice, "max_tokens", jobj);
+		json_object_object_add(jdevice, "max_read_buffers", jobj);
 
 	ulong_val = accfg_device_get_max_batch_size(device);
 	if (ulong_val > 0) {

@@ -166,3 +166,16 @@ LIBACCFG_11 {
 global:
 	accfg_wq_get_occupancy;
 } LIBACCFG_10;
+
+LIBACCFG_12 {
+global:
+	accfg_device_get_max_read_buffers;
+	accfg_device_get_read_buffer_limit;
+	accfg_device_set_read_buffer_limit;
+	accfg_group_get_read_buffers_reserved;
+	accfg_group_get_read_buffers_allowed;
+	accfg_group_get_use_read_buffer_limit;
+	accfg_group_set_read_buffers_reserved;
+	accfg_group_set_read_buffers_allowed;
+	accfg_group_set_use_read_buffer_limit;
+} LIBACCFG_11;

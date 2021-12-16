@@ -68,21 +68,21 @@ static struct json_object *group_to_json(struct accfg_group *group,
 	json_object_object_add(jgroup, "dev", jobj);
 
 	if (accfg_device_get_type(dev) != ACCFG_DEVICE_IAX) {
-		jobj = json_object_new_int(accfg_group_get_tokens_reserved(group));
+		jobj = json_object_new_int(accfg_group_get_read_buffers_reserved(group));
 		if (!jobj)
 			goto err;
 
-		json_object_object_add(jgroup, "tokens_reserved", jobj);
-		jobj = json_object_new_int(accfg_group_get_use_token_limit(group));
+		json_object_object_add(jgroup, "read_buffers_reserved", jobj);
+		jobj = json_object_new_int(accfg_group_get_use_read_buffer_limit(group));
 		if (!jobj)
 			goto err;
 
-		json_object_object_add(jgroup, "use_token_limit", jobj);
-		jobj = json_object_new_int(accfg_group_get_tokens_allowed(group));
+		json_object_object_add(jgroup, "use_read_buffer_limit", jobj);
+		jobj = json_object_new_int(accfg_group_get_read_buffers_allowed(group));
 		if (!jobj)
 			goto err;
 
-		json_object_object_add(jgroup, "tokens_allowed", jobj);
+		json_object_object_add(jgroup, "read_buffers_allowed", jobj);
 	}
 
 	jobj = json_object_new_int(accfg_group_get_traffic_class_a(

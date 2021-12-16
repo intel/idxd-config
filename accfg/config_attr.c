@@ -22,9 +22,9 @@
 static struct dev_parameters dev_param;
 
 static struct group_parameters group_param = {
-	.tokens_reserved = UINT_MAX,
-	.tokens_allowed = UINT_MAX,
-	.use_token_limit = UINT_MAX,
+	.read_buffers_reserved = UINT_MAX,
+	.read_buffers_allowed = UINT_MAX,
+	.use_read_buffer_limit = UINT_MAX,
 	.traffic_class_a = INT_MAX,
 	.traffic_class_b = INT_MAX
 };
@@ -47,7 +47,7 @@ static int accel_config_parse_device_attribs(struct accfg_device *dev,
 {
 	int rc = 0;
 
-	rc = accfg_device_set_token_limit(dev, device_param->token_limit);
+	rc = accfg_device_set_read_buffer_limit(dev, device_param->read_buffer_limit);
 	if (rc < 0)
 		return rc;
 
@@ -68,22 +68,22 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 		return -EINVAL;
 	}
 
-	if (group_params->tokens_reserved != UINT_MAX &&
-			group_params->tokens_reserved >= UCHAR_MAX) {
+	if (group_params->read_buffers_reserved != UINT_MAX &&
+			group_params->read_buffers_reserved >= UCHAR_MAX) {
 		fprintf(stderr,
-			"configured tokens_reserved for group is not within range\n");
+			"configured read-buffers-reserved for group is not within range\n");
 		return -EINVAL;
 	}
 
-	if (group_params->tokens_allowed != UINT_MAX &&
-			group_params->tokens_allowed >= UCHAR_MAX) {
-		fprintf(stderr, "invalid tokens-allowed value\n");
+	if (group_params->read_buffers_allowed != UINT_MAX &&
+			group_params->read_buffers_allowed >= UCHAR_MAX) {
+		fprintf(stderr, "invalid read-buffers-allowed value\n");
 		return -EINVAL;
 	}
 
-	if (group_params->use_token_limit > 1 &&
-		group_params->use_token_limit != UINT_MAX) {
-		fprintf(stderr, "valid use-token-limit should be either 0 or 1\n");
+	if (group_params->use_read_buffer_limit > 1 &&
+		group_params->use_read_buffer_limit != UINT_MAX) {
+		fprintf(stderr, "valid use-read-buffer-limit should be either 0 or 1\n");
 		return -EINVAL;
 	}
 
@@ -103,23 +103,23 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 		return -EINVAL;
 	}
 
-	if (group_params->use_token_limit != UINT_MAX) {
-		rc = accfg_group_set_use_token_limit(group,
-			group_params->use_token_limit);
+	if (group_params->use_read_buffer_limit != UINT_MAX) {
+		rc = accfg_group_set_use_read_buffer_limit(group,
+			group_params->use_read_buffer_limit);
 		if (rc < 0)
 			return rc;
 	}
 
-	if (group_params->tokens_reserved != UINT_MAX) {
-		rc = accfg_group_set_tokens_reserved(group,
-			group_params->tokens_reserved);
+	if (group_params->read_buffers_reserved != UINT_MAX) {
+		rc = accfg_group_set_read_buffers_reserved(group,
+			group_params->read_buffers_reserved);
 		if (rc < 0)
 			return rc;
 	}
 
-	if (group_params->tokens_allowed != UINT_MAX) {
-		rc = accfg_group_set_tokens_allowed(group,
-			group_params->tokens_allowed);
+	if (group_params->read_buffers_allowed != UINT_MAX) {
+		rc = accfg_group_set_read_buffers_allowed(group,
+			group_params->read_buffers_allowed);
 		if (rc < 0)
 			return rc;
 	}
@@ -308,8 +308,8 @@ int cmd_config_device(int argc, const char **argv, void *ctx)
 	int i, rc = 0;
 
 	const struct option options[] = {
-		OPT_UINTEGER('l', "token-limit", &dev_param.token_limit,
-			     "specify token limit by device"),
+		OPT_UINTEGER('l', "read-buffer-limit", &dev_param.read_buffer_limit,
+			     "specify read buffer limit by device"),
 		OPT_END(),
 	};
 
@@ -355,15 +355,15 @@ int cmd_config_group(int argc, const char **argv, void *ctx)
 	int i, rc = 0;
 
 	const struct option options[] = {
-		OPT_UINTEGER('r', "tokens-reserved",
-			     &group_param.tokens_reserved,
-			     "specify tokens reserved by group"),
-		OPT_UINTEGER('t', "tokens-allowed",
-				&group_param.tokens_allowed,
-			     "specify tokens allowed by group"),
-		OPT_UINTEGER('l', "use-token-limit",
-			     &group_param.use_token_limit,
-			     "specify token limit by group"),
+		OPT_UINTEGER('r', "read-buffers-reserved",
+			     &group_param.read_buffers_reserved,
+			     "specify read buffers reserved by group"),
+		OPT_UINTEGER('t', "read-buffers-allowed",
+				&group_param.read_buffers_allowed,
+			     "specify read buffers allowed by group"),
+		OPT_UINTEGER('l', "use-read-buffer-limit",
+			     &group_param.use_read_buffer_limit,
+			     "specify read buffer limit by group"),
 		OPT_INTEGER('a', "traffic-class-a",
 			    &group_param.traffic_class_a,
 			    "specify traffic-class-a by group"),

@@ -47,8 +47,8 @@ struct accfg_device {
 	int ims_size;
 	int max_batch_size;
 	int configurable;
-	int max_tokens;
-	unsigned int token_limit;
+	int max_read_buffers;
+	unsigned int read_buffer_limit;
 	unsigned int cdev_major;
 	unsigned int version;
 	uint64_t max_transfer_size;
@@ -82,9 +82,9 @@ struct accfg_group {
 	int engines_init;
 
 	/* Group Attributes */
-	unsigned int tokens_reserved;
-	unsigned int tokens_allowed;
-	unsigned int use_token_limit;
+	unsigned int read_buffers_reserved;
+	unsigned int read_buffers_allowed;
+	unsigned int use_read_buffer_limit;
 	int traffic_class_a;
 	int traffic_class_b;
 };

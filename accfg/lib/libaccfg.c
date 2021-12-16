@@ -91,7 +91,7 @@ const char *accfg_device_cmd_status[] = {
 	[0x15]	= "Invalid group config: lack of wq or engines",
 	[0x16]	= "Invalid group config: wq misconfigured",
 	[0x17]	= "Invalid group config: engine misconfigured",
-	[0x18]	= "Invalid group config: invalid bandwith tokens config",
+	[0x18]	= "Invalid group config: invalid read buffers config",
 	[0x20]	= "Device not enabled",
 	[0x21]	= "WQ is not disabled",
 	[0x22]	= "WQ size is 0",
@@ -131,6 +131,29 @@ const char *accfg_sw_cmd_status[] = {
 	[SCMD_STAT(IDXD_SCMD_WQ_NONE_CONFIGURED)] = "wq error - no wqs configured",
 	[SCMD_STAT(IDXD_SCMD_WQ_NO_SIZE)] = "wq error - size not set",
 };
+
+struct attr_dict_entry {
+	char *key;
+	char *val;
+};
+
+static const struct attr_dict_entry attr_dict[] = {
+	{"read_buffers_allowed", "tokens_allowed"},
+	{"read_buffers_reserved", "tokens_reserved"},
+	{"use_read_buffer_limit", "use_token_limit"},
+	{"max_read_buffers", "max_tokens"},
+	{"read_buffer_limit", "token_limit"}};
+
+static const char *deprecated_attr(char *attr)
+{
+	int i;
+
+	for (i = 0; i < (int) ARRAY_SIZE(attr_dict); i++)
+		if (!strcmp(attr, attr_dict[i].key))
+			return attr_dict[i].val;
+
+	return NULL;
+}
 
 static void save_last_error(struct accfg_device *device, struct accfg_wq *wq,
 		struct accfg_group *group, struct accfg_engine *engine)
@@ -176,7 +199,14 @@ static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 	int fd = openat(dfd, name, O_RDONLY);
 	char buf[MAX_PARAM_LEN + 1];
 	int n;
+	const char *p;
 
+	if (fd == -1 && errno == ENOENT) {
+		p = deprecated_attr(name);
+		if (!p)
+			return -errno;
+		fd = openat(dfd, p, O_RDONLY);
+	}
 	if (fd == -1)
 		return -errno;
 
@@ -646,8 +676,8 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 			"configurable");
 	device->pasid_enabled = accfg_get_param_str(ctx, dfd,
 			"pasid_enabled");
-	device->max_tokens = accfg_get_param_long(ctx, dfd, "max_tokens");
-	device->token_limit = accfg_get_param_long(ctx, dfd, "token_limit");
+	device->max_read_buffers = accfg_get_param_long(ctx, dfd, "max_read_buffers");
+	device->read_buffer_limit = accfg_get_param_long(ctx, dfd, "read_buffer_limit");
 	device->cdev_major = accfg_get_param_long(ctx, dfd, "cdev_major");
 	device->version = accfg_get_param_unsigned_llong(ctx, dfd, "version");
 	device->device_path = realpath(ctl_base, NULL);
@@ -884,12 +914,12 @@ static void *add_group(void *parent, int id, const char *group_base,
 	group->id = group_id;
 	group->group_engines = accfg_get_param_str(ctx, dfd, "engines");
 	group->group_wqs = accfg_get_param_str(ctx, dfd, "work_queues");
-	group->tokens_reserved = accfg_get_param_long(ctx, dfd,
-			"tokens_reserved");
-	group->tokens_allowed = accfg_get_param_long(ctx, dfd,
-			"tokens_allowed");
-	group->use_token_limit = accfg_get_param_long(ctx, dfd,
-			"use_token_limit");
+	group->read_buffers_reserved = accfg_get_param_long(ctx, dfd,
+			"read_buffers_reserved");
+	group->read_buffers_allowed = accfg_get_param_long(ctx, dfd,
+			"read_buffers_allowed");
+	group->use_read_buffer_limit = accfg_get_param_long(ctx, dfd,
+			"use_read_buffer_limit");
 	group->traffic_class_a = accfg_get_param_long(ctx, dfd,
 			"traffic_class_a");
 	group->traffic_class_b = accfg_get_param_long(ctx, dfd,
@@ -1436,16 +1466,16 @@ ACCFG_EXPORT enum accfg_device_state accfg_device_get_state(
 	return ACCFG_DEVICE_UNKNOWN;
 }
 
-ACCFG_EXPORT unsigned int accfg_device_get_max_tokens(
+ACCFG_EXPORT unsigned int accfg_device_get_max_read_buffers(
 		struct accfg_device *device)
 {
-	return device->max_tokens;
+	return device->max_read_buffers;
 }
 
-ACCFG_EXPORT unsigned int accfg_device_get_token_limit(
+ACCFG_EXPORT unsigned int accfg_device_get_read_buffer_limit(
 		struct accfg_device *device)
 {
-	return device->token_limit;
+	return device->read_buffer_limit;
 }
 
 ACCFG_EXPORT unsigned int accfg_device_get_cdev_major(
@@ -1491,7 +1521,7 @@ ACCFG_EXPORT int accfg_device_get_clients(struct accfg_device *device)
 	return atoi(buf);
 }
 
-ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
+ACCFG_EXPORT int accfg_device_set_read_buffer_limit(struct accfg_device *dev, int val)
 {
 	struct accfg_ctx *ctx;
 	char *path;
@@ -1503,11 +1533,21 @@ ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 	path = dev->device_buf;
 	ctx = accfg_device_get_ctx(dev);
 
-	if (sprintf(path, "%s/token_limit", dev->device_path) >=
+	if (sprintf(path, "%s/read_buffer_limit", dev->device_path) >=
 			(int)dev->buf_len) {
 		err(ctx, "%s; buf len exceeded.\n",
 				accfg_device_get_devname(dev));
 		return -errno;
+	}
+
+	if (access(path, F_OK)) {
+		if (sprintf(path, "%s/%s", dev->device_path,
+					deprecated_attr("read_buffer_limit")) >=
+					(int)dev->buf_len) {
+			err(ctx, "%s; buf len exceeded.\n",
+					accfg_device_get_devname(dev));
+			return -errno;
+		}
 	}
 
 	if (sprintf(buf, "%d", val) < 0) {
@@ -1523,7 +1563,7 @@ ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 		return -errno;
 	}
 
-	dev->token_limit = val;
+	dev->read_buffer_limit = val;
 
 	return 0;
 }
@@ -1879,6 +1919,12 @@ ACCFG_EXPORT int accfg_group_set_##field( \
 	rc = sprintf(group->group_buf, "%s/%s", group->group_path, #field); \
 	if (rc < 0) \
 		return -errno; \
+	if (access(path, F_OK)) { \
+		rc = sprintf(group->group_buf, "%s/%s", \
+				group->group_path, deprecated_attr(#field)); \
+		if (rc < 0) \
+			return -errno; \
+	} \
 	if (sprintf(buf, "%d", val) < 0) { \
 		err(ctx, "%s: sprintf to buf failed: %s\n", \
 				accfg_group_get_devname(group), \
@@ -1896,9 +1942,9 @@ ACCFG_EXPORT int accfg_group_set_##field( \
 	return 0; \
 }
 
-accfg_group_set_field(group, val, tokens_reserved)
-accfg_group_set_field(group, val, tokens_allowed)
-accfg_group_set_field(group, val, use_token_limit)
+accfg_group_set_field(group, val, read_buffers_reserved)
+accfg_group_set_field(group, val, read_buffers_allowed)
+accfg_group_set_field(group, val, use_read_buffer_limit)
 accfg_group_set_field(group, val, traffic_class_a)
 accfg_group_set_field(group, val, traffic_class_b)
 
@@ -1909,9 +1955,9 @@ ACCFG_EXPORT int accfg_group_get_##field( \
 	return group->field; \
 }
 
-accfg_group_get_field(group, tokens_reserved);
-accfg_group_get_field(group, tokens_allowed);
-accfg_group_get_field(group, use_token_limit);
+accfg_group_get_field(group, read_buffers_reserved);
+accfg_group_get_field(group, read_buffers_allowed);
+accfg_group_get_field(group, use_read_buffer_limit);
 accfg_group_get_field(group, traffic_class_a);
 accfg_group_get_field(group, traffic_class_b);
 
