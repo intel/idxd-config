@@ -29,7 +29,7 @@ EXAMPLE
 [
   {
     "dev":"dsa0",
-    "token_limit":0,
+    "read_buffer_limit":0,
     "max_groups":4,
     "max_work_queues":8,
     "max_engines":4,
@@ -37,7 +37,7 @@ EXAMPLE
     "numa_node":-1,
     "op_cap":"0x1003f03ff",
     "state":"enabled",
-    "max_tokens":64,
+    "max_read_buffers":64,
     "max_batch_size":512,
     "ims_size":256,
     "max_transfer_size":2147483648,
@@ -48,9 +48,9 @@ EXAMPLE
     "groups":[
       {
         "dev":"group0.0",
-        "tokens_reserved":0,
-        "use_token_limit":0,
-        "tokens_allowed":0,
+        "read_buffers_reserved":0,
+        "use_read_buffer_limit":0,
+        "read_buffers_allowed":0,
         "traffic_class_a":-1,
         "traffic_class_b":-1,
         "grouped_workqueues":[
@@ -82,9 +82,9 @@ EXAMPLE
       },
       {
         "dev":"group0.1",
-        "tokens_reserved":0,
-        "use_token_limit":0,
-        "tokens_allowed":0,
+        "read_buffers_reserved":0,
+        "use_read_buffer_limit":0,
+        "read_buffers_allowed":0,
         "traffic_class_a":-1,
         "traffic_class_b":-1,
         "grouped_workqueues":[
@@ -116,17 +116,17 @@ EXAMPLE
       },
       {
         "dev":"group0.2",
-        "tokens_reserved":0,
-        "use_token_limit":0,
-        "tokens_allowed":0,
+        "read_buffers_reserved":0,
+        "use_read_buffer_limit":0,
+        "read_buffers_allowed":0,
         "traffic_class_a":-1,
         "traffic_class_b":-1
       },
       {
         "dev":"group0.3",
-        "tokens_reserved":0,
-        "use_token_limit":0,
-        "tokens_allowed":0,
+        "read_buffers_reserved":0,
+        "use_read_buffer_limit":0,
+        "read_buffers_allowed":0,
         "traffic_class_a":-1,
         "traffic_class_b":-1
       }
