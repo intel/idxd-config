@@ -226,6 +226,18 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 			return rc;
 	}
 
+	if (wq_params->driver_name) {
+		if (!accfg_wq_driver_name_validate(wq, wq_params->driver_name)) {
+			fprintf(stderr, "Invalid driver name \"%s\"\n",
+					wq_params->driver_name);
+			return -ENOENT;
+
+		}
+		rc = accfg_wq_set_str_driver_name(wq, wq_params->driver_name);
+		if (rc < 0)
+			return rc;
+	}
+
 	if (wq_params->wq_size != INT_MAX) {
 		rc = accfg_wq_set_size(wq, wq_params->wq_size);
 		if (rc < 0)
@@ -428,6 +440,8 @@ int cmd_config_wq(int argc, const char **argv, void *ctx)
 			   "specify type by wq"),
 		OPT_STRING('n', "name", &wq_param.name, "name",
 			   "specify name by wq"),
+		OPT_STRING('d', "driver-name", &wq_param.driver_name,
+				"driver name", "specify wq driver name"),
 		OPT_STRING('m', "mode", &wq_param.mode, "mode",
 			   "specify mode by wq"),
 		OPT_UINTEGER('c', "max-batch-size", &wq_param.max_batch_size,

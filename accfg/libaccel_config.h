@@ -120,6 +120,7 @@ struct wq_parameters {
 	const char *mode;
 	const char *type;
 	const char *name;
+	const char *driver_name;
 };
 
 struct engine_parameters {
