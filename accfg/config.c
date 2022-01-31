@@ -115,6 +115,7 @@ static const struct wq_set_table wq_table[] = {
 	{ "block_on_fault", accfg_wq_set_block_on_fault, NULL, NULL, NULL },
 	{ "type", NULL, NULL, accfg_wq_set_str_type, NULL },
 	{ "name", NULL, NULL, accfg_wq_set_str_name, NULL },
+	{ "driver_name", NULL, NULL, accfg_wq_set_str_driver_name, NULL },
 	{ "mode", NULL, NULL, accfg_wq_set_str_mode, NULL },
 	{ "max_batch_size", accfg_wq_set_max_batch_size, NULL, NULL, NULL },
 	{ "max_transfer_size", NULL, accfg_wq_set_max_transfer_size, NULL, NULL },

@@ -453,6 +453,12 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	if (jobj)
 		json_object_object_add(jaccfg, "name", jobj);
 
+	if (accfg_wq_get_driver_name(wq)) {
+		jobj = json_object_new_string(accfg_wq_get_driver_name(wq));
+		if (jobj)
+			json_object_object_add(jaccfg, "driver_name", jobj);
+	}
+
 	jobj = json_object_new_int(accfg_wq_get_threshold(wq));
 	if (jobj)
 		json_object_object_add(jaccfg, "threshold", jobj);
