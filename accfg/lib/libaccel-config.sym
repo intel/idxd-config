@@ -179,3 +179,10 @@ global:
 	accfg_group_set_read_buffers_allowed;
 	accfg_group_set_use_read_buffer_limit;
 } LIBACCFG_11;
+
+LIBACCFG_13 {
+global:
+	accfg_wq_set_str_driver_name;
+	accfg_wq_get_driver_name;
+	accfg_wq_driver_name_validate;
+} LIBACCFG_12;

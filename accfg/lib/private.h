@@ -121,6 +121,7 @@ struct accfg_wq {
 	unsigned int threshold;
 	char *mode;
 	char *name;
+	char *driver_name;
 	enum accfg_wq_type type;
 	char *state;
 	unsigned int max_batch_size;

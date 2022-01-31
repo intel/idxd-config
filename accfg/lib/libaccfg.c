@@ -827,6 +827,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	wq->cdev_minor = accfg_get_param_long(ctx, dfd, "cdev_minor");
 	wq_type = accfg_get_param_str(ctx, dfd, "type");
 	wq->name = accfg_get_param_str(ctx, dfd, "name");
+	wq->driver_name = accfg_get_param_str(ctx, dfd, "driver_name");
 	wq->threshold =  accfg_get_param_long(ctx, dfd, "threshold");
 	wq->max_batch_size =  accfg_get_param_long(ctx, dfd, "max_batch_size");
 	wq->max_transfer_size =  accfg_get_param_long(ctx, dfd, "max_transfer_size");
@@ -2062,6 +2063,28 @@ ACCFG_EXPORT const char *accfg_wq_get_type_name(struct accfg_wq *wq)
 	return wq->name;
 }
 
+ACCFG_EXPORT const char *accfg_wq_get_driver_name(struct accfg_wq *wq)
+{
+	return wq->driver_name;
+}
+
+ACCFG_EXPORT int accfg_wq_driver_name_validate(struct accfg_wq *wq,
+		const char *drv_name)
+{
+	int rc = 0;
+	char *path = NULL;
+	struct accfg_device *device = accfg_wq_get_device(wq);
+
+	rc = get_driver_bind_path(device->bus_type_str, wq->driver_name, &path);
+	if (rc < 0)
+		return 0;
+
+	rc = access(path, F_OK);
+	free(path);
+
+	return !rc;
+}
+
 ACCFG_EXPORT uint64_t accfg_wq_get_size(struct accfg_wq *wq)
 {
 	return wq->size;
@@ -2454,6 +2477,7 @@ ACCFG_EXPORT int accfg_wq_set_str_##field( \
 
 accfg_wq_set_str_field(wq, val, mode)
 accfg_wq_set_str_field(wq, val, name)
+accfg_wq_set_str_field(wq, val, driver_name)
 
 static int wq_parse_type(struct accfg_wq *wq, char *wq_type);
 
