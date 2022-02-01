@@ -71,6 +71,7 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %{_bindir}/accel-config
 %{_mandir}/man1/accel-config*
 %{_sysconfdir}/accel-config/accel-config.conf.sample
+%{_datadir}/accel-config/contrib/configs/*
 
 %files -n LNAME
 %defattr(-,root,root)
