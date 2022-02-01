@@ -2193,9 +2193,15 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 
 	if (flag == ACCFG_WQ_ENABLE) {
 		rc = get_driver_bind_path(device->bus_type_str,
+				wq->driver_name ? wq->driver_name :
 				IDXD_WQ_DEVICE_PORTAL(device, wq), &path);
 		if (rc < 0)
 			return rc;
+		if (wq->driver_name && access(path, F_OK)) {
+			fprintf(stderr, "Invalid wq driver name \"%s\"\n",
+					wq->driver_name);
+			return -ENOENT;
+		}
 	} else if (flag == ACCFG_WQ_DISABLE) {
 		int clients;
 
