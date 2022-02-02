@@ -219,7 +219,7 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		jobj = json_object_new_array();
 		if (!jobj)
 			goto err;
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 8; i++) {
 			struct json_object *json_error;
 
 			json_error = util_json_object_hex(error->val[i],
@@ -233,7 +233,7 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		jobj = json_object_new_array();
 		if (!jobj)
 			goto err;
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 8; i++) {
 			struct json_object *json_oc;
 
 			json_oc = util_json_object_hex(op_cap.bits[i], flags);

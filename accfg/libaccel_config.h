@@ -81,11 +81,11 @@ enum accfg_mdev_type {
 
 /* no need to save device error */
 struct accfg_error {
-	uint64_t val[4];
+	uint32_t val[8];
 };
 
 struct accfg_op_cap {
-	uint64_t bits[4];
+	uint32_t bits[8];
 };
 
 /* parameters read from sysfs of accfg driver */

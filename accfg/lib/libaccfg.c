@@ -1369,13 +1369,16 @@ ACCFG_EXPORT int accfg_device_get_op_cap(struct accfg_device *device,
 		return -errno;
 	oc = accfg_get_param_str(ctx, dfd, "op_cap");
 	close(dfd);
-	rc = sscanf(oc, "%" SCNx64 " %" SCNx64 " %" SCNx64 " %" SCNx64,
+	rc = sscanf(oc, "%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32
+			",%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32,
 			&op_cap->bits[0], &op_cap->bits[1],
-			&op_cap->bits[2], &op_cap->bits[3]);
+			&op_cap->bits[2], &op_cap->bits[3],
+			&op_cap->bits[4], &op_cap->bits[5],
+			&op_cap->bits[6], &op_cap->bits[7]);
 
 	free(oc);
 
-	if (rc != 4)
+	if (rc != 8)
 		return errno ? -errno : -EIO;
 
 	return 0;
@@ -1421,13 +1424,16 @@ ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
 		return -errno;
 	read_error = accfg_get_param_str(ctx, dfd, "errors");
 	close(dfd);
-	rc = sscanf(read_error, "%" SCNx64 " %" SCNx64 " %" SCNx64 " %" SCNx64,
+	rc = sscanf(read_error, "%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32
+			",%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32,
 			&error->val[0], &error->val[1],
-			&error->val[2], &error->val[3]);
+			&error->val[2], &error->val[3],
+			&error->val[4], &error->val[5],
+			&error->val[6], &error->val[7]);
 
 	free(read_error);
 
-	if (rc != 4)
+	if (rc != 8)
 		return errno ? -errno : -EIO;
 
 	return 0;
