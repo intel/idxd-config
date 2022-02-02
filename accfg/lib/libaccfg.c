@@ -197,7 +197,7 @@ static int accfg_set_param(struct accfg_ctx *ctx, int dfd, char *name,
 static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
-	char buf[MAX_PARAM_LEN + 1];
+	char buf[MAX_PARAM_LEN];
 	int n;
 	const char *p;
 
@@ -210,7 +210,7 @@ static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 	if (fd == -1)
 		return -errno;
 
-	n = read(fd, buf, MAX_PARAM_LEN);
+	n = read(fd, buf, MAX_PARAM_LEN - 1);
 	close(fd);
 	if (n <= 0)
 		return -ENXIO;
@@ -226,13 +226,13 @@ static uint64_t accfg_get_param_unsigned_llong(
 		struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
-	char buf[MAX_PARAM_LEN + 1];
+	char buf[MAX_PARAM_LEN];
 	int n;
 
 	if (fd == -1)
 		return -errno;
 
-	n = read(fd, buf, MAX_PARAM_LEN);
+	n = read(fd, buf, MAX_PARAM_LEN - 1);
 	close(fd);
 	if (n <= 0)
 		return -ENXIO;
@@ -247,13 +247,13 @@ static uint64_t accfg_get_param_unsigned_llong(
 static char *accfg_get_param_str(struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
-	char buf[MAX_PARAM_LEN + 1];
+	char buf[MAX_PARAM_LEN];
 	int n;
 
 	if (fd == -1)
 		return NULL;
 
-	n = read(fd, buf, MAX_PARAM_LEN);
+	n = read(fd, buf, MAX_PARAM_LEN - 1);
 	close(fd);
 	if (n <= 0)
 		return NULL;
@@ -618,21 +618,13 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 {
 	struct accfg_ctx *ctx = parent;
 	struct accfg_device *device;
-	char *path;
 	int dfd;
 	int rc;
 	char *p;
 
-	path = calloc(1, strlen(ctl_base) + MAX_PARAM_LEN);
-	if (!path) {
-		err(ctx, "%s: allocation of path failed\n", __func__);
-		return NULL;
-	}
-
 	dfd = open(ctl_base, O_PATH);
 	if (dfd == -1) {
 		err(ctx, "%s open failed: %s\n", __func__, strerror(errno));
-		free(path);
 		return NULL;
 	}
 
@@ -702,7 +694,7 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 	device->mdev_path = p;
 
 	device->device_buf = calloc(1, strlen(device->device_path) +
-			MAX_PARAM_LEN);
+			MAX_BUF_LEN);
 	if (!device->device_buf) {
 		err(ctx, "allocation of device buffer failed\n");
 		goto err_read;
@@ -720,7 +712,6 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 		goto err_dev_path;
 
 	list_add_tail(&ctx->devices, &device->list);
-	free(path);
 
 	return device;
 
@@ -730,7 +721,6 @@ err_read:
 	free(device->mdev_path);
 	free(device);
 err_device:
-	free(path);
 	return NULL;
 }
 
