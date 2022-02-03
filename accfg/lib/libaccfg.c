@@ -2156,6 +2156,82 @@ ACCFG_EXPORT int accfg_wq_priority_boundary(struct accfg_wq *wq)
 	return 0;
 }
 
+ACCFG_EXPORT int accfg_wq_get_op_config(struct accfg_wq *wq,
+		struct accfg_op_config *op_config)
+{
+	char *oc;
+	int dfd;
+	int rc;
+	struct accfg_ctx *ctx;
+
+	if (!wq || !op_config)
+		return -EINVAL;
+
+	ctx = accfg_wq_get_ctx(wq);
+	dfd = open(wq->wq_path, O_PATH);
+	if (dfd < 0)
+		return -errno;
+	oc = accfg_get_param_str(ctx, dfd, "op_config");
+	close(dfd);
+	rc = sscanf(oc, "%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32
+			",%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32,
+			&op_config->bits[0], &op_config->bits[1],
+			&op_config->bits[2], &op_config->bits[3],
+			&op_config->bits[4], &op_config->bits[5],
+			&op_config->bits[6], &op_config->bits[7]);
+
+	free(oc);
+
+	if (rc != 8)
+		return -EIO;
+
+	return 0;
+}
+
+ACCFG_EXPORT int accfg_wq_set_op_config(struct accfg_wq *wq,
+		struct accfg_op_config *op_config)
+{
+	char oc[MAX_PARAM_LEN];
+
+	if (!wq || !op_config)
+		return -EINVAL;
+
+	snprintf(oc, MAX_PARAM_LEN,
+			"%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32
+			",%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32,
+			op_config->bits[0], op_config->bits[1],
+			op_config->bits[2], op_config->bits[3],
+			op_config->bits[4], op_config->bits[5],
+			op_config->bits[6], op_config->bits[7]);
+
+	return accfg_wq_set_op_config_str(wq, oc);
+}
+
+ACCFG_EXPORT int accfg_wq_set_op_config_str(struct accfg_wq *wq,
+		char *op_config)
+{
+	struct accfg_ctx *ctx;
+	int dfd;
+	int rc;
+
+	if (!wq || !op_config)
+		return -EINVAL;
+
+	ctx = accfg_wq_get_ctx(wq);
+	dfd = open(wq->wq_path, O_PATH);
+	if (dfd < 0)
+		return -errno;
+
+	rc = accfg_set_param(ctx, dfd, "op_config", op_config,
+			strlen(op_config));
+
+	close(dfd);
+	if (rc)
+		return -EIO;
+
+	return 0;
+}
+
 static int accfg_wq_retrieve_cdev_minor(struct accfg_wq *wq)
 {
 	int dfd;

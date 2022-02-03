@@ -88,6 +88,10 @@ struct accfg_op_cap {
 	uint32_t bits[8];
 };
 
+struct accfg_op_config {
+	uint32_t bits[8];
+};
+
 /* parameters read from sysfs of accfg driver */
 struct dev_parameters {
 	unsigned int token_limit __attribute((deprecated));
@@ -323,6 +327,11 @@ int accfg_wq_disable(struct accfg_wq *wq, bool force);
 int accfg_wq_priority_boundary(struct accfg_wq *wq);
 int accfg_wq_size_boundary(struct accfg_device *device, int wq_num);
 int accfg_wq_get_user_dev_path(struct accfg_wq *wq, char *buf, size_t size);
+int accfg_wq_get_op_config(struct accfg_wq *wq,
+		struct accfg_op_config *op_config);
+int accfg_wq_set_op_config(struct accfg_wq *wq,
+		struct accfg_op_config *op_config);
+int accfg_wq_set_op_config_str(struct accfg_wq *wq, char *op_config);
 
 /* libaccfg function for engine */
 struct accfg_engine;

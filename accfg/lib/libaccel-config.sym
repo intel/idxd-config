@@ -185,6 +185,9 @@ global:
 	accfg_wq_set_str_driver_name;
 	accfg_wq_get_driver_name;
 	accfg_wq_driver_name_validate;
+	accfg_wq_get_op_config;
+	accfg_wq_set_op_config;
+	accfg_wq_set_op_config_str;
 } LIBACCFG_12;
 
 LIBACCFG_14 {
