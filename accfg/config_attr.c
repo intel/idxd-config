@@ -238,6 +238,15 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 			return rc;
 	}
 
+	if (wq_params->op_config) {
+		rc = accfg_wq_set_op_config_str(wq, wq_params->op_config);
+		if (rc < 0) {
+			fprintf(stderr, "Invalid op config \"%s\"\n",
+					wq_params->op_config);
+			return rc;
+		}
+	}
+
 	if (wq_params->wq_size != INT_MAX) {
 		rc = accfg_wq_set_size(wq, wq_params->wq_size);
 		if (rc < 0)
@@ -442,6 +451,8 @@ int cmd_config_wq(int argc, const char **argv, void *ctx)
 			   "specify name by wq"),
 		OPT_STRING('d', "driver-name", &wq_param.driver_name,
 				"driver name", "specify wq driver name"),
+		OPT_STRING('o', "op-config", &wq_param.op_config,
+				"op config", "specify wq op config"),
 		OPT_STRING('m', "mode", &wq_param.mode, "mode",
 			   "specify mode by wq"),
 		OPT_UINTEGER('c', "max-batch-size", &wq_param.max_batch_size,

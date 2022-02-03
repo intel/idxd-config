@@ -125,6 +125,7 @@ struct wq_parameters {
 	const char *type;
 	const char *name;
 	const char *driver_name;
+	const char *op_config;
 };
 
 struct engine_parameters {
@@ -331,7 +332,7 @@ int accfg_wq_get_op_config(struct accfg_wq *wq,
 		struct accfg_op_config *op_config);
 int accfg_wq_set_op_config(struct accfg_wq *wq,
 		struct accfg_op_config *op_config);
-int accfg_wq_set_op_config_str(struct accfg_wq *wq, char *op_config);
+int accfg_wq_set_op_config_str(struct accfg_wq *wq, const char *op_config);
 
 /* libaccfg function for engine */
 struct accfg_engine;

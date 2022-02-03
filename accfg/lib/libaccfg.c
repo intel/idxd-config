@@ -183,7 +183,7 @@ static inline bool is_mdev_registered(struct accfg_device *device)
 }
 
 static int accfg_set_param(struct accfg_ctx *ctx, int dfd, char *name,
-		void *buf, int len)
+		const void *buf, int len)
 {
 	int fd = openat(dfd, name, O_RDWR);
 	int n;
@@ -2208,7 +2208,7 @@ ACCFG_EXPORT int accfg_wq_set_op_config(struct accfg_wq *wq,
 }
 
 ACCFG_EXPORT int accfg_wq_set_op_config_str(struct accfg_wq *wq,
-		char *op_config)
+		const char *op_config)
 {
 	struct accfg_ctx *ctx;
 	int dfd;
