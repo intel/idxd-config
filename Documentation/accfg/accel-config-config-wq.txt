@@ -70,6 +70,12 @@ OPTIONS
 	specify the name of the driver to bind. This should be one of the valid
 	wq drivers found in /sys/bus/dsa/drivers
 
+-o::
+--op-config::
+	specify the op config bitmask. The bitmask is of size 256 bits and entered
+	as 32 bit hex words separated by comma or space.
+	e.g. 00000000,00000000,00000000,00000000,00000000,00000000,00fc00ff,003f03ff
+
 -m::
 --mode::
 	configure the mode for the wq. The wq mode can be set as "dedicated" or

@@ -35,38 +35,43 @@ EXAMPLE
     "max_engines":4,
     "work_queue_size":64,
     "numa_node":-1,
-    "op_cap":"0x1003f03ff",
+    "op_cap":"00000000,00000000,00000000,00000000,00000000,00000000,00fc00ff,003f03ff",
+    "gen_cap":"0x1833f215f",
+    "version":"0x100",
     "state":"enabled",
     "max_read_buffers":64,
     "max_batch_size":512,
-    "ims_size":256,
     "max_transfer_size":2147483648,
     "configurable":1,
     "pasid_enabled":1,
-    "cdev_major":247,
-    "clients":2,
+    "cdev_major":511,
+    "clients":0,
     "groups":[
       {
         "dev":"group0.0",
         "read_buffers_reserved":0,
         "use_read_buffer_limit":0,
-        "read_buffers_allowed":0,
-        "traffic_class_a":-1,
-        "traffic_class_b":-1,
+        "read_buffers_allowed":8,
+        "traffic_class_a":0,
+        "traffic_class_b":1,
         "grouped_workqueues":[
           {
             "dev":"wq0.0",
-            "mode":"shared",
+            "mode":"dedicated",
             "size":16,
             "group_id":0,
             "priority":10,
             "block_on_fault":1,
-            "cdev_minor":0,
+            "max_batch_size":32,
+            "max_transfer_size":2097152,
+            "cdev_minor":1,
             "type":"user",
             "name":"app1",
-            "threshold":15,
+            "threshold":0,
+            "ats_disable":0,
+            "op_config":"00000000,00000000,00000000,00000000,00000000,00000000,00fc00ff,003f03ff",
             "state":"enabled",
-            "clients":1
+            "clients":0
           }
         ],
         "grouped_engines":[
@@ -84,9 +89,9 @@ EXAMPLE
         "dev":"group0.1",
         "read_buffers_reserved":0,
         "use_read_buffer_limit":0,
-        "read_buffers_allowed":0,
-        "traffic_class_a":-1,
-        "traffic_class_b":-1,
+        "read_buffers_allowed":8,
+        "traffic_class_a":0,
+        "traffic_class_b":1,
         "grouped_workqueues":[
           {
             "dev":"wq0.1",
@@ -95,12 +100,16 @@ EXAMPLE
             "group_id":1,
             "priority":10,
             "block_on_fault":1,
-            "cdev_minor":1,
+            "max_batch_size":16,
+            "max_transfer_size":65536,
+            "cdev_minor":0,
             "type":"user",
             "name":"app2",
             "threshold":0,
+            "ats_disable":0,
+            "op_config":"00000000,00000000,00000000,00000000,00000000,00000000,00fc00ff,003f03ff",
             "state":"enabled",
-            "clients":1
+            "clients":0
           }
         ],
         "grouped_engines":[
@@ -118,17 +127,17 @@ EXAMPLE
         "dev":"group0.2",
         "read_buffers_reserved":0,
         "use_read_buffer_limit":0,
-        "read_buffers_allowed":0,
-        "traffic_class_a":-1,
-        "traffic_class_b":-1
+        "read_buffers_allowed":8,
+        "traffic_class_a":0,
+        "traffic_class_b":1
       },
       {
         "dev":"group0.3",
         "read_buffers_reserved":0,
         "use_read_buffer_limit":0,
-        "read_buffers_allowed":0,
-        "traffic_class_a":-1,
-        "traffic_class_b":-1
+        "read_buffers_allowed":8,
+        "traffic_class_a":0,
+        "traffic_class_b":1
       }
     ]
   }
