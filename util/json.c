@@ -387,6 +387,7 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	uint64_t size = ULLONG_MAX;
 	enum accfg_wq_mode wq_mode;
 	enum accfg_wq_state wq_state;
+	struct accfg_op_config op_config;
 	int int_val;
 
 	if (!jaccfg)
@@ -471,6 +472,13 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	jobj = json_object_new_int(accfg_wq_get_ats_disable(wq));
 	if (jobj)
 		json_object_object_add(jaccfg, "ats_disable", jobj);
+
+	if (!accfg_wq_get_op_config(wq, &op_config)) {
+		jobj = util_bitmask_to_string(op_config.bits);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jaccfg, "op_config", jobj);
+	}
 
 	if (!(flags & UTIL_JSON_SAVE)) {
 
