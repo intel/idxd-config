@@ -125,6 +125,22 @@ void util_display_json_array(FILE *f_out, struct json_object *jarray,
 	json_object_put(jarray);
 }
 
+/* bit_array must be of 8 32 bit ints */
+static struct json_object *util_bitmask_to_string(uint32_t *bit_array)
+{
+	char bit_str[MAX_PARAM_LEN];
+
+	snprintf(bit_str, MAX_PARAM_LEN,
+			"%08" PRIx32 ",%08" PRIx32 ",%08" PRIx32 ",%08" PRIx32
+			",%08" PRIx32 ",%08" PRIx32 ",%08" PRIx32 ",%08" PRIx32,
+			bit_array[0], bit_array[1],
+			bit_array[2], bit_array[3],
+			bit_array[4], bit_array[5],
+			bit_array[6], bit_array[7]);
+
+	return json_object_new_string(bit_str);
+}
+
 struct json_object *util_device_to_json(struct accfg_device *device,
 					uint64_t flags)
 {
@@ -215,30 +231,19 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 
 	if (!accfg_device_get_errors(device, error)
 			&& (error->val[0] || error->val[1]
-				|| error->val[2] || error->val[3])) {
-		jobj = json_object_new_array();
+				|| error->val[2] || error->val[3]
+				|| error->val[4] || error->val[5]
+				|| error->val[6] || error->val[7])) {
+		jobj = util_bitmask_to_string(error->val);
 		if (!jobj)
 			goto err;
-		for (int i = 0; i < 8; i++) {
-			struct json_object *json_error;
-
-			json_error = util_json_object_hex(error->val[i],
-					flags);
-			json_object_array_add(jobj, json_error);
-		}
 		json_object_object_add(jdevice, "errors", jobj);
 	}
 
 	if (!accfg_device_get_op_cap(device, &op_cap)) {
-		jobj = json_object_new_array();
+		jobj = util_bitmask_to_string(op_cap.bits);
 		if (!jobj)
 			goto err;
-		for (int i = 0; i < 8; i++) {
-			struct json_object *json_oc;
-
-			json_oc = util_json_object_hex(op_cap.bits[i], flags);
-			json_object_array_add(jobj, json_oc);
-		}
 		json_object_object_add(jdevice, "op_cap", jobj);
 	}
 
