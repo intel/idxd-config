@@ -824,6 +824,76 @@ static int set_mdev_type(struct accfg_ctx *ctx, struct accfg_wq *wq,
 	return rc;
 }
 
+static int compare_bitmask(uint32_t *bit_array1, uint32_t *bit_array2)
+{
+	int i;
+	int rc;
+
+	for (i = 0; i < 8; i++) {
+		rc = bit_array1[i] - bit_array2[i];
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int op_config_test(struct accfg_ctx *ctx, struct accfg_wq *wq)
+{
+	int rc;
+	struct accfg_op_config op_config, op_config1;
+	struct accfg_op_cap op_cap;
+	struct accfg_device *device;
+	int i;
+
+	device = accfg_wq_get_device(wq);
+	rc = accfg_device_get_op_cap(device, &op_cap);
+	if (rc) {
+		printf("Error getting op cap\n");
+		return rc;
+	}
+
+	for (i = 0; i < 8; i++)
+		op_config.bits[i] = op_cap.bits[i];
+
+	rc = accfg_wq_set_op_config(wq, &op_config);
+	if (rc) {
+		printf("Error setting op config\n");
+		return rc;
+	}
+
+	rc = accfg_wq_get_op_config(wq, &op_config1);
+	if (rc) {
+		printf("Error getting op config\n");
+		return rc;
+	}
+
+	if (compare_bitmask(op_config.bits, op_config1.bits)) {
+		printf("Error setting op config\n");
+		return rc;
+	}
+
+	for (i = 0; i < 8; i++)
+		op_config.bits[i] = ~op_config.bits[i];
+
+	rc = accfg_wq_set_op_config(wq, &op_config);
+	if (!rc) {
+		printf("Error - invalid op config was allowed\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 8; i++)
+		op_config.bits[i] = 0;
+
+	rc = accfg_wq_set_op_config(wq, &op_config);
+	if (rc) {
+		printf("Error - clearing all op_config bits failed\n");
+		return rc;
+	}
+
+	return 0;
+}
+
 static int enable_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 		struct accfg_wq *wq)
 {
@@ -918,6 +988,30 @@ static int test_mdev_1dwq(struct accfg_ctx *ctx)
 	return 0;
 }
 
+/* test setting of valid op_config bitmask */
+static int test_op_config(struct accfg_ctx *ctx)
+{
+	int rc = 0;
+
+	rc = device_test_reset(ctx, test_ctx.device, false);
+	if (rc)
+		return rc;
+
+	rc = set_config(ctx, &test_ctx, "dedicated");
+	if (rc)
+		return rc;
+
+	rc = op_config_test(ctx, test_ctx.wq[1]);
+	if (rc)
+		return rc;
+
+	rc = device_test_reset(ctx, test_ctx.device, false);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
 typedef int (*do_test_fn)(struct accfg_ctx *ctx);
 struct _test_case {
 	do_test_fn test_fn;
@@ -955,6 +1049,11 @@ static struct _test_case test_cases[] = {
 		.test_fn = test_mdev_1dwq,
 		.desc = "1dwq type mdev creation and removal",
 		.enabled = false,
+	},
+	{
+		.test_fn = test_op_config,
+		.desc = "setting op_config bitmask",
+		.enabled = true,
 	},
 };
 
