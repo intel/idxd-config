@@ -8,6 +8,8 @@
 #include <accfg/idxd.h>
 #include "dsa.h"
 
+unsigned int dif_arr[] = {512, 520, 4096, 4104};
+
 void dsa_prep_desc_common(struct dsa_hw_desc *hw, char opcode,
 			  uint64_t dest, uint64_t src, size_t len, unsigned long dflags)
 {
@@ -528,6 +530,193 @@ void dsa_prep_batch_crc_copy(struct batch_task *btsk)
 		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
 		sub_task->comp->status = 0;
 		sub_task->desc->crc_seed = sub_task->crc_seed;
+	}
+}
+
+void dsa_prep_dif_check(struct task *tsk)
+{
+	info("preparing descriptor for dif check\n");
+
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			     (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+	tsk->desc->chk_app_tag_seed = tsk->apptag;
+	tsk->desc->chk_ref_tag_seed = tsk->reftag;
+	tsk->desc->dif_chk_flags = tsk->blk_idx_flg;
+}
+
+void dsa_prep_dif_insert(struct task *tsk)
+{
+	info("preparing descriptor for dif insert\n");
+
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			     (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+	tsk->desc->ins_app_tag_seed = tsk->apptag;
+	tsk->desc->ins_ref_tag_seed = tsk->reftag;
+	tsk->desc->dif_ins_flags = tsk->blk_idx_flg;
+}
+
+void dsa_prep_dif_strip(struct task *tsk)
+{
+	info("preparing descriptor for dif strip\n");
+
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			     (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+	tsk->desc->chk_app_tag_seed = tsk->apptag;
+	tsk->desc->chk_ref_tag_seed = tsk->reftag;
+	tsk->desc->dif_chk_flags = tsk->blk_idx_flg;
+}
+
+void dsa_prep_dif_update(struct task *tsk)
+{
+	info("preparing descriptor for dif update\n");
+
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			     (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+	tsk->desc->src_app_tag_seed = tsk->apptag;
+	tsk->desc->src_ref_tag_seed = tsk->reftag;
+	tsk->desc->dest_ref_tag_seed = tsk->reftag;
+	tsk->desc->dest_app_tag_seed = tsk->apptag;
+	tsk->desc->src_upd_flags = 0x80;
+	tsk->desc->upd_dest_flags = 0x80;
+	tsk->desc->dif_upd_flags = tsk->blk_idx_flg;
+}
+
+void dsa_reprep_dif(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_completion_record *compl = tsk->comp;
+	struct dsa_hw_desc *hw = tsk->desc;
+	unsigned long blks_completed = 0;
+
+	info("PF addr %#lx dir %d bc %#x\n",
+	     compl->fault_addr, compl->result,
+	     compl->bytes_completed);
+
+	hw->src_addr += compl->bytes_completed;
+	hw->ins_ref_tag_seed = compl->dif_ins_ref_tag;
+	if (tsk->opcode == DSA_OPCODE_DIF_INS) {
+		blks_completed = compl->bytes_completed / (dif_arr[tsk->blk_idx_flg]);
+		hw->xfer_size -= compl->bytes_completed;
+		hw->dst_addr += compl->bytes_completed + 8 * blks_completed;
+		hw->ins_app_tag_seed = compl->dif_ins_app_tag;
+		hw->ins_ref_tag_seed = compl->dif_ins_ref_tag;
+	}
+
+	if (tsk->opcode == DSA_OPCODE_DIF_STRP) {
+		blks_completed = compl->bytes_completed / (dif_arr[tsk->blk_idx_flg] + 8);
+		hw->xfer_size -= compl->bytes_completed;
+		hw->dst_addr += dif_arr[tsk->blk_idx_flg] * blks_completed;
+		hw->chk_app_tag_seed = compl->dif_chk_app_tag;
+		hw->chk_ref_tag_seed = compl->dif_chk_ref_tag;
+	}
+
+	if (tsk->opcode == DSA_OPCODE_DIF_UPDT) {
+		blks_completed = compl->bytes_completed / (dif_arr[tsk->blk_idx_flg] + 8);
+		hw->xfer_size -= compl->bytes_completed;
+		hw->dst_addr += (dif_arr[tsk->blk_idx_flg] + 8) * blks_completed;
+		hw->src_app_tag_seed = compl->dif_upd_src_app_tag;
+		hw->dest_app_tag_seed = compl->dif_upd_dest_app_tag;
+		hw->src_ref_tag_seed = compl->dif_upd_dest_ref_tag;
+		hw->dest_ref_tag_seed = compl->dif_upd_dest_ref_tag;
+	}
+	if (tsk->opcode == DSA_OPCODE_DIF_CHECK) {
+		blks_completed = compl->bytes_completed / (dif_arr[tsk->blk_idx_flg] + 8);
+		hw->xfer_size -= compl->bytes_completed;
+		hw->chk_app_tag_seed = compl->dif_chk_app_tag;
+		hw->chk_ref_tag_seed = compl->dif_chk_ref_tag;
+	}
+
+	resolve_page_fault(compl->fault_addr, compl->status);
+
+	compl->status = 0;
+
+	dsa_desc_submit(ctx, hw);
+}
+
+void dsa_prep_batch_dif_check(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		sub_task->xfer_size = btsk->sub_tasks[i].xfer_size;
+		sub_task->desc->dif_chk_flags = btsk->sub_tasks[i].blk_idx_flg;
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				     (uint64_t)(sub_task->dst1), (uint64_t)(sub_task->src1),
+				     sub_task->xfer_size, sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
+		sub_task->desc->chk_app_tag_seed = sub_task->apptag;
+		sub_task->desc->chk_ref_tag_seed = sub_task->reftag;
+	}
+}
+
+void dsa_prep_batch_dif_insert(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		sub_task->xfer_size = btsk->sub_tasks[i].xfer_size;
+		sub_task->desc->dif_chk_flags = btsk->sub_tasks[i].blk_idx_flg;
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				     (uint64_t)(sub_task->dst1), (uint64_t)(sub_task->src1),
+				     sub_task->xfer_size, sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
+		sub_task->desc->ins_app_tag_seed = sub_task->apptag;
+		sub_task->desc->ins_ref_tag_seed = sub_task->reftag;
+	}
+}
+
+void dsa_prep_batch_dif_strip(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		sub_task->xfer_size = btsk->sub_tasks[i].xfer_size;
+		sub_task->desc->dif_chk_flags = btsk->sub_tasks[i].blk_idx_flg;
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				     (uint64_t)(sub_task->dst1), (uint64_t)(sub_task->src1),
+				     sub_task->xfer_size, sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
+		sub_task->desc->chk_app_tag_seed = sub_task->apptag;
+		sub_task->desc->chk_ref_tag_seed = sub_task->reftag;
+	}
+}
+
+void dsa_prep_batch_dif_update(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		sub_task->xfer_size = btsk->sub_tasks[i].xfer_size;
+		sub_task->desc->dif_chk_flags = btsk->sub_tasks[i].blk_idx_flg;
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				     (uint64_t)(sub_task->dst1), (uint64_t)(sub_task->src1),
+				     sub_task->xfer_size, sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
+		sub_task->desc->src_app_tag_seed = sub_task->apptag;
+		sub_task->desc->src_ref_tag_seed = sub_task->reftag;
+		sub_task->desc->dest_ref_tag_seed = sub_task->reftag;
+		sub_task->desc->dest_app_tag_seed = sub_task->apptag;
+		sub_task->desc->src_upd_flags = 0x80;
+		sub_task->desc->upd_dest_flags = 0x80;
 	}
 }
 

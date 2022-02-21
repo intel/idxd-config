@@ -23,6 +23,35 @@ unsigned int ms_timeout = 5000;
 int debug_logging;
 static int umwait_support;
 
+unsigned int dif_blk_arr[] = {512, 520, 4096, 4104};
+
+int get_dif_blksz_flg(unsigned long xfer_size)
+{
+	int blk_idx_flg = 3;
+
+	while (blk_idx_flg) {
+		if (xfer_size % dif_blk_arr[blk_idx_flg] == 0)
+			break;
+		blk_idx_flg--;
+	}
+	return blk_idx_flg;
+}
+
+unsigned long get_blks(unsigned long xfer_size)
+{
+	int blk_idx_flg = 3;
+	unsigned long num_blks;
+
+	while (blk_idx_flg) {
+		if (xfer_size % dif_blk_arr[blk_idx_flg] == 0)
+			break;
+		blk_idx_flg--;
+	}
+
+	num_blks = xfer_size / dif_blk_arr[blk_idx_flg];
+	return num_blks;
+}
+
 static inline void cpuid(unsigned int *eax, unsigned int *ebx,
 			 unsigned int *ecx, unsigned int *edx)
 {
@@ -477,6 +506,196 @@ int init_copy_crc(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 	return DSA_STATUS_OK;
 }
 
+int init_dif_check(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long buf_size;
+	unsigned long force_align = ADDR_ALIGNMENT;
+	unsigned char *src;
+	unsigned int dif_reftag;
+	unsigned int dif_apptag;
+	unsigned int dif_guardtag;
+	unsigned long blks = 0;
+	unsigned long i;
+	unsigned long dif_size;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->apptag = 0xFACE;
+	tsk->reftag = 0xABBA;
+
+	tsk->blk_idx_flg = get_dif_blksz_flg(tsk->xfer_size);
+	blks = tsk->xfer_size / dif_blk_arr[tsk->blk_idx_flg];
+	tsk->blks = blks;
+
+	buf_size = tsk->xfer_size / blks;
+	/* 8 bytes for inclusion of tags */
+	tsk->xfer_size += 8 * blks;
+	tsk->src1 = aligned_alloc(force_align, tsk->xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	src = (unsigned char *)tsk->src1;
+	dif_reftag = tsk->reftag;
+	dif_apptag = tsk->apptag;
+
+	for (i = 1; i <= blks; i++) {
+		dif_size = (buf_size + 8) * (i - 1);
+		memset_pattern((src + dif_size), tsk->pattern, buf_size);
+		dif_guardtag = dsa_calculate_crc_t10dif((src + dif_size), buf_size, 0);
+		src[buf_size + DIF_BLK_GRD_1 + dif_size] = (dif_guardtag >> 8) & 0xFF;
+		src[buf_size + DIF_BLK_GRD_2 + dif_size] = dif_guardtag & 0xFF;
+		src[buf_size + DIF_APP_TAG_1 + dif_size] = (dif_apptag >> 8) & 0xFF;
+		src[buf_size + DIF_APP_TAG_2 + dif_size] = (dif_apptag) & 0xFF;
+		src[buf_size + DIF_REF_TAG_1 + dif_size] = (dif_reftag >> 24) & 0xFF;
+		src[buf_size + DIF_REF_TAG_2 + dif_size] = (dif_reftag >> 16) & 0xFF;
+		src[buf_size + DIF_REF_TAG_3 + dif_size] = (dif_reftag >> 8) & 0xFF;
+		src[buf_size + DIF_REF_TAG_4 + dif_size] = dif_reftag & 0xFF;
+		dif_reftag++;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int init_dif_ins(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+	unsigned long blks = 0;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->apptag = 0xFACE;
+	tsk->reftag = 0xABBA;
+	tsk->blk_idx_flg = get_dif_blksz_flg(tsk->xfer_size);
+	blks = tsk->xfer_size / dif_blk_arr[tsk->blk_idx_flg];
+	tsk->blks = blks;
+
+	tsk->src1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
+	blks = get_blks(xfer_size);
+	xfer_size += 8 * blks;
+	tsk->dst1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->dst1)
+		return -ENOMEM;
+
+	return DSA_STATUS_OK;
+}
+
+int init_dif_strp(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long buf_size;
+	unsigned long force_align = ADDR_ALIGNMENT;
+	unsigned char *src;
+	unsigned int dif_reftag;
+	unsigned int dif_apptag;
+	unsigned int dif_guardtag;
+	unsigned long blks = 0;
+	unsigned long i;
+	unsigned long dif_size;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->apptag = 0xFACE;
+	tsk->reftag = 0xABBA;
+
+	tsk->blk_idx_flg = get_dif_blksz_flg(tsk->xfer_size);
+	blks = tsk->xfer_size / dif_blk_arr[tsk->blk_idx_flg];
+	tsk->blks = blks;
+	buf_size = tsk->xfer_size / blks;
+	/* 8 bytes for inclusion of tags */
+	tsk->xfer_size += 8 * blks;
+	tsk->src1 = aligned_alloc(force_align, tsk->xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+
+	src = (unsigned char *)tsk->src1;
+	dif_reftag = tsk->reftag;
+	dif_apptag = tsk->apptag;
+
+	for (i = 1; i <= blks; i++) {
+		dif_size = (buf_size + 8) * (i - 1);
+		memset_pattern((src + dif_size), tsk->pattern, buf_size);
+		dif_guardtag = dsa_calculate_crc_t10dif((src + dif_size), buf_size, 0);
+		src[buf_size + DIF_BLK_GRD_1 + dif_size] = (dif_guardtag >> 8) & 0xFF;
+		src[buf_size + DIF_BLK_GRD_2 + dif_size] = dif_guardtag & 0xFF;
+		src[buf_size + DIF_APP_TAG_1 + dif_size] = (dif_apptag >> 8) & 0xFF;
+		src[buf_size + DIF_APP_TAG_2 + dif_size] = (dif_apptag) & 0xFF;
+		src[buf_size + DIF_REF_TAG_1 + dif_size] = (dif_reftag >> 24) & 0xFF;
+		src[buf_size + DIF_REF_TAG_2 + dif_size] = (dif_reftag >> 16) & 0xFF;
+		src[buf_size + DIF_REF_TAG_3 + dif_size] = (dif_reftag >> 8) & 0xFF;
+		src[buf_size + DIF_REF_TAG_4 + dif_size] = dif_reftag & 0xFF;
+		dif_reftag++;
+	}
+
+	tsk->dst1 = aligned_alloc(force_align, tsk->xfer_size - 8 * blks);
+	if (!tsk->dst1)
+		return -ENOMEM;
+
+	return DSA_STATUS_OK;
+}
+
+int init_dif_updt(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long buf_size;
+	unsigned long force_align = ADDR_ALIGNMENT;
+	unsigned char *src;
+	unsigned int dif_reftag;
+	unsigned int dif_apptag;
+	unsigned int dif_guardtag;
+	unsigned long blks = 0;
+	unsigned long i;
+	unsigned long dif_size;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->apptag = 0xFACE;
+	tsk->reftag = 0xABBA;
+
+	tsk->blk_idx_flg = get_dif_blksz_flg(tsk->xfer_size);
+	blks = tsk->xfer_size / dif_blk_arr[tsk->blk_idx_flg];
+	tsk->blks = blks;
+	buf_size = tsk->xfer_size / blks;
+	tsk->xfer_size += 8 * blks;
+	tsk->src1 = aligned_alloc(force_align, tsk->xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+
+	src = (unsigned char *)tsk->src1;
+	dif_reftag = tsk->reftag;
+	dif_apptag = tsk->apptag;
+
+	for (i = 1; i <= blks; i++) {
+		dif_size = (buf_size + 8) * (i - 1);
+		memset_pattern((src + dif_size), tsk->pattern, buf_size);
+		dif_guardtag = dsa_calculate_crc_t10dif((src + dif_size), buf_size, 0);
+		src[buf_size + DIF_BLK_GRD_1 + dif_size] = (dif_guardtag >> 8) & 0xFF;
+		src[buf_size + DIF_BLK_GRD_2 + dif_size] = dif_guardtag & 0xFF;
+		src[buf_size + DIF_APP_TAG_1 + dif_size] = (dif_apptag >> 8) & 0xFF;
+		src[buf_size + DIF_APP_TAG_2 + dif_size] = (dif_apptag) & 0xFF;
+		src[buf_size + DIF_REF_TAG_1 + dif_size] = (dif_reftag >> 24) & 0xFF;
+		src[buf_size + DIF_REF_TAG_2 + dif_size] = (dif_reftag >> 16) & 0xFF;
+		src[buf_size + DIF_REF_TAG_3 + dif_size] = (dif_reftag >> 8) & 0xFF;
+		src[buf_size + DIF_REF_TAG_4 + dif_size] = dif_reftag & 0xFF;
+	}
+	tsk->dst1 = aligned_alloc(force_align, tsk->xfer_size);
+	if (!tsk->dst1)
+		return -ENOMEM;
+
+	return DSA_STATUS_OK;
+}
+
 /* this function is re-used by batch task */
 int init_task(struct task *tsk, int tflags, int opcode,
 	      unsigned long xfer_size)
@@ -519,6 +738,22 @@ int init_task(struct task *tsk, int tflags, int opcode,
 
 	case DSA_OPCODE_COPY_CRC:
 		rc = init_copy_crc(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_DIF_CHECK:
+		rc = init_dif_check(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_DIF_INS:
+		rc = init_dif_ins(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_DIF_STRP:
+		rc = init_dif_strp(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_DIF_UPDT:
+		rc = init_dif_updt(tsk, tflags, opcode, xfer_size);
 		break;
 	}
 
@@ -1441,6 +1676,158 @@ int dsa_crc_copy_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
+int dsa_wait_dif(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
+	int rc;
+
+again:
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("DIF desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
+
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		task_result_verify(tsk, 0);
+		dsa_reprep_dif(ctx, tsk);
+		goto again;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_dif_check_multi_task_nodes(struct dsa_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		dsa_prep_dif_check(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all dif check jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_dif(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
+			     tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+	return ret;
+}
+
+int dsa_dif_ins_multi_task_nodes(struct dsa_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		dsa_prep_dif_insert(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+	tsk_node = ctx->multi_task_node;
+	info("Submitted all dif insert jobs\n");
+	while (tsk_node) {
+		ret = dsa_wait_dif(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
+			     tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+	return ret;
+}
+
+int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		dsa_prep_dif_strip(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all dif strp jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_dif(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
+			     tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+
+	return ret;
+}
+
+int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		dsa_prep_dif_update(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+	tsk_node = ctx->multi_task_node;
+
+	info("Submitted all dif update jobs\n");
+	while (tsk_node) {
+		ret = dsa_wait_dif(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
+			     tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+	return ret;
+}
+
 /* mismatch_expected: expect mismatched buffer with success status 0x1 */
 int task_result_verify(struct task *tsk, int mismatch_expected)
 {
@@ -1475,6 +1862,19 @@ int task_result_verify(struct task *tsk, int mismatch_expected)
 		return rc;
 	case DSA_OPCODE_COPY_CRC:
 		rc = task_result_verify_crc_copy(tsk, mismatch_expected);
+		return rc;
+	case DSA_OPCODE_DIF_INS:
+		rc = task_result_verify_dif(tsk, tsk->xfer_size, mismatch_expected);
+		rc = task_result_verify_dif_tags(tsk, tsk->xfer_size);
+		return rc;
+	case DSA_OPCODE_DIF_STRP:
+		rc = task_result_verify_dif(tsk, tsk->xfer_size - 8 * tsk->blks,
+					    mismatch_expected);
+		return rc;
+	case DSA_OPCODE_DIF_UPDT:
+		rc = task_result_verify_dif(tsk, tsk->xfer_size - 8 * tsk->blks,
+					    mismatch_expected);
+		rc = task_result_verify_dif_tags(tsk, tsk->xfer_size - 8 * tsk->blks);
 		return rc;
 	}
 
@@ -1741,6 +2141,319 @@ int task_result_verify_crc_copy(struct task *tsk, int mismatch_expected)
 		printf("\033[0m");
 		return -ENXIO;
 	}
+
+	return DSA_STATUS_OK;
+}
+
+/**
+ * This function calculates the CRC16 T10 checksum for the DIF descriptors.
+ * @param *buffer pointer to the data buffer.
+ * @param len size of the buffer.
+ *
+ **/
+uint16_t dsa_calculate_crc_t10dif(unsigned char *buffer, size_t len, int flags)
+{
+	unsigned short crc;
+	unsigned int i = 0;
+
+	crc = (flags & DIF_INVERT_CRC_SEED) ? 0xFFFF : 0;
+
+	for (i = 0; i < len; i++)
+		crc = (crc << 8) ^ t10_dif_crc_table[((crc >> 8) ^ buffer[i]) & 0xff];
+
+	return (flags & DIF_INVERT_CRC_RESULT) ? ~crc : crc;
+}
+
+static int task_result_verify_dif_page_fault(struct task *tsk, unsigned long xfer_size,
+					     int mismatch_expected)
+{
+	struct dsa_hw_desc *hw = tsk->desc;
+	int rc = 0;
+	unsigned char *src1 = (unsigned char *)hw->src_addr;
+	unsigned char *dst1 = (unsigned char *)hw->dst_addr;
+	unsigned long i, blks;
+
+	if (tsk->comp->status == 0x16 || xfer_size == 0)
+		return DSA_STATUS_OK;
+
+	info("Partial DIF Src and Dest Check Ongoing\n");
+
+	if (tsk->opcode == DSA_OPCODE_DIF_INS) {
+		blks = xfer_size / dif_blk_arr[tsk->blk_idx_flg];
+		for (i = 0; i < blks; i++)
+			rc = memcmp(&src1[dif_blk_arr[tsk->blk_idx_flg] * i],
+				    &dst1[(dif_blk_arr[tsk->blk_idx_flg] + 8) * i],
+				    dif_blk_arr[tsk->blk_idx_flg]);
+	}
+
+	if (tsk->opcode == DSA_OPCODE_DIF_STRP) {
+		blks = xfer_size / (dif_blk_arr[tsk->blk_idx_flg] + 8);
+		for (i = 0; i < blks; i++)
+			rc = memcmp(&src1[(dif_blk_arr[tsk->blk_idx_flg] + 8) * i],
+				    &dst1[dif_blk_arr[tsk->blk_idx_flg] * i],
+				    dif_blk_arr[tsk->blk_idx_flg]);
+	}
+
+	if (tsk->opcode == DSA_OPCODE_DIF_UPDT) {
+		blks = xfer_size / (dif_blk_arr[tsk->blk_idx_flg] + 8);
+		for (i = 0; i < blks; i++)
+			rc = memcmp(&src1[(dif_blk_arr[tsk->blk_idx_flg] + 8) * i],
+				    &dst1[(dif_blk_arr[tsk->blk_idx_flg] + 8) * i],
+				    dif_blk_arr[tsk->blk_idx_flg]);
+	}
+
+	if (rc) {
+		err("dif mismatch dst1, memcmp rc %d\n", rc);
+		return -ENXIO;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int task_result_verify_dif(struct task *tsk, unsigned long xfer_size, int mismatch_expected)
+{
+	int rc;
+	unsigned long i;
+	unsigned long blks = tsk->blks;
+	unsigned long buf_size = dif_blk_arr[tsk->blk_idx_flg];
+	unsigned char *src1 = (unsigned char *)tsk->src1;
+	unsigned char *dst1 = (unsigned char *)tsk->dst1;
+
+	if (tsk->comp->status == DSA_COMP_PAGE_FAULT_NOBOF ||
+	    tsk->comp->status == DSA_COMP_PAGE_FAULT_IR ||
+	    tsk->comp->status == 0x83) {
+		rc = task_result_verify_dif_page_fault(tsk, tsk->comp->bytes_completed, 0);
+		info("Partial DIF Src and Dest Checking Done\n");
+		if (!rc)
+			return DSA_STATUS_OK;
+	}
+
+	if (tsk->comp->status == 0x16)
+		return DSA_STATUS_OK;
+
+	info("Checking Src & Dst buffers\n");
+	if (tsk->opcode == DSA_OPCODE_DIF_INS) {
+		for (i = 0; i < blks; i++)
+			rc = memcmp(&src1[buf_size * i], &dst1[(buf_size + 8) * i], buf_size);
+	}
+
+	if (tsk->opcode == DSA_OPCODE_DIF_STRP) {
+		for (i = 0; i < blks; i++)
+			rc = memcmp(&src1[(buf_size + 8) * i], &dst1[buf_size * i], buf_size);
+	}
+
+	if (tsk->opcode == DSA_OPCODE_DIF_UPDT) {
+		for (i = 0; i < blks; i++)
+			rc = memcmp(&src1[(buf_size + 8) * i], &dst1[(buf_size + 8) * i], buf_size);
+	}
+
+	if (rc) {
+		err("dif mismatch dst1, memcmp rc %d\n", rc);
+		return -ENXIO;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+static int task_result_verify_dif_tags_page_fault(struct task *tsk, unsigned long xfer_size)
+{
+	struct dsa_hw_desc *hw = tsk->desc;
+	unsigned long blks;
+	unsigned long buf_size;
+	unsigned char *dst1 = (uint8_t *)hw->dst_addr;
+	unsigned char *src1 = (uint8_t *)hw->src_addr;
+	unsigned long g_count = 0;
+	unsigned long a_count = 0;
+	unsigned long r_count = 0;
+	unsigned short dif_apptag = 0;
+	unsigned long dif_reftag = 0;
+	unsigned int dif_guardtag = 0;
+	unsigned char tmp_buf;
+	unsigned char dst_tag;
+	unsigned long i;
+
+	info("Checking Partial DIF Tags\n");
+
+	if (tsk->comp->status == 0x16 || xfer_size == 0)
+		return DSA_STATUS_OK;
+
+	if (tsk->opcode != DSA_OPCODE_DIF_UPDT)
+		blks = xfer_size / dif_blk_arr[tsk->blk_idx_flg];
+	else
+		blks = xfer_size / (dif_blk_arr[tsk->blk_idx_flg] + 8);
+
+	switch (tsk->opcode) {
+	case DSA_OPCODE_DIF_INS:
+		dif_reftag = hw->ins_ref_tag_seed;
+		dif_apptag = hw->ins_app_tag_seed;
+		break;
+
+	case DSA_OPCODE_DIF_CHECK:
+	case DSA_OPCODE_DIF_STRP:
+		dif_reftag = hw->chk_ref_tag_seed;
+		dif_apptag = hw->chk_app_tag_seed;
+		break;
+
+	case DSA_OPCODE_DIF_UPDT:
+		dif_reftag = hw->dest_ref_tag_seed;
+		dif_apptag = hw->dest_app_tag_seed;
+		break;
+	}
+
+	buf_size = dif_blk_arr[tsk->blk_idx_flg];
+	for (i = 0; i < blks; i++) {
+		if (tsk->opcode == DSA_OPCODE_DIF_INS)
+			dif_guardtag = dsa_calculate_crc_t10dif((src1 + buf_size * i),
+								buf_size, 0);
+		else
+			dif_guardtag = dsa_calculate_crc_t10dif((src1 + (buf_size + 8) * i),
+								buf_size, 0);
+
+		dst_tag = dst1[buf_size + DIF_BLK_GRD_1 + (buf_size + 8) * i];
+		tmp_buf = (dif_guardtag >> 8) & 0xff;
+		if (tmp_buf != dst_tag)
+			g_count++;
+
+		dst_tag = dst1[buf_size + DIF_BLK_GRD_2 + (buf_size + 8) * i];
+		tmp_buf = dif_guardtag & 0xff;
+		if (tmp_buf != dst_tag)
+			g_count++;
+
+		dst_tag = dst1[buf_size + DIF_APP_TAG_1 + (buf_size + 8) * i];
+		tmp_buf = (dif_apptag >> 8) & 0xff;
+		if (tmp_buf != dst_tag)
+			a_count++;
+
+		dst_tag = dst1[buf_size + DIF_APP_TAG_2 + (buf_size + 8) * i];
+		tmp_buf = (dif_apptag) & 0xff;
+		if (tmp_buf != dst_tag)
+			a_count++;
+
+		dst_tag = dst1[buf_size + DIF_REF_TAG_1 + (buf_size + 8) * i];
+		tmp_buf = (dif_reftag >> 24) & 0xff;
+		if (tmp_buf != dst_tag)
+			r_count++;
+
+		dst_tag = dst1[buf_size + DIF_REF_TAG_2 + (buf_size + 8) * i];
+		tmp_buf = (dif_reftag >> 16) & 0xff;
+		if (tmp_buf != dst_tag)
+			r_count++;
+
+		dst_tag = dst1[buf_size + DIF_REF_TAG_3 + (buf_size + 8) * i];
+		tmp_buf = (dif_reftag >> 8) & 0xff;
+		if (tmp_buf != dst_tag)
+			r_count++;
+
+		dst_tag = dst1[buf_size + DIF_REF_TAG_4 + (buf_size + 8) * i];
+		tmp_buf = dif_reftag & 0xff;
+		if (tmp_buf != dst_tag)
+			r_count++;
+
+		if (tsk->opcode != DSA_OPCODE_DIF_UPDT)
+			dif_reftag++;
+	}
+
+	if (g_count || a_count || r_count)
+		err("Tag Errors Found g: %ld a: %ld r: %ld\n", g_count, a_count, r_count);
+	else
+		info("All Tags Validated\n", g_count, a_count, r_count);
+
+	return DSA_STATUS_OK;
+}
+
+int task_result_verify_dif_tags(struct task *tsk, unsigned long xfer_size)
+{
+	int rc;
+	unsigned long blks;
+	unsigned long buf_size;
+	unsigned char *dst1 = (unsigned char *)tsk->dst1;
+	unsigned char *src1 = (unsigned char *)tsk->src1;
+	unsigned long g_count = 0;
+	unsigned long a_count = 0;
+	unsigned long r_count = 0;
+	unsigned int dif_reftag = tsk->reftag;
+	unsigned int dif_apptag = tsk->apptag;
+	unsigned int dif_guardtag = 0;
+	unsigned char tmp_buf;
+	unsigned char dst_tag;
+	unsigned long i;
+
+	info("compsts: %x\n", tsk->comp->status);
+	if (tsk->comp->status == 0x83 ||
+	    tsk->comp->status == DSA_COMP_PAGE_FAULT_NOBOF ||
+	    tsk->comp->status == DSA_COMP_PAGE_FAULT_IR) {
+		rc = task_result_verify_dif_tags_page_fault(tsk, tsk->comp->bytes_completed);
+		info("Partial DIF Tags Checking Done\n");
+		if (!rc)
+			return DSA_STATUS_OK;
+	}
+
+	info("Checking All Tags\n");
+	if (tsk->opcode != DSA_OPCODE_DIF_UPDT)
+		blks = xfer_size / dif_blk_arr[tsk->blk_idx_flg];
+	else
+		blks = tsk->blks;
+
+	buf_size = dif_blk_arr[tsk->blk_idx_flg];
+	tsk->reftag = 0xABBA;
+	tsk->apptag = 0xFACE;
+
+	for (i = 0; i < blks; i++) {
+		if (tsk->opcode == DSA_OPCODE_DIF_INS)
+			dif_guardtag = dsa_calculate_crc_t10dif((src1 + (buf_size) * i),
+								buf_size, 0);
+		else
+			dif_guardtag = dsa_calculate_crc_t10dif((src1 + (buf_size + 8) * i),
+								buf_size, 0);
+
+		dst_tag = dst1[buf_size + DIF_BLK_GRD_1 + (buf_size + 8) * i];
+		tmp_buf = (dif_guardtag >> 8) & 0xff;
+		if (tmp_buf != dst_tag)
+			g_count++;
+
+		dst_tag = dst1[buf_size + DIF_BLK_GRD_2 + (buf_size + 8) * i];
+		tmp_buf = dif_guardtag & 0xff;
+		if (tmp_buf != dst_tag)
+			g_count++;
+
+		dst_tag = dst1[buf_size + DIF_APP_TAG_1 + (buf_size + 8) * i];
+		tmp_buf = (dif_apptag >> 8) & 0xff;
+		if (tmp_buf != dst_tag)
+			a_count++;
+
+		dst_tag = dst1[buf_size + DIF_APP_TAG_2 + (buf_size + 8) * i];
+		tmp_buf = (dif_apptag) & 0xff;
+		if (tmp_buf != dst_tag)
+			a_count++;
+
+		dst_tag = dst1[buf_size + DIF_REF_TAG_1 + (buf_size + 8) * i];
+		tmp_buf = (dif_reftag >> 24) & 0xff;
+		if (tmp_buf != dst_tag)
+			r_count++;
+
+		dst_tag = dst1[buf_size + DIF_REF_TAG_2 + (buf_size + 8) * i];
+		tmp_buf = (dif_reftag >> 16) & 0xff;
+		if (tmp_buf != dst_tag)
+			r_count++;
+
+		dst_tag = dst1[buf_size + DIF_REF_TAG_3 + (buf_size + 8) * i];
+		tmp_buf = (dif_reftag >> 8) & 0xff;
+		if (tmp_buf != dst_tag)
+			r_count++;
+
+		dst_tag = dst1[buf_size + DIF_REF_TAG_4 + (buf_size + 8) * i];
+		tmp_buf = dif_reftag & 0xff;
+		if (tmp_buf != dst_tag)
+			r_count++;
+
+		if (tsk->opcode != DSA_OPCODE_DIF_UPDT)
+			dif_reftag++;
+	}
+
+	if (g_count || a_count || r_count)
+		err("Tag Errors Found g: %ld a: %ld r: %ld\n", g_count, a_count, r_count);
+	else
+		info("All Tags Validated\n", g_count, a_count, r_count);
 
 	return DSA_STATUS_OK;
 }
