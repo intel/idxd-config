@@ -43,6 +43,7 @@
 
 #define ADDR_ALIGNMENT 32
 
+#define MIN_DELTA_RECORD_SIZE 80
 /* helper macro to get lower 6 bits (ret code) from completion status */
 #define stat_val(status) ((status) & DSA_COMP_STAT_CODE_MASK)
 
@@ -58,6 +59,7 @@ struct task {
 	void *src2;
 	void *dst1;
 	void *dst2;
+	void *delta1;
 	uint64_t pattern;
 	uint64_t pattern2;
 	uint64_t xfer_size;
@@ -235,6 +237,7 @@ int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_si
 int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_compval(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_dualcast(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
+int init_cr_delta(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_task(struct task *tsk, int tflags, int opcode,
 	      unsigned long xfer_size);
 
@@ -259,6 +262,12 @@ int dsa_wait_compval(struct dsa_context *ctx, struct task *tsk);
 int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx);
 int dsa_wait_dualcast(struct dsa_context *ctx, struct task *tsk);
 
+int dsa_cr_delta_multi_task_nodes(struct dsa_context *ctx);
+int dsa_wait_cr_delta(struct dsa_context *ctx, struct task *tsk);
+
+int dsa_ap_delta_multi_task_nodes(struct dsa_context *ctx);
+int dsa_wait_ap_delta(struct dsa_context *ctx, struct task *tsk);
+
 void dsa_prep_noop(struct task *tsk);
 void dsa_prep_drain(struct task *tsk);
 void dsa_prep_memcpy(struct task *tsk);
@@ -271,6 +280,10 @@ void dsa_prep_compval(struct task *tsk);
 void dsa_reprep_compval(struct dsa_context *ctx, struct task *tsk);
 void dsa_prep_dualcast(struct task *tsk);
 void dsa_reprep_dualcast(struct dsa_context *ctx, struct task *tsk);
+void dsa_prep_cr_delta(struct task *tsk);
+void dsa_reprep_cr_delta(struct dsa_context *ctx, struct task *tsk);
+void dsa_prep_ap_delta(struct task *tsk);
+void dsa_reprep_ap_delta(struct dsa_context *ctx, struct task *tsk);
 
 int task_result_verify(struct task *tsk, int mismatch_expected);
 int task_result_verify_task_nodes(struct dsa_context *ctx, int mismatch_expected);
@@ -279,6 +292,7 @@ int task_result_verify_memfill(struct task *tsk, int mismatch_expected);
 int task_result_verify_compare(struct task *tsk, int mismatch_expected);
 int task_result_verify_compval(struct task *tsk, int mismatch_expected);
 int task_result_verify_dualcast(struct task *tsk, int mismatch_expected);
+int task_result_verify_ap_delta(struct task *tsk, int mismatch_expected);
 int batch_result_verify(struct batch_task *btsk, int bof);
 
 int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr);
@@ -292,6 +306,8 @@ void dsa_prep_batch_memfill(struct batch_task *btsk);
 void dsa_prep_batch_compare(struct batch_task *btsk);
 void dsa_prep_batch_compval(struct batch_task *btsk);
 void dsa_prep_batch_dualcast(struct batch_task *btsk);
+void dsa_prep_batch_cr_delta(struct batch_task *btsk);
+void dsa_prep_batch_ap_delta(struct batch_task *btsk);
 int dsa_wait_batch(struct batch_task *btsk);
 
 void dsa_free(struct dsa_context *ctx);

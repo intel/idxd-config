@@ -318,6 +318,122 @@ void dsa_prep_batch_dualcast(struct batch_task *btsk)
 	}
 }
 
+void dsa_prep_batch_cr_delta(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		if (sub_task->opcode == DSA_OPCODE_AP_DELTA)
+			sub_task->opcode = DSA_OPCODE_CR_DELTA;
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				     (uint64_t)(sub_task->src2),
+				     (uint64_t)(sub_task->src1),
+				     sub_task->xfer_size,
+				     sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->desc->delta_addr = (uint64_t)sub_task->delta1;
+		sub_task->desc->max_delta_size = 2 * sub_task->xfer_size;
+		sub_task->comp->status = 0;
+	}
+}
+
+void dsa_prep_cr_delta(struct task *tsk)
+{
+	info("preparing descriptor for cr delta\n");
+
+	if (tsk->opcode == DSA_OPCODE_AP_DELTA)
+		tsk->opcode = DSA_OPCODE_CR_DELTA;
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->src2),
+			     (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->desc->max_delta_size = 2 * tsk->xfer_size;//need to made configurable
+	tsk->desc->delta_addr = (uint64_t)tsk->delta1;
+	if (tsk->desc->max_delta_size < MIN_DELTA_RECORD_SIZE)
+		tsk->desc->max_delta_size = MIN_DELTA_RECORD_SIZE;
+	tsk->comp->status = 0;
+}
+
+void dsa_reprep_cr_delta(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_completion_record *compl = tsk->comp;
+	struct dsa_hw_desc *hw = tsk->desc;
+
+	info("PF addr %#lx dir %d bc %#x\n",
+	     compl->fault_addr, compl->result,
+	     compl->bytes_completed);
+
+	hw->xfer_size -= compl->bytes_completed;
+
+	hw->src_addr += compl->bytes_completed;
+	hw->dst_addr += compl->bytes_completed;
+
+	resolve_page_fault(compl->fault_addr, compl->status);
+
+	compl->status = 0;
+
+	dsa_desc_submit(ctx, hw);
+}
+
+void dsa_prep_ap_delta(struct task *tsk)
+{
+	info("preparing descriptor for ap delta\n");
+
+	if (tsk->opcode == DSA_OPCODE_CR_DELTA)
+		tsk->opcode = DSA_OPCODE_AP_DELTA;
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			     (uint64_t)(tsk->delta1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->desc->delta_addr = 0;
+	tsk->desc->delta_rec_size = tsk->comp->delta_rec_size;
+	tsk->desc->max_delta_size = 0;
+	tsk->comp->status = 0;
+}
+
+void dsa_reprep_ap_delta(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_completion_record *compl = tsk->comp;
+	struct dsa_hw_desc *hw = tsk->desc;
+
+	info("PF addr %#lx dir %d bc %#x\n",
+	     compl->fault_addr, compl->result,
+	     compl->bytes_completed);
+
+	hw->xfer_size -= compl->bytes_completed;
+
+	hw->src_addr += compl->bytes_completed;
+	hw->dst_addr += compl->bytes_completed;
+
+	resolve_page_fault(compl->fault_addr, compl->status);
+
+	compl->status = 0;
+
+	dsa_desc_submit(ctx, hw);
+}
+
+void dsa_prep_batch_ap_delta(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		if (sub_task->opcode == DSA_OPCODE_CR_DELTA)
+			sub_task->opcode = DSA_OPCODE_AP_DELTA;
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode,
+				     (uint64_t)(sub_task->dst1),
+				     (uint64_t)(sub_task->delta1),
+				     sub_task->xfer_size,
+				     sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->desc->delta_addr = 0;
+		sub_task->desc->delta_rec_size = sub_task->comp->delta_rec_size;
+		sub_task->desc->max_delta_size = 0;
+		sub_task->comp->status = 0;
+	}
+}
+
 void dsa_prep_batch(struct batch_task *btsk, unsigned long desc_flags)
 {
 	struct task *ctsk = btsk->core_task;
