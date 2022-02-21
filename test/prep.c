@@ -434,6 +434,103 @@ void dsa_prep_batch_ap_delta(struct batch_task *btsk)
 	}
 }
 
+void dsa_prep_crcgen(struct task *tsk)
+{
+	info("preparing descriptor for crcgen\n");
+
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			     (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+	tsk->desc->crc_seed = tsk->crc_seed;
+	tsk->desc->seed_addr = (uint64_t)tsk->crc_seed_addr;
+}
+
+void dsa_reprep_crcgen(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_completion_record *compl = tsk->comp;
+	struct dsa_hw_desc *hw = tsk->desc;
+
+	info("PF addr %#lx dir %d bc %#x\n",
+	     compl->fault_addr, compl->result,
+	     compl->bytes_completed);
+
+	hw->xfer_size -= compl->bytes_completed;
+
+	hw->src_addr += compl->bytes_completed;
+
+	resolve_page_fault(compl->fault_addr, compl->status);
+
+	compl->status = 0;
+
+	dsa_desc_submit(ctx, hw);
+}
+
+void dsa_prep_batch_crcgen(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode, (uint64_t)(sub_task->dst1),
+				     (uint64_t)(sub_task->src1), sub_task->xfer_size,
+				     sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
+		sub_task->desc->crc_seed = sub_task->crc_seed;
+	}
+}
+
+void dsa_prep_crc_copy(struct task *tsk)
+{
+	info("preparing descriptor for crc copy\n");
+
+	dsa_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+			     (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+	tsk->desc->crc_seed = tsk->crc_seed;
+	tsk->desc->seed_addr = (uint64_t)tsk->crc_seed_addr;
+}
+
+void dsa_reprep_crc_copy(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_completion_record *compl = tsk->comp;
+	struct dsa_hw_desc *hw = tsk->desc;
+
+	info("PF addr %#lx dir %d bc %#x\n",
+	     compl->fault_addr, compl->result,
+	     compl->bytes_completed);
+
+	hw->xfer_size -= compl->bytes_completed;
+
+	hw->src_addr += compl->bytes_completed;
+	hw->dst_addr += compl->bytes_completed;
+
+	resolve_page_fault(compl->fault_addr, compl->status);
+
+	compl->status = 0;
+
+	dsa_desc_submit(ctx, hw);
+}
+
+void dsa_prep_batch_crc_copy(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		dsa_prep_desc_common(sub_task->desc, sub_task->opcode, (uint64_t)(sub_task->dst1),
+				     (uint64_t)(sub_task->src1), sub_task->xfer_size,
+				     sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
+		sub_task->desc->crc_seed = sub_task->crc_seed;
+	}
+}
+
 void dsa_prep_batch(struct batch_task *btsk, unsigned long desc_flags)
 {
 	struct task *ctsk = btsk->core_task;

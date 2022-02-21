@@ -15,6 +15,7 @@
 #include <accfg/libaccel_config.h>
 #include <accfg/idxd.h>
 #include "dsa.h"
+#include "dsa_crc32.h"
 
 #define DSA_COMPL_RING_SIZE 64
 
@@ -423,6 +424,59 @@ int init_cr_delta(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 	return DSA_STATUS_OK;
 }
 
+int init_crcgen(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->src1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
+	tsk->crc_seed = 0x12345678;
+	if (tsk->test_flags & (unsigned int)(READ_CRC_SEED)) {
+		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(tsk->crc_seed));
+		*tsk->crc_seed_addr = tsk->crc_seed;
+		tsk->crc_seed = 0x0;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int init_copy_crc(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->pattern2 = 0xfedcba9876543210;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->src1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
+
+	tsk->dst1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->dst1)
+		return -ENOMEM;
+	memset_pattern(tsk->dst1, tsk->pattern2, xfer_size);
+
+	tsk->crc_seed = 0x12345678;
+	if (tsk->test_flags & (unsigned int)(READ_CRC_SEED)) {
+		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(tsk->crc_seed));
+		*tsk->crc_seed_addr = tsk->crc_seed;
+		tsk->crc_seed = 0x0;
+	}
+
+	return DSA_STATUS_OK;
+}
+
 /* this function is re-used by batch task */
 int init_task(struct task *tsk, int tflags, int opcode,
 	      unsigned long xfer_size)
@@ -457,6 +511,14 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	case DSA_OPCODE_AP_DELTA:
 	case DSA_OPCODE_CR_DELTA:
 		rc = init_cr_delta(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_CRCGEN:
+		rc = init_crcgen(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_COPY_CRC:
+		rc = init_copy_crc(tsk, tflags, opcode, xfer_size);
 		break;
 	}
 
@@ -1267,6 +1329,118 @@ int dsa_ap_delta_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
+int dsa_wait_crcgen(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
+	int rc;
+
+again:
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("CRC desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
+
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_crcgen(ctx, tsk);
+		goto again;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_crcgen_multi_task_nodes(struct dsa_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		dsa_prep_crcgen(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all crcgen jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_crcgen(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+
+	return ret;
+}
+
+int dsa_wait_crc_copy(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
+	int rc;
+
+again:
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("CRC copy desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
+
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_crc_copy(ctx, tsk);
+		goto again;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_crc_copy_multi_task_nodes(struct dsa_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		dsa_prep_crc_copy(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all crcgen jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_crc_copy(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+
+	return ret;
+}
+
 /* mismatch_expected: expect mismatched buffer with success status 0x1 */
 int task_result_verify(struct task *tsk, int mismatch_expected)
 {
@@ -1295,6 +1469,12 @@ int task_result_verify(struct task *tsk, int mismatch_expected)
 		return rc;
 	case DSA_OPCODE_AP_DELTA:
 		rc = task_result_verify_ap_delta(tsk, mismatch_expected);
+		return rc;
+	case DSA_OPCODE_CRCGEN:
+		rc = task_result_verify_crcgen(tsk, mismatch_expected);
+		return rc;
+	case DSA_OPCODE_COPY_CRC:
+		rc = task_result_verify_crc_copy(tsk, mismatch_expected);
 		return rc;
 	}
 
@@ -1427,6 +1607,141 @@ int task_result_verify_ap_delta(struct task *tsk, int mismatch_expected)
 		err("apply delta mismatch, memcmp rc %d\n", rc);
 		return -ENXIO;
 	}
+	return DSA_STATUS_OK;
+}
+
+static uint8_t reverse_u8(uint8_t x)
+{
+	const char *rev = "\x0\x8\x4\xC\x2\xA\x6\xE\x1\x9\x5\xD\x3\xB\x7\xF";
+	return rev[(x & 0xf0) >> 4] | (rev[x & 0x0f] << 4);
+}
+
+static unsigned int reverse(unsigned int num)
+{
+	unsigned int rev_num = 0;
+
+	for (int i = 0; i < (int)sizeof(num); i++) {
+		rev_num |= (reverse_u8((num >> i * 8) & 0xFF));
+		if (i < (int)sizeof(num) - 1)
+			rev_num = rev_num << 8;
+	}
+	return rev_num;
+}
+
+static uint32_t dsa_calculate_crc32(void *data, size_t length, uint32_t seed, uint32_t flags)
+{
+	uint32_t one;
+	uint32_t two;
+	uint8_t *current_char;
+	uint32_t *current = (uint32_t *)data;
+	uint32_t crc = 0;
+
+	if (flags & BYPASS_CRC_INV_REF)
+		crc = reverse(seed);
+	else
+		crc = ~seed;
+
+	if (!(flags & BYPASS_DATA_REF)) {
+		while (length >= 8) {
+			one = *current++ ^ crc;
+			two = *current++;
+			crc = crc32_lookup[7][one & 0xff] ^
+			crc32_lookup[6][(one >> 8)  & 0xff] ^
+			crc32_lookup[5][(one >> 16) & 0xff] ^
+			crc32_lookup[4][one >> 24] ^
+			crc32_lookup[3][two & 0xff] ^
+			crc32_lookup[2][(two >> 8)  & 0xff] ^
+			crc32_lookup[1][(two >> 16) & 0xff] ^
+			crc32_lookup[0][two >> 24];
+		length -= 8;
+		}
+		current_char = (uint8_t *)current;
+		/* Remaining 1 to 7 bytes (standard CRC table-based algorithm) */
+		while (length--)
+			crc = (crc >> 8) ^ crc32_lookup[0][(crc & 0xff) ^ *current_char++];
+
+	} else {
+		/* Process one byte and invert the data */
+		current_char = (uint8_t *)current;
+		while (length--)
+			crc = crc32c_table[(crc ^ reverse_u8(*current_char++)) & 0xff] ^ (crc >> 8);
+	}
+	if (flags & BYPASS_CRC_INV_REF)
+		return reverse(crc);
+	/* Same as crc ^ 0xFFFFFFFF */
+	return ~crc;
+}
+
+int task_result_verify_crcgen(struct task *tsk, int mismatch_expected)
+{
+	unsigned int expected_crc = 0x0;
+	unsigned int seed = 0;
+	int data_size = (tsk->comp->status == DSA_COMP_SUCCESS) ?
+			 tsk->desc->xfer_size : tsk->comp->bytes_completed;
+
+	if (tsk->dflags & READ_CRC_SEED)
+		seed = *tsk->crc_seed_addr;
+	else
+		seed = tsk->crc_seed;
+	expected_crc = dsa_calculate_crc32((void *)tsk->desc->src_addr,
+					   data_size, seed, tsk->dflags);
+	printf("expected crc = %x\n", expected_crc);
+
+	if (!mismatch_expected) {
+		if (tsk->comp->crc_val != expected_crc) {
+			printf("\033[0;31m");
+			printf("error occurred");
+			err("Generated Crc %#x is different than expected Crc %#x\n",
+			    tsk->comp->crc_val, expected_crc);
+			printf("\033[0m");
+			return -ENXIO;
+		}
+		return DSA_STATUS_OK;
+	}
+
+	/* mismatch_expected */
+	if (tsk->comp->crc_val != expected_crc) {
+		info("expected mismatch in crcgen %#x\n",
+		     tsk->comp->crc_val);
+		return DSA_STATUS_OK;
+	}
+	return DSA_STATUS_OK;
+}
+
+int task_result_verify_crc_copy(struct task *tsk, int mismatch_expected)
+{
+	int rc;
+	unsigned int seed = 0;
+	unsigned int expected_crc = 0x0;
+	int data_size = (tsk->comp->status == DSA_COMP_SUCCESS) ?
+			 tsk->desc->xfer_size : tsk->comp->bytes_completed;
+
+	if (tsk->dflags & READ_CRC_SEED)
+		seed = *tsk->crc_seed_addr;
+	else
+		seed = tsk->crc_seed;
+	expected_crc = dsa_calculate_crc32((void *)tsk->desc->src_addr,
+					   data_size, seed, tsk->dflags);
+	rc = memcmp((unsigned char *)tsk->desc->src_addr,
+		    (unsigned char *)tsk->desc->dst_addr, data_size);
+	printf("rc memcmp = %x and expected crc = %x\n", rc, expected_crc);
+
+	if (rc) {
+		printf("\033[0;31m");
+		printf("error occurred");
+		err("dif mismatch dst1, memcmp rc %d\n", rc);
+		printf("\033[0m");
+		return -ENXIO;
+	}
+	if (tsk->comp->crc_val != expected_crc) {
+		printf("\033[0;31m");
+		printf("error occurred");
+		err("Generated Crc %#x is different than expected Crc %#x\n",
+		    tsk->comp->crc_val, expected_crc);
+		printf("\033[0m");
+		return -ENXIO;
+	}
+
 	return DSA_STATUS_OK;
 }
 
