@@ -57,6 +57,7 @@ struct task {
 	void *dst1;
 	void *dst2;
 	uint64_t pattern;
+	uint64_t pattern2;
 	uint64_t xfer_size;
 	uint32_t dflags;
 	int test_flags;

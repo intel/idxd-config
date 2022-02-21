@@ -287,6 +287,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	dbg("initilizing single task %#lx\n", tsk);
 
 	tsk->pattern = 0x0123456789abcdef;
+	tsk->pattern2 = 0xfedcba9876543210;
 	tsk->opcode = opcode;
 	tsk->test_flags = tflags;
 	tsk->xfer_size = xfer_size;
@@ -321,8 +322,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 		tsk->dst1 = aligned_alloc(1 << 12, xfer_size);
 		if (!tsk->dst1)
 			return -ENOMEM;
-		if (tflags & TEST_FLAGS_PREF)
-			memset(tsk->dst1, 0, xfer_size);
+		memset_pattern(tsk->dst1, tsk->pattern2, xfer_size);
 	}
 
 	/* allocate memory: dst2*/
@@ -332,8 +332,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 		tsk->dst2 = aligned_alloc(1 << 12, xfer_size);
 		if (!tsk->dst2)
 			return -ENOMEM;
-		if (tflags & TEST_FLAGS_PREF)
-			memset(tsk->dst2, 0, xfer_size);
+		memset_pattern(tsk->dst2, tsk->pattern2, xfer_size);
 	}
 
 	dbg("Mem allocated: s1 %#lx s2 %#lx d1 %#lx d2 %#lx\n",
