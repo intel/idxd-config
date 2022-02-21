@@ -127,6 +127,10 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 				dsa_prep_batch_dif_update(btsk_node->btsk);
 				break;
 
+			case DSA_OPCODE_CFLUSH:
+				dsa_prep_batch_cflush(btsk_node->btsk);
+				break;
+
 			default:
 				err("Unsupported op %#x\n", bopcode);
 				return -EINVAL;
@@ -478,6 +482,11 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 			if (rc != DSA_STATUS_OK)
 				return rc;
 			break;
+		case DSA_OPCODE_CFLUSH:
+			rc = dsa_cflush_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+			break;
 		default:
 			err("Unsupported op %#x\n", opcode);
 			return -EINVAL;
@@ -726,6 +735,7 @@ int main(int argc, char *argv[])
 	case DSA_OPCODE_COMPARE:
 	case DSA_OPCODE_COMPVAL:
 	case DSA_OPCODE_DUALCAST:
+	case DSA_OPCODE_CFLUSH:
 		rc = test_memory(dsa, buf_size, tflags, opcode, num_desc);
 		if (rc != DSA_STATUS_OK)
 			goto error;

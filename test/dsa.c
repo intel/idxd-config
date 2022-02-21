@@ -696,6 +696,23 @@ int init_dif_updt(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 	return DSA_STATUS_OK;
 }
 
+int init_cflush(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->dst1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->dst1)
+		return -ENOMEM;
+	memset_pattern(tsk->dst1, tsk->pattern, xfer_size);
+
+	return DSA_STATUS_OK;
+}
+
 /* this function is re-used by batch task */
 int init_task(struct task *tsk, int tflags, int opcode,
 	      unsigned long xfer_size)
@@ -754,6 +771,10 @@ int init_task(struct task *tsk, int tflags, int opcode,
 
 	case DSA_OPCODE_DIF_UPDT:
 		rc = init_dif_updt(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_CFLUSH:
+		rc = init_cflush(tsk, tflags, opcode, xfer_size);
 		break;
 	}
 
@@ -1823,6 +1844,62 @@ int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx)
 		if (ret != DSA_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
 			     tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+	return ret;
+}
+
+int dsa_wait_cflush(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_hw_desc *desc = tsk->desc;
+	struct dsa_completion_record *comp = tsk->comp;
+
+	int rc;
+
+again:
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("cflush desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
+
+	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
+	if (stat_val(comp->status) == DSA_COMP_PAGE_FAULT_NOBOF &&
+	    !(desc->flags & IDXD_OP_FLAG_BOF)) {
+		dsa_reprep_cflush(ctx, tsk);
+		goto again;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_cflush_multi_task_nodes(struct dsa_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		dsa_prep_cflush(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+	tsk_node = ctx->multi_task_node;
+	info("Submitted all cflush jobs\n");
+
+	while (tsk_node) {
+		ret = dsa_wait_cflush(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
 	}
 	return ret;

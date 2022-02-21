@@ -270,6 +270,7 @@ int init_dif_check(struct task *tsk, int tflags, int opcode, unsigned long xfer_
 int init_dif_ins(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_dif_strp(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_dif_updt(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
+int init_cflush(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_task(struct task *tsk, int tflags, int opcode,
 	      unsigned long xfer_size);
 
@@ -312,6 +313,9 @@ int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx);
 int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx);
 int dsa_wait_dif(struct dsa_context *ctx, struct task *tsk);
 
+int dsa_cflush_multi_task_nodes(struct dsa_context *ctx);
+int dsa_wait_cflush(struct dsa_context *ctx, struct task *tsk);
+
 void dsa_prep_noop(struct task *tsk);
 void dsa_prep_drain(struct task *tsk);
 void dsa_prep_memcpy(struct task *tsk);
@@ -337,6 +341,8 @@ void dsa_prep_dif_insert(struct task *tsk);
 void dsa_prep_dif_strip(struct task *tsk);
 void dsa_prep_dif_update(struct task *tsk);
 void dsa_reprep_dif(struct dsa_context *ctx, struct task *tsk);
+void dsa_prep_cflush(struct task *tsk);
+void dsa_reprep_cflush(struct dsa_context *ctx, struct task *tsk);
 
 int task_result_verify(struct task *tsk, int mismatch_expected);
 int task_result_verify_task_nodes(struct dsa_context *ctx, int mismatch_expected);
@@ -371,6 +377,7 @@ void dsa_prep_batch_dif_check(struct batch_task *btsk);
 void dsa_prep_batch_dif_insert(struct batch_task *btsk);
 void dsa_prep_batch_dif_strip(struct batch_task *btsk);
 void dsa_prep_batch_dif_update(struct batch_task *btsk);
+void dsa_prep_batch_cflush(struct batch_task *btsk);
 int dsa_wait_batch(struct batch_task *btsk);
 
 void dsa_free(struct dsa_context *ctx);
