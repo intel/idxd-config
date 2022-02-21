@@ -221,6 +221,20 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 		}
 
 		switch (opcode) {
+		case DSA_OPCODE_DRAIN:
+			rc = dsa_memcpy_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+
+			rc = dsa_drain_multi_task_nodes(ctx);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+
+			rc = task_result_verify_task_nodes(ctx, 0);
+			if (rc != DSA_STATUS_OK)
+				return rc;
+			break;
+
 		case DSA_OPCODE_MEMMOVE:
 			rc = dsa_memcpy_multi_task_nodes(ctx);
 			if (rc != DSA_STATUS_OK)
@@ -420,6 +434,7 @@ int main(int argc, char *argv[])
 			goto error;
 		break;
 
+	case DSA_OPCODE_DRAIN:
 	case DSA_OPCODE_MEMMOVE:
 	case DSA_OPCODE_MEMFILL:
 	case DSA_OPCODE_COMPARE:

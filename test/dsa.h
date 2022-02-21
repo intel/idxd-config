@@ -241,6 +241,9 @@ int init_task(struct task *tsk, int tflags, int opcode,
 int dsa_noop_multi_task_nodes(struct dsa_context *ctx);
 int dsa_wait_noop(struct dsa_context *ctx, struct task *tsk);
 
+int dsa_drain_multi_task_nodes(struct dsa_context *ctx);
+int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk);
+
 int dsa_memcpy_multi_task_nodes(struct dsa_context *ctx);
 int dsa_wait_memcpy(struct dsa_context *ctx, struct task *tsk);
 
@@ -257,6 +260,7 @@ int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx);
 int dsa_wait_dualcast(struct dsa_context *ctx, struct task *tsk);
 
 void dsa_prep_noop(struct task *tsk);
+void dsa_prep_drain(struct task *tsk);
 void dsa_prep_memcpy(struct task *tsk);
 void dsa_reprep_memcpy(struct dsa_context *ctx, struct task *tsk);
 void dsa_prep_memfill(struct task *tsk);

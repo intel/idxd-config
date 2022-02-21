@@ -397,6 +397,8 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	dbg("initilizing task %#lx\n", tsk);
 
 	switch (opcode) {
+	/* After memory move, do drain opcode test */
+	case DSA_OPCODE_DRAIN:
 	case DSA_OPCODE_MEMMOVE:
 		rc = init_memcpy(tsk, tflags, opcode, xfer_size);
 		break;
@@ -783,6 +785,51 @@ int dsa_wait_batch(struct batch_task *btsk)
 
 	dump_sub_compl_rec(btsk);
 	return DSA_STATUS_OK;
+}
+
+int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk)
+{
+	struct dsa_completion_record *comp = tsk->comp;
+	int rc;
+
+	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	if (rc < 0) {
+		err("drain desc timeout\n");
+		return DSA_STATUS_TIMEOUT;
+	}
+
+	return DSA_STATUS_OK;
+}
+
+int dsa_drain_multi_task_nodes(struct dsa_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = DSA_STATUS_OK;
+
+	while (tsk_node) {
+		/* Block on fault is reserved for Drain */
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+
+		dsa_prep_drain(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+	tsk_node = ctx->multi_task_node;
+	info("Submitted all drain jobs\n");
+
+	while (tsk_node) {
+		ret = dsa_wait_drain(ctx, tsk_node->tsk);
+		if (ret != DSA_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+	return ret;
 }
 
 int dsa_wait_memcpy(struct dsa_context *ctx, struct task *tsk)
