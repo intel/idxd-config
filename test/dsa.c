@@ -280,11 +280,9 @@ struct task *__alloc_task(void)
 	return tsk;
 }
 
-/* this function is re-used by batch task */
-int init_task(struct task *tsk, int tflags, int opcode,
-	      unsigned long xfer_size)
+int init_memcpy(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
 {
-	dbg("initilizing single task %#lx\n", tsk);
+	unsigned long force_align = ADDR_ALIGNMENT;
 
 	tsk->pattern = 0x0123456789abcdef;
 	tsk->pattern2 = 0xfedcba9876543210;
@@ -292,47 +290,137 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	tsk->test_flags = tflags;
 	tsk->xfer_size = xfer_size;
 
-	/* allocate memory: src1*/
-	switch (opcode) {
-	case DSA_OPCODE_MEMMOVE: /* intentionally empty */
-	case DSA_OPCODE_COMPARE: /* intentionally empty */
-	case DSA_OPCODE_COMPVAL: /* intentionally empty */
-	case DSA_OPCODE_DUALCAST:
-		tsk->src1 = malloc(xfer_size);
-		if (!tsk->src1)
-			return -ENOMEM;
-		memset_pattern(tsk->src1, tsk->pattern, xfer_size);
-	}
+	tsk->src1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
 
-	/* allocate memory: src2*/
+	tsk->dst1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->dst1)
+		return -ENOMEM;
+	memset_pattern(tsk->dst1, tsk->pattern2, xfer_size);
+
+	return DSA_STATUS_OK;
+}
+
+int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->pattern2 = 0xfedcba9876543210;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->dst1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->dst1)
+		return -ENOMEM;
+	memset(tsk->dst1, tsk->pattern2, xfer_size);
+
+	return DSA_STATUS_OK;
+}
+
+int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->src1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
+
+	tsk->src2 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->src2)
+		return -ENOMEM;
+	memset_pattern(tsk->src2, tsk->pattern, xfer_size);
+
+	return DSA_STATUS_OK;
+}
+
+int init_compval(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->src1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
+
+	return DSA_STATUS_OK;
+}
+
+int init_dualcast(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+
+	tsk->pattern = 0x0123456789abcdef;
+	tsk->pattern2 = 0xfedcba9876543210;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->src1 = aligned_alloc(force_align, xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
+
+	tsk->dst1 = aligned_alloc(1 << 12, xfer_size);
+	if (!tsk->dst1)
+		return -ENOMEM;
+	memset_pattern(tsk->dst1, tsk->pattern2, xfer_size);
+
+	tsk->dst2 = aligned_alloc(1 << 12, xfer_size);
+	if (!tsk->dst2)
+		return -ENOMEM;
+	memset_pattern(tsk->dst2, tsk->pattern2, xfer_size);
+
+	return DSA_STATUS_OK;
+}
+
+/* this function is re-used by batch task */
+int init_task(struct task *tsk, int tflags, int opcode,
+	      unsigned long xfer_size)
+{
+	int rc = 0;
+
+	dbg("initilizing task %#lx\n", tsk);
+
 	switch (opcode) {
+	case DSA_OPCODE_MEMMOVE:
+		rc = init_memcpy(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_MEMFILL:
+		rc = init_memfill(tsk, tflags, opcode, xfer_size);
+		break;
+
 	case DSA_OPCODE_COMPARE:
-		tsk->src2 = malloc(xfer_size);
-		if (!tsk->src2)
-			return -ENOMEM;
-		memset_pattern(tsk->src2, tsk->pattern, xfer_size);
+		rc = init_compare(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_COMPVAL:
+		rc = init_compval(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_DUALCAST:
+		rc = init_dualcast(tsk, tflags, opcode, xfer_size);
+		break;
 	}
 
-	/* allocate memory: dst1*/
-	switch (opcode) {
-	case DSA_OPCODE_MEMMOVE: /* intentionally empty */
-	case DSA_OPCODE_MEMFILL: /* intentionally empty */
-	case DSA_OPCODE_DUALCAST:
-		/* DUALCAST: dst1/dst2 lower 12 bits must be same */
-		tsk->dst1 = aligned_alloc(1 << 12, xfer_size);
-		if (!tsk->dst1)
-			return -ENOMEM;
-		memset_pattern(tsk->dst1, tsk->pattern2, xfer_size);
-	}
-
-	/* allocate memory: dst2*/
-	switch (opcode) {
-	case DSA_OPCODE_DUALCAST:
-		/* DUALCAST: dst1/dst2 lower 12 bits must be same */
-		tsk->dst2 = aligned_alloc(1 << 12, xfer_size);
-		if (!tsk->dst2)
-			return -ENOMEM;
-		memset_pattern(tsk->dst2, tsk->pattern2, xfer_size);
+	if (rc != DSA_STATUS_OK) {
+		err("init: opcode %d data failed\n", opcode);
+		return rc;
 	}
 
 	dbg("Mem allocated: s1 %#lx s2 %#lx d1 %#lx d2 %#lx\n",

@@ -41,6 +41,8 @@
 #define DSA_COMP_STAT_CODE_MASK                 0x3F
 #define DSA_COMP_STAT_RW_MASK                   0x80
 
+#define ADDR_ALIGNMENT 32
+
 /* helper macro to get lower 6 bits (ret code) from completion status */
 #define stat_val(status) ((status) & DSA_COMP_STAT_CODE_MASK)
 
@@ -228,6 +230,11 @@ struct dsa_context *dsa_init(void);
 int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
 int alloc_multiple_tasks(struct dsa_context *ctx, int num_itr);
 struct task *__alloc_task(void);
+int init_memcpy(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
+int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
+int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
+int init_compval(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
+int init_dualcast(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_task(struct task *tsk, int tflags, int opcode,
 	      unsigned long xfer_size);
 
