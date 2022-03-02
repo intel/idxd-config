@@ -24,6 +24,7 @@ static bool verbose;
 static bool enable;
 static bool forced;
 static struct util_filter_params util_param;
+static bool warn_once = true;
 
 static LIST_HEAD(activate_dev_list);
 static LIST_HEAD(activate_wq_list);
@@ -75,23 +76,30 @@ struct engine_set_table {
 };
 
 static const struct device_set_table device_table[] = {
-	{ "token_limit", accfg_device_set_token_limit, NULL }
+	{ "token_limit", accfg_device_set_read_buffer_limit, NULL },
+	{ "read_buffer_limit", accfg_device_set_read_buffer_limit, NULL }
 };
 
 static bool is_group_traffic_class_writable(struct accfg_group *group,
 		int val);
-static bool is_group_token_attribs_writable(struct accfg_group *group,
+static bool is_group_read_buffer_attribs_writable(struct accfg_group *group,
 		int val);
-static bool is_group_token_limit_writable(struct accfg_group *group,
+static bool is_group_read_buffer_limit_writable(struct accfg_group *group,
 		int val);
 
 static const struct group_set_table group_table[] = {
-	{ "tokens_reserved", accfg_group_set_tokens_reserved, NULL,
-		is_group_token_attribs_writable },
-	{ "use_token_limit", accfg_group_set_use_token_limit, NULL,
-		is_group_token_limit_writable },
-	{ "tokens_allowed", accfg_group_set_tokens_allowed, NULL,
-		is_group_token_attribs_writable },
+	{ "tokens_reserved", accfg_group_set_read_buffers_reserved, NULL,
+		is_group_read_buffer_attribs_writable },
+	{ "read_buffers_reserved", accfg_group_set_read_buffers_reserved, NULL,
+		is_group_read_buffer_attribs_writable },
+	{ "use_token_limit", accfg_group_set_use_read_buffer_limit, NULL,
+		is_group_read_buffer_limit_writable },
+	{ "use_read_buffer_limit", accfg_group_set_use_read_buffer_limit, NULL,
+		is_group_read_buffer_limit_writable },
+	{ "tokens_allowed", accfg_group_set_read_buffers_allowed, NULL,
+		is_group_read_buffer_attribs_writable },
+	{ "read_buffers_allowed", accfg_group_set_read_buffers_allowed, NULL,
+		is_group_read_buffer_attribs_writable },
 	{ "traffic_class_a", accfg_group_set_traffic_class_a, NULL,
 		is_group_traffic_class_writable},
 	{ "traffic_class_b", accfg_group_set_traffic_class_b, NULL,
@@ -107,6 +115,7 @@ static const struct wq_set_table wq_table[] = {
 	{ "block_on_fault", accfg_wq_set_block_on_fault, NULL, NULL, NULL },
 	{ "type", NULL, NULL, accfg_wq_set_str_type, NULL },
 	{ "name", NULL, NULL, accfg_wq_set_str_name, NULL },
+	{ "driver_name", NULL, NULL, accfg_wq_set_str_driver_name, NULL },
 	{ "mode", NULL, NULL, accfg_wq_set_str_mode, NULL },
 	{ "max_batch_size", accfg_wq_set_max_batch_size, NULL, NULL, NULL },
 	{ "max_transfer_size", NULL, accfg_wq_set_max_transfer_size, NULL, NULL },
@@ -127,22 +136,22 @@ static int configure_json_value(struct accfg_ctx *ctx,
 static int read_config_file(struct accfg_ctx *ctx, struct config *to_config,
 			    struct util_filter_params *util_param);
 
-static bool is_group_token_limit_writable(struct accfg_group *group,
+static bool is_group_read_buffer_limit_writable(struct accfg_group *group,
 		int val)
 {
 	struct accfg_device *dev;
-	unsigned int token_limit;
+	unsigned int read_buffer_limit;
 
 	dev = accfg_group_get_device(group);
-	token_limit = accfg_device_get_token_limit(dev);
-	if (token_limit)
+	read_buffer_limit = accfg_device_get_read_buffer_limit(dev);
+	if (read_buffer_limit)
 		return true;
 
 	return false;
 }
 
 
-static bool is_group_token_attribs_writable(struct accfg_group *group,
+static bool is_group_read_buffer_attribs_writable(struct accfg_group *group,
 		int val)
 {
 	if (val == -1)
@@ -343,11 +352,20 @@ static int group_json_set_val(struct accfg_group *group,
 					return -EINVAL;
 
 				if ((accfg_device_get_type(dev) == ACCFG_DEVICE_IAX)
-					&& ((!strcmp(group_table[i].name, "tokens_reserved"))
-					|| (!strcmp(group_table[i].name, "use_token_limit"))
-					|| (!strcmp(group_table[i].name, "tokens_allowed")))) {
+						&& ((!strcmp(group_table[i].name,
+								"tokens_reserved"))
+						|| (!strcmp(group_table[i].name,
+								"use_token_limit"))
+						|| (!strcmp(group_table[i].name,
+								"tokens_allowed"))
+						|| (!strcmp(group_table[i].name,
+								"read_buffers_reserved"))
+						|| (!strcmp(group_table[i].name,
+								"use_read_buffer_limit"))
+						|| (!strcmp(group_table[i].name,
+								"read_buffers_allowed"))))
 					return 0;
-				}
+
 				if (group_table[i].is_writable &&
 					!group_table[i].is_writable(group,
 						val))
@@ -614,6 +632,11 @@ static int configure_json_value(struct accfg_ctx *ctx,
 	if (!parent)
 		return 0;
 
+	if (warn_once && strstr(key, "token")) {
+		fprintf(stderr, "Warning: \"token\" attributes are deprecated\n");
+		warn_once = false;
+	}
+
 	if (dev && dev_state != ACCFG_DEVICE_ENABLED) {
 		rc = device_json_set_val(dev, jobj, key);
 		if (rc < 0) {
@@ -665,21 +688,21 @@ static struct json_object *config_group_to_json(struct accfg_group *group,
 		goto err;
 
 	json_object_object_add(jgroup, "dev", jobj);
-	jobj = json_object_new_int(accfg_group_get_tokens_reserved(group));
+	jobj = json_object_new_int(accfg_group_get_read_buffers_reserved(group));
 	if (!jobj)
 		goto err;
 
-	json_object_object_add(jgroup, "tokens_reserved", jobj);
-	jobj = json_object_new_int(accfg_group_get_use_token_limit(group));
+	json_object_object_add(jgroup, "read_buffers_reserved", jobj);
+	jobj = json_object_new_int(accfg_group_get_use_read_buffer_limit(group));
 	if (!jobj)
 		goto err;
 
-	json_object_object_add(jgroup, "use_token_limit", jobj);
-	jobj = json_object_new_int(accfg_group_get_tokens_allowed(group));
+	json_object_object_add(jgroup, "use_read_buffer_limit", jobj);
+	jobj = json_object_new_int(accfg_group_get_read_buffers_allowed(group));
 	if (!jobj)
 		goto err;
 
-	json_object_object_add(jgroup, "tokens_allowed", jobj);
+	json_object_object_add(jgroup, "read_buffers_allowed", jobj);
 	jobj = json_object_new_int(accfg_group_get_traffic_class_a(
 				group));
 	if (!jobj)

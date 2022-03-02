@@ -14,16 +14,16 @@ SYNOPSIS
 
 EXAMPLE
 -------
-accel-config config-device dsa0 --token-limit=1
+accel-config config-device dsa0 --read-buffer-limit=1
 
 OPTIONS
 -------
 -l::
---token-limit=::
-	This specifies the maximum number of bandwidth tokens that may be
+--read-buffer-limit=::
+	This specifies the maximum number of read buffers that may be
 	in use at one time by operations that access low bandwidth memory.
-	This number of bandwidth tokens is shared by all descriptors accessing
-	low bandwidth memory across the entire device. token_limit should be
+	This number of read buffers is shared by all descriptors accessing
+	low bandwidth memory across the entire device. read-buffer-limit should be
 	more than 0.
 
 include::../copyright.txt[]

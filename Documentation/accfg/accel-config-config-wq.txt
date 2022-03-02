@@ -65,6 +65,11 @@ OPTIONS
 	Typically it is used for identifying the wq in some unique way. A possible
 	suggestion would be using a uuid string.
 
+-d::
+--driver-name::
+	specify the name of the driver to bind. This should be one of the valid
+	wq drivers found in /sys/bus/dsa/drivers
+
 -m::
 --mode::
 	configure the mode for the wq. The wq mode can be set as "dedicated" or

@@ -91,7 +91,7 @@ const char *accfg_device_cmd_status[] = {
 	[0x15]	= "Invalid group config: lack of wq or engines",
 	[0x16]	= "Invalid group config: wq misconfigured",
 	[0x17]	= "Invalid group config: engine misconfigured",
-	[0x18]	= "Invalid group config: invalid bandwith tokens config",
+	[0x18]	= "Invalid group config: invalid read buffers config",
 	[0x20]	= "Device not enabled",
 	[0x21]	= "WQ is not disabled",
 	[0x22]	= "WQ size is 0",
@@ -131,6 +131,29 @@ const char *accfg_sw_cmd_status[] = {
 	[SCMD_STAT(IDXD_SCMD_WQ_NONE_CONFIGURED)] = "wq error - no wqs configured",
 	[SCMD_STAT(IDXD_SCMD_WQ_NO_SIZE)] = "wq error - size not set",
 };
+
+struct attr_dict_entry {
+	char *key;
+	char *val;
+};
+
+static const struct attr_dict_entry attr_dict[] = {
+	{"read_buffers_allowed", "tokens_allowed"},
+	{"read_buffers_reserved", "tokens_reserved"},
+	{"use_read_buffer_limit", "use_token_limit"},
+	{"max_read_buffers", "max_tokens"},
+	{"read_buffer_limit", "token_limit"}};
+
+static const char *deprecated_attr(char *attr)
+{
+	int i;
+
+	for (i = 0; i < (int) ARRAY_SIZE(attr_dict); i++)
+		if (!strcmp(attr, attr_dict[i].key))
+			return attr_dict[i].val;
+
+	return NULL;
+}
 
 static void save_last_error(struct accfg_device *device, struct accfg_wq *wq,
 		struct accfg_group *group, struct accfg_engine *engine)
@@ -174,13 +197,20 @@ static int accfg_set_param(struct accfg_ctx *ctx, int dfd, char *name,
 static long accfg_get_param_long(struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
-	char buf[MAX_PARAM_LEN + 1];
+	char buf[MAX_PARAM_LEN];
 	int n;
+	const char *p;
 
+	if (fd == -1 && errno == ENOENT) {
+		p = deprecated_attr(name);
+		if (!p)
+			return -errno;
+		fd = openat(dfd, p, O_RDONLY);
+	}
 	if (fd == -1)
 		return -errno;
 
-	n = read(fd, buf, MAX_PARAM_LEN);
+	n = read(fd, buf, MAX_PARAM_LEN - 1);
 	close(fd);
 	if (n <= 0)
 		return -ENXIO;
@@ -196,13 +226,13 @@ static uint64_t accfg_get_param_unsigned_llong(
 		struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
-	char buf[MAX_PARAM_LEN + 1];
+	char buf[MAX_PARAM_LEN];
 	int n;
 
 	if (fd == -1)
 		return -errno;
 
-	n = read(fd, buf, MAX_PARAM_LEN);
+	n = read(fd, buf, MAX_PARAM_LEN - 1);
 	close(fd);
 	if (n <= 0)
 		return -ENXIO;
@@ -217,13 +247,13 @@ static uint64_t accfg_get_param_unsigned_llong(
 static char *accfg_get_param_str(struct accfg_ctx *ctx, int dfd, char *name)
 {
 	int fd = openat(dfd, name, O_RDONLY);
-	char buf[MAX_PARAM_LEN + 1];
+	char buf[MAX_PARAM_LEN];
 	int n;
 
 	if (fd == -1)
 		return NULL;
 
-	n = read(fd, buf, MAX_PARAM_LEN);
+	n = read(fd, buf, MAX_PARAM_LEN - 1);
 	close(fd);
 	if (n <= 0)
 		return NULL;
@@ -588,21 +618,13 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 {
 	struct accfg_ctx *ctx = parent;
 	struct accfg_device *device;
-	char *path;
 	int dfd;
 	int rc;
 	char *p;
 
-	path = calloc(1, strlen(ctl_base) + MAX_PARAM_LEN);
-	if (!path) {
-		err(ctx, "%s: allocation of path failed\n", __func__);
-		return NULL;
-	}
-
 	dfd = open(ctl_base, O_PATH);
 	if (dfd == -1) {
 		err(ctx, "%s open failed: %s\n", __func__, strerror(errno));
-		free(path);
 		return NULL;
 	}
 
@@ -646,8 +668,8 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 			"configurable");
 	device->pasid_enabled = accfg_get_param_str(ctx, dfd,
 			"pasid_enabled");
-	device->max_tokens = accfg_get_param_long(ctx, dfd, "max_tokens");
-	device->token_limit = accfg_get_param_long(ctx, dfd, "token_limit");
+	device->max_read_buffers = accfg_get_param_long(ctx, dfd, "max_read_buffers");
+	device->read_buffer_limit = accfg_get_param_long(ctx, dfd, "read_buffer_limit");
 	device->cdev_major = accfg_get_param_long(ctx, dfd, "cdev_major");
 	device->version = accfg_get_param_unsigned_llong(ctx, dfd, "version");
 	device->device_path = realpath(ctl_base, NULL);
@@ -672,7 +694,7 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 	device->mdev_path = p;
 
 	device->device_buf = calloc(1, strlen(device->device_path) +
-			MAX_PARAM_LEN);
+			MAX_BUF_LEN);
 	if (!device->device_buf) {
 		err(ctx, "allocation of device buffer failed\n");
 		goto err_read;
@@ -690,7 +712,6 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 		goto err_dev_path;
 
 	list_add_tail(&ctx->devices, &device->list);
-	free(path);
 
 	return device;
 
@@ -700,7 +721,6 @@ err_read:
 	free(device->mdev_path);
 	free(device);
 err_device:
-	free(path);
 	return NULL;
 }
 
@@ -797,6 +817,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	wq->cdev_minor = accfg_get_param_long(ctx, dfd, "cdev_minor");
 	wq_type = accfg_get_param_str(ctx, dfd, "type");
 	wq->name = accfg_get_param_str(ctx, dfd, "name");
+	wq->driver_name = accfg_get_param_str(ctx, dfd, "driver_name");
 	wq->threshold =  accfg_get_param_long(ctx, dfd, "threshold");
 	wq->max_batch_size =  accfg_get_param_long(ctx, dfd, "max_batch_size");
 	wq->max_transfer_size =  accfg_get_param_long(ctx, dfd, "max_transfer_size");
@@ -884,12 +905,12 @@ static void *add_group(void *parent, int id, const char *group_base,
 	group->id = group_id;
 	group->group_engines = accfg_get_param_str(ctx, dfd, "engines");
 	group->group_wqs = accfg_get_param_str(ctx, dfd, "work_queues");
-	group->tokens_reserved = accfg_get_param_long(ctx, dfd,
-			"tokens_reserved");
-	group->tokens_allowed = accfg_get_param_long(ctx, dfd,
-			"tokens_allowed");
-	group->use_token_limit = accfg_get_param_long(ctx, dfd,
-			"use_token_limit");
+	group->read_buffers_reserved = accfg_get_param_long(ctx, dfd,
+			"read_buffers_reserved");
+	group->read_buffers_allowed = accfg_get_param_long(ctx, dfd,
+			"read_buffers_allowed");
+	group->use_read_buffer_limit = accfg_get_param_long(ctx, dfd,
+			"use_read_buffer_limit");
 	group->traffic_class_a = accfg_get_param_long(ctx, dfd,
 			"traffic_class_a");
 	group->traffic_class_b = accfg_get_param_long(ctx, dfd,
@@ -1436,16 +1457,16 @@ ACCFG_EXPORT enum accfg_device_state accfg_device_get_state(
 	return ACCFG_DEVICE_UNKNOWN;
 }
 
-ACCFG_EXPORT unsigned int accfg_device_get_max_tokens(
+ACCFG_EXPORT unsigned int accfg_device_get_max_read_buffers(
 		struct accfg_device *device)
 {
-	return device->max_tokens;
+	return device->max_read_buffers;
 }
 
-ACCFG_EXPORT unsigned int accfg_device_get_token_limit(
+ACCFG_EXPORT unsigned int accfg_device_get_read_buffer_limit(
 		struct accfg_device *device)
 {
-	return device->token_limit;
+	return device->read_buffer_limit;
 }
 
 ACCFG_EXPORT unsigned int accfg_device_get_cdev_major(
@@ -1491,7 +1512,7 @@ ACCFG_EXPORT int accfg_device_get_clients(struct accfg_device *device)
 	return atoi(buf);
 }
 
-ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
+ACCFG_EXPORT int accfg_device_set_read_buffer_limit(struct accfg_device *dev, int val)
 {
 	struct accfg_ctx *ctx;
 	char *path;
@@ -1503,11 +1524,21 @@ ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 	path = dev->device_buf;
 	ctx = accfg_device_get_ctx(dev);
 
-	if (sprintf(path, "%s/token_limit", dev->device_path) >=
+	if (sprintf(path, "%s/read_buffer_limit", dev->device_path) >=
 			(int)dev->buf_len) {
 		err(ctx, "%s; buf len exceeded.\n",
 				accfg_device_get_devname(dev));
 		return -errno;
+	}
+
+	if (access(path, F_OK)) {
+		if (sprintf(path, "%s/%s", dev->device_path,
+					deprecated_attr("read_buffer_limit")) >=
+					(int)dev->buf_len) {
+			err(ctx, "%s; buf len exceeded.\n",
+					accfg_device_get_devname(dev));
+			return -errno;
+		}
 	}
 
 	if (sprintf(buf, "%d", val) < 0) {
@@ -1523,7 +1554,7 @@ ACCFG_EXPORT int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 		return -errno;
 	}
 
-	dev->token_limit = val;
+	dev->read_buffer_limit = val;
 
 	return 0;
 }
@@ -1879,6 +1910,12 @@ ACCFG_EXPORT int accfg_group_set_##field( \
 	rc = sprintf(group->group_buf, "%s/%s", group->group_path, #field); \
 	if (rc < 0) \
 		return -errno; \
+	if (access(path, F_OK)) { \
+		rc = sprintf(group->group_buf, "%s/%s", \
+				group->group_path, deprecated_attr(#field)); \
+		if (rc < 0) \
+			return -errno; \
+	} \
 	if (sprintf(buf, "%d", val) < 0) { \
 		err(ctx, "%s: sprintf to buf failed: %s\n", \
 				accfg_group_get_devname(group), \
@@ -1896,9 +1933,9 @@ ACCFG_EXPORT int accfg_group_set_##field( \
 	return 0; \
 }
 
-accfg_group_set_field(group, val, tokens_reserved)
-accfg_group_set_field(group, val, tokens_allowed)
-accfg_group_set_field(group, val, use_token_limit)
+accfg_group_set_field(group, val, read_buffers_reserved)
+accfg_group_set_field(group, val, read_buffers_allowed)
+accfg_group_set_field(group, val, use_read_buffer_limit)
 accfg_group_set_field(group, val, traffic_class_a)
 accfg_group_set_field(group, val, traffic_class_b)
 
@@ -1909,9 +1946,9 @@ ACCFG_EXPORT int accfg_group_get_##field( \
 	return group->field; \
 }
 
-accfg_group_get_field(group, tokens_reserved);
-accfg_group_get_field(group, tokens_allowed);
-accfg_group_get_field(group, use_token_limit);
+accfg_group_get_field(group, read_buffers_reserved);
+accfg_group_get_field(group, read_buffers_allowed);
+accfg_group_get_field(group, use_read_buffer_limit);
 accfg_group_get_field(group, traffic_class_a);
 accfg_group_get_field(group, traffic_class_b);
 
@@ -2014,6 +2051,28 @@ ACCFG_EXPORT enum accfg_wq_type accfg_wq_get_type(struct accfg_wq *wq)
 ACCFG_EXPORT const char *accfg_wq_get_type_name(struct accfg_wq *wq)
 {
 	return wq->name;
+}
+
+ACCFG_EXPORT const char *accfg_wq_get_driver_name(struct accfg_wq *wq)
+{
+	return wq->driver_name;
+}
+
+ACCFG_EXPORT int accfg_wq_driver_name_validate(struct accfg_wq *wq,
+		const char *drv_name)
+{
+	int rc = 0;
+	char *path = NULL;
+	struct accfg_device *device = accfg_wq_get_device(wq);
+
+	rc = get_driver_bind_path(device->bus_type_str, wq->driver_name, &path);
+	if (rc < 0)
+		return 0;
+
+	rc = access(path, F_OK);
+	free(path);
+
+	return !rc;
 }
 
 ACCFG_EXPORT uint64_t accfg_wq_get_size(struct accfg_wq *wq)
@@ -2124,9 +2183,15 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 
 	if (flag == ACCFG_WQ_ENABLE) {
 		rc = get_driver_bind_path(device->bus_type_str,
+				wq->driver_name ? wq->driver_name :
 				IDXD_WQ_DEVICE_PORTAL(device, wq), &path);
 		if (rc < 0)
 			return rc;
+		if (wq->driver_name && access(path, F_OK)) {
+			fprintf(stderr, "Invalid wq driver name \"%s\"\n",
+					wq->driver_name);
+			return -ENOENT;
+		}
 	} else if (flag == ACCFG_WQ_DISABLE) {
 		int clients;
 
@@ -2408,6 +2473,7 @@ ACCFG_EXPORT int accfg_wq_set_str_##field( \
 
 accfg_wq_set_str_field(wq, val, mode)
 accfg_wq_set_str_field(wq, val, name)
+accfg_wq_set_str_field(wq, val, driver_name)
 
 static int wq_parse_type(struct accfg_wq *wq, char *wq_type);
 

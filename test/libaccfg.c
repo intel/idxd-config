@@ -35,21 +35,21 @@
 static bool mdev_disabled;
 
 static struct dev_parameters device0_param = {
-	.token_limit = 10,
+	.read_buffer_limit = 10,
 };
 
 static struct group_parameters group00_param = {
-	.tokens_reserved = 1,
-	.tokens_allowed = 8,
-	.use_token_limit = 1,
+	.read_buffers_reserved = 1,
+	.read_buffers_allowed = 8,
+	.use_read_buffer_limit = 1,
 	.traffic_class_a = 2,
 	.traffic_class_b = 3
 };
 
 static struct group_parameters group01_param = {
-	.tokens_reserved = 1,
-	.tokens_allowed = 8,
-	.use_token_limit = 0,
+	.read_buffers_reserved = 1,
+	.read_buffers_allowed = 8,
+	.use_read_buffer_limit = 0,
 	.traffic_class_a = 4,
 	.traffic_class_b = 5
 };
@@ -157,16 +157,16 @@ static struct config_test_ctx {
 static int config_device(struct accfg_ctx *ctx, struct accfg_device *device,
 		struct dev_parameters *dev_param)
 {
-	return accfg_device_set_token_limit(device,
-				dev_param->token_limit);
+	return accfg_device_set_read_buffer_limit(device,
+				dev_param->read_buffer_limit);
 }
 
 static int check_device(struct accfg_ctx *ctx, struct accfg_device *device,
 		struct dev_parameters *dev_param)
 {
 
-	if (dev_param->token_limit != accfg_device_get_token_limit(device)) {
-		fprintf(stderr, "%s failed on token_limit\n", __func__);
+	if (dev_param->read_buffer_limit != accfg_device_get_read_buffer_limit(device)) {
+		fprintf(stderr, "%s failed on read_buffer_limit\n", __func__);
 		return -EINVAL;
 	}
 
@@ -179,12 +179,12 @@ static int config_group(struct accfg_ctx *ctx, struct accfg_device *device,
 {
 	int rc = 0;
 
-	SET_ERR(rc, accfg_group_set_tokens_reserved(group,
-				group_param->tokens_reserved));
-	SET_ERR(rc, accfg_group_set_tokens_allowed(group,
-				group_param->tokens_allowed));
-	SET_ERR(rc, accfg_group_set_use_token_limit(group,
-				group_param->use_token_limit));
+	SET_ERR(rc, accfg_group_set_read_buffers_reserved(group,
+				group_param->read_buffers_reserved));
+	SET_ERR(rc, accfg_group_set_read_buffers_allowed(group,
+				group_param->read_buffers_allowed));
+	SET_ERR(rc, accfg_group_set_use_read_buffer_limit(group,
+				group_param->use_read_buffer_limit));
 
 	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2)
 		return rc;
@@ -202,21 +202,21 @@ static int check_group(struct accfg_ctx *ctx, struct accfg_device *device,
 		struct group_parameters *group_param)
 {
 
-	if (group_param->tokens_reserved !=
-			(unsigned int) accfg_group_get_tokens_reserved(group)) {
-		fprintf(stderr, "%s failed on tokens_reserved\n", __func__);
+	if (group_param->read_buffers_reserved !=
+			(unsigned int) accfg_group_get_read_buffers_reserved(group)) {
+		fprintf(stderr, "%s failed on read_buffers_reserved\n", __func__);
 		return -EINVAL;
 	}
 
-	if (group_param->tokens_allowed !=
-			(unsigned int) accfg_group_get_tokens_allowed(group)) {
-		fprintf(stderr, "%s failed on tokens_allowed\n", __func__);
+	if (group_param->read_buffers_allowed !=
+			(unsigned int) accfg_group_get_read_buffers_allowed(group)) {
+		fprintf(stderr, "%s failed on read_buffers_allowed\n", __func__);
 		return -EINVAL;
 	}
 
-	if (group_param->use_token_limit !=
-			(unsigned int) accfg_group_get_use_token_limit(group)) {
-		fprintf(stderr, "%s failed on use_token_limit\n", __func__);
+	if (group_param->use_read_buffer_limit !=
+			(unsigned int) accfg_group_get_use_read_buffer_limit(group)) {
+		fprintf(stderr, "%s failed on use_read_buffer_limit\n", __func__);
 		return -EINVAL;
 	}
 
