@@ -5,6 +5,8 @@
 #define _USR_IDXD_H_
 
 #include <stdint.h>
+#include <linux/types.h>
+#include <linux/ioctl.h>
 
 /* Driver command error status */
 enum idxd_scmd_stat {
@@ -27,6 +29,7 @@ enum idxd_scmd_stat {
 	IDXD_SCMD_WQ_NO_PRIV = 0x800f0000,
 	IDXD_SCMD_WQ_IRQ_ERR = 0x80100000,
 	IDXD_SCMD_WQ_NO_DRV_NAME = 0x80200000,
+	IDXD_SCMD_DEV_EVL_ERR = 0x80300000,
 };
 
 #define IDXD_SCMD_SOFTERR_MASK	0x80000000
@@ -71,6 +74,17 @@ enum dsa_opcode {
 	DSA_OPCODE_DIF_STRP,
 	DSA_OPCODE_DIF_UPDT,
 	DSA_OPCODE_CFLUSH = 0x20,
+	DSA_OPCODE_UPDATE_WIN,
+	DSA_OPCODE_RS_IPASID_MEMCOPY = 0x23,
+	DSA_OPCODE_RS_IPASID_FILL,
+	DSA_OPCODE_RS_IPASID_COMPARE,
+	DSA_OPCODE_RS_IPASID_COMPVAL,
+	DSA_OPCODE_RS_IPASID_CFLUSH,
+	DSA_OPCODE_URS_IPASID_MEMCOPY = 0x33,
+	DSA_OPCODE_URS_IPASID_FILL,
+	DSA_OPCODE_URS_IPASID_COMPARE,
+	DSA_OPCODE_URS_IPASID_COMPVAL,
+	DSA_OPCODE_URS_IPASID_CFLUSH,
 };
 
 enum iax_opcode {
@@ -168,12 +182,14 @@ struct hw_desc {
 		uint64_t	rdback_addr;
 		uint64_t	pattern;
 		uint64_t	desc_list_addr;
+		uint64_t	win_base_addr;
 	};
 	union {
 		uint64_t	dst_addr;
 		uint64_t	rdback_addr2;
 		uint64_t	src2_addr;
 		uint64_t	comp_pattern;
+		uint64_t	win_size;
 	};
 	union {
 		uint32_t	xfer_size;
@@ -251,6 +267,83 @@ struct hw_desc {
 			uint64_t        iax_crc64_poly;
 		};
 
+		/* restricted ops with interpasid */
+		struct {
+			uint8_t rest_ip_res1[20];
+			union {
+				uint16_t src_pasid_hndl;
+				uint8_t rest_ip_res2[2];
+				uint16_t src1_pasid_hndl;
+			};
+			union {
+				uint16_t dest_pasid_hndl;
+				uint16_t src2_pasid_hndl;
+				uint8_t rest_ip_res3[2];
+			};
+		};
+
+		/* unrestricted ops with interpasid */
+		struct {
+			uint8_t unrest_ip_res1[8];
+			union {
+				/* Generic */
+				struct {
+					uint32_t addr1_pasid:20;
+					uint32_t unrest_ip_res2:11;
+					uint32_t addr1_priv:1;
+				};
+				/* Memcopy, Compare Pattern */
+				struct {
+					uint32_t src_pasid:20;
+					uint32_t unrest_ip_res3:11;
+					uint32_t unrest_src_priv:1;
+				};
+				/* Fill, Cache Flush */
+				struct {
+					uint32_t unrest_ip_res4: 32;
+				};
+				/* Compare */
+				struct {
+					uint32_t src1_pasid:20;
+					uint32_t unrest_ip_res5:11;
+					uint32_t unrest_src1_priv:1;
+				};
+			};
+			union {
+				/* Generic */
+				struct {
+					uint32_t addr2_pasid:20;
+					uint32_t unrest_ip_res6:11;
+					uint32_t addr2_priv:1;
+				};
+				/* Memcopy, Fill */
+				struct {
+					uint32_t dest_pasid:20;
+					uint32_t unrest_ip_res7:11;
+					uint32_t unrest_dest_priv:1;
+				};
+				/* Compare */
+				struct {
+					uint32_t src2_pasid:20;
+					uint32_t unrest_ip_res8:11;
+					uint32_t unrest_src2_priv:1;
+				};
+				/* Compare Pattern */
+				struct {
+					uint32_t unrest_ip_res9: 32;
+				};
+			};
+			uint64_t unrest_ip_res10:48;
+			uint16_t ipt_handle;
+		};
+
+		/* Update window */
+		struct {
+			uint8_t update_win_resv2[21];
+			uint8_t idpt_win_flags;
+			uint16_t idpt_win_handle;
+		};
+
 		uint8_t		op_specific[24];
 	};
 } __attribute__((packed));
@@ -258,6 +351,11 @@ struct hw_desc {
 struct raw_desc {
 	uint64_t	field[8];
 } __attribute__((packed));
+
+#define DSA_COMP_FI_FA_MASKED_MASK	0x1
+#define DSA_COMP_FI_FA_MASKED_SHIFT	0x0
+#define DSA_COMP_FI_OP_ID_MASK		0x7
+#define DSA_COMP_FI_OP_ID_SHIFT		0x1
 
 /*
  * The status field will be modified by hardware, therefore it should be
@@ -351,5 +449,46 @@ struct raw_completion_record {
 	/* To be compatible with IAX, alloc 64 bytes*/
 	uint64_t	field[8];
 } __attribute__((packed));
+
+#define IDXD_TYPE	('d')
+#define IDXD_IOC_BASE	100
+#define IDXD_WIN_BASE	200
+
+enum idxd_win_type {
+	IDXD_WIN_TYPE_SA_SS = 0,
+	IDXD_WIN_TYPE_SA_MS,
+};
+
+/* IDXD window flags */
+#define IDXD_WIN_FLAGS_PROT_READ	0x0001
+#define IDXD_WIN_FLAGS_PROT_WRITE	0x0002
+#define IDXD_WIN_FLAGS_WIN_CHECK	0x0004
+#define IDXD_WIN_FLAGS_OFFSET_MODE	0x0008
+
+#define IDXD_WIN_FLAGS_MASK		(IDXD_WIN_FLAGS_PROT_READ | IDXD_WIN_FLAGS_PROT_WRITE |\
+					 IDXD_WIN_FLAGS_WIN_CHECK | IDXD_WIN_FLAGS_OFFSET_MODE)
+
+struct idxd_win_param {
+	uint64_t base;		/* Window base */
+	uint64_t size;		/* Window size */
+	uint32_t type;		/* Window type, see enum idxd_win_type */
+	uint16_t flags;		/* See IDXD windows flags */
+	uint16_t handle;		/* Window handle returned by driver */
+} __attribute__((packed));
+
+struct idxd_win_attach {
+	uint32_t fd;		/* Window file descriptor returned by IDXD_WIN_CREATE */
+	uint16_t handle;	/* Window handle returned by driver */
+} __attribute__((packed));
+
+struct idxd_win_fault {
+	uint64_t offset;	/* Window offset of faulting address */
+	uint64_t len;		/* Faulting range */
+	uint32_t write_fault;	/* Fault generated on write */
+} __attribute__((packed));
+
+#define IDXD_WIN_CREATE		_IOWR(IDXD_TYPE, IDXD_IOC_BASE + 1, struct idxd_win_param)
+#define IDXD_WIN_ATTACH		_IOR(IDXD_TYPE, IDXD_IOC_BASE + 2, struct idxd_win_attach)
+#define IDXD_WIN_FAULT           _IOR(IDXD_TYPE, IDXD_WIN_BASE + 1, struct idxd_win_fault)
 
 #endif
