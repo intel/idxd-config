@@ -2065,7 +2065,7 @@ ACCFG_EXPORT int accfg_wq_driver_name_validate(struct accfg_wq *wq,
 	char *path = NULL;
 	struct accfg_device *device = accfg_wq_get_device(wq);
 
-	rc = get_driver_bind_path(device->bus_type_str, wq->driver_name, &path);
+	rc = get_driver_bind_path(device->bus_type_str, drv_name, &path);
 	if (rc < 0)
 		return 0;
 
