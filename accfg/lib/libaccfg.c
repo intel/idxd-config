@@ -1923,8 +1923,9 @@ ACCFG_EXPORT int accfg_group_set_##field( \
 		return -errno; \
 	} \
 	if (sysfs_write_attr(ctx, path, buf) < 0) { \
-		err(ctx, "%s: write failed: %s\n", \
+		err(ctx, "%s: %s attribute write failed: %s\n", \
 				accfg_group_get_devname(group), \
+				#field, \
 				strerror(errno)); \
 		save_last_error(group->device, NULL, group, NULL); \
 		return -errno; \
@@ -2381,8 +2382,9 @@ ACCFG_EXPORT int accfg_wq_set_##field( \
 		} \
 	} \
 	if (sysfs_write_attr(ctx, path, buf) < 0) { \
-		err(ctx, "%s: write failed: %s\n", \
+		err(ctx, "%s: %s attribute write failed: %s\n", \
 				accfg_wq_get_devname(wq), \
+				#field, \
 				strerror(errno)); \
 		save_last_error(wq->device, wq, NULL, NULL); \
 		return -errno; \
@@ -2607,8 +2609,9 @@ ACCFG_EXPORT int accfg_engine_set_##field( \
 		return -errno; \
 	} \
 	if (sysfs_write_attr(ctx, path, buf) < 0) { \
-		err(ctx, "%s: write failed: %s\n", \
+		err(ctx, "%s: %s attribute write failed: %s\n", \
 				accfg_engine_get_devname(engine), \
+				#field, \
 				strerror(errno)); \
 		save_last_error(engine->device, NULL, NULL, engine); \
 		return -errno; \
