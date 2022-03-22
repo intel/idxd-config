@@ -70,6 +70,7 @@ static struct wq_parameters wq00_param = {
 	.ats_disable = 0,
 	.mode = "shared",
 	.type = "user",
+	.driver_name = "user",
 	.name = "myapp1"
 };
 
@@ -83,6 +84,7 @@ static struct wq_parameters wq01_param = {
 	.ats_disable = 0,
 	.mode = "dedicated",
 	.type = "user",
+	.driver_name = "user",
 	.name = "myapp2"
 };
 
@@ -97,6 +99,7 @@ static struct wq_parameters wq02_param = {
 	.ats_disable = 0,
 	.mode = "shared",
 	.type = "user",
+	.driver_name = "user",
 	.name = "guest1"
 };
 
@@ -110,6 +113,7 @@ static struct wq_parameters wq03_param = {
 	.ats_disable = 0,
 	.mode = "dedicated",
 	.type = "user",
+	.driver_name = "user",
 	.name = "guest2"
 };
 
@@ -247,6 +251,7 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 	if (rc)
 		return rc;
 	SET_ERR(rc, accfg_wq_set_str_type(wq, wq_param->type));
+	SET_ERR(rc, accfg_wq_set_str_driver_name(wq, wq_param->driver_name));
 	SET_ERR(rc, accfg_wq_set_str_name(wq, wq_param->name));
 	SET_ERR(rc, accfg_wq_set_size(wq, wq_param->wq_size));
 	SET_ERR(rc, accfg_wq_set_group_id(wq, wq_param->group_id));
