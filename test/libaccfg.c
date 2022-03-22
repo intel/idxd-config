@@ -944,12 +944,12 @@ static struct _test_case test_cases[] = {
 	{
 		.test_fn = test_mdev_1swq,
 		.desc = "1swq type mdev creation and removal",
-		.enabled = true,
+		.enabled = false,
 	},
 	{
 		.test_fn = test_mdev_1dwq,
 		.desc = "1dwq type mdev creation and removal",
-		.enabled = true,
+		.enabled = false,
 	},
 };
 
