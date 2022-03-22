@@ -2453,7 +2453,8 @@ ACCFG_EXPORT int accfg_wq_set_str_##field( \
 		return -errno; \
 	} \
 	if (!accfg_device_get_configurable(wq->device)) { \
-		if (strcmp(#field, "name")!= 0) { \
+		if (strcmp(#field, "name") != 0 && \
+			strcmp(#field, "driver_name") != 0) { \
 			err(ctx, "device is not configurable\n"); \
 			return -errno; \
 		} \
