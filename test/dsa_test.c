@@ -51,7 +51,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 	if (ctx->dedicated == ACCFG_WQ_SHARED)
 		range = ctx->threshold;
 	else
-		range = ctx->wq_size - 1;
+		range = ctx->wq_size;
 
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
@@ -226,7 +226,7 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 	if (ctx->dedicated == ACCFG_WQ_SHARED)
 		range = ctx->threshold;
 	else
-		range = ctx->wq_size - 1;
+		range = ctx->wq_size;
 
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
@@ -303,7 +303,7 @@ static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
 	if (ctx->dedicated == ACCFG_WQ_SHARED)
 		range = ctx->threshold;
 	else
-		range = ctx->wq_size - 1;
+		range = ctx->wq_size;
 
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
@@ -353,7 +353,7 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 	if (ctx->dedicated == ACCFG_WQ_SHARED)
 		range = ctx->threshold;
 	else
-		range = ctx->wq_size - 1;
+		range = ctx->wq_size;
 
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
@@ -514,7 +514,7 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 	if (ctx->dedicated == ACCFG_WQ_SHARED)
 		range = ctx->threshold;
 	else
-		range = ctx->wq_size - 1;
+		range = ctx->wq_size;
 
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
@@ -584,7 +584,7 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 	if (ctx->dedicated == ACCFG_WQ_SHARED)
 		range = ctx->threshold;
 	else
-		range = ctx->wq_size - 1;
+		range = ctx->wq_size;
 
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
