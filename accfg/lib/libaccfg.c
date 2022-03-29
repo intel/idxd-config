@@ -2459,7 +2459,11 @@ ACCFG_EXPORT int accfg_wq_set_str_##field( \
 			return -errno; \
 		} \
 	} \
-	if (sysfs_write_attr(ctx, path, buf) < 0) { \
+	rc = sysfs_write_attr(ctx, path, buf); \
+	if (rc < 0) { \
+		/* Silently skip attrs not supported by driver */ \
+		if (rc == -ENOENT && !strcmp(#field, "driver_name")) \
+			return 0; \
 		err(ctx, "%s: write failed: %s\n", \
 				accfg_wq_get_devname(wq), \
 				strerror(errno)); \
