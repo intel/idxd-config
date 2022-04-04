@@ -2191,6 +2191,7 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 		if (wq->driver_name && access(path, F_OK)) {
 			fprintf(stderr, "Invalid wq driver name \"%s\"\n",
 					wq->driver_name);
+			free(path);
 			return -ENOENT;
 		}
 	} else if (flag == ACCFG_WQ_DISABLE) {
