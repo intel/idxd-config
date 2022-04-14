@@ -917,6 +917,7 @@ static int dsa_wait_on_desc_timeout(struct dsa_completion_record *comp,
 				    unsigned int msec_timeout)
 {
 	unsigned int j = 0;
+	bool timed_out = false;
 
 	if (!umwait_support) {
 		while (j < msec_timeout && comp->status == 0) {
@@ -949,7 +950,12 @@ static int dsa_wait_on_desc_timeout(struct dsa_completion_record *comp,
 
 	dump_compl_rec(comp);
 
-	return (j == msec_timeout) ? -EAGAIN : 0;
+	timed_out = (j == msec_timeout);
+
+	if (timed_out && comp->status && umwait_support)
+		err("Timed out, but operation completed. umwait may be broken?\n");
+
+	return (timed_out && !comp->status) ? -EAGAIN : 0;
 }
 
 /* the pattern is 8 bytes long while the dst can with any length */
