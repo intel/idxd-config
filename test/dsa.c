@@ -65,7 +65,7 @@ static inline void cpuid(unsigned int *eax, unsigned int *ebx,
 		: "memory");
 }
 
-struct dsa_context *dsa_init(void)
+struct dsa_context *dsa_init(int tflags)
 {
 	struct dsa_context *dctx;
 	unsigned int unused[2];
@@ -77,9 +77,11 @@ struct dsa_context *dsa_init(void)
 	leaf = 7;
 	waitpkg = 0;
 	cpuid(&leaf, unused, &waitpkg, unused + 1);
-	if (waitpkg & 0x20) {
+	if ((waitpkg & 0x20) && !(tflags & TEST_FLAGS_NO_UMWAIT)) {
 		dbg("umwait supported\n");
 		umwait_support = 1;
+	} else {
+		dbg("no umwait, active poll\n");
 	}
 
 	dctx = malloc(sizeof(struct dsa_context));

@@ -14,6 +14,7 @@
 #define DSA_MAX_OPS 0x20
 
 #define TEST_FLAGS_BOF     0x1     /* Block on page faults */
+#define TEST_FLAGS_NO_UMWAIT	0x2	/* Disable umwait usage */
 #define TEST_FLAGS_WAIT    0x4     /* Wait in kernel */
 #define TEST_FLAGS_PREF    0x8     /* Pre-fault the buffers */
 
@@ -254,7 +255,7 @@ void memset_pattern(void *dst, uint64_t pattern, size_t len);
 int memcmp_pattern(const void *src, const uint64_t pattern, size_t len);
 int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw);
 
-struct dsa_context *dsa_init(void);
+struct dsa_context *dsa_init(int tflags);
 int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
 int alloc_multiple_tasks(struct dsa_context *ctx, int num_itr);
 struct task *__alloc_task(void);

@@ -18,6 +18,7 @@ static void usage(void)
 	"-w <wq_type> ; 0=dedicated, 1=shared\n"
 	"-l <length>  ; total test buffer size\n"
 	"-f <test_flags> ; 0x1: block-on-fault\n"
+	"		 ; 0x2: no umwait\n"
 	"                ; 0x4: reserved\n"
 	"                ; 0x8: prefault buffers\n"
 	"-o <opcode>     ; opcode, same value as in DSA spec\n"
@@ -697,7 +698,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	dsa = dsa_init();
+	dsa = dsa_init(tflags);
 
 	if (!dsa)
 		return -ENOMEM;
