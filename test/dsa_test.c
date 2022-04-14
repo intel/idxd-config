@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <sys/user.h>
 #include <sys/mman.h>
 #include "accel_test.h"
 #include "dsa.h"
@@ -81,7 +82,7 @@ static int test_batch(struct acctest_context *ctx, struct evl_desc_list *edl, si
 				 * is aligned to a page boundary
 				 */
 				if (bdi->da_fault) {
-					descs = (struct hw_desc *)((char *)btsk->sub_descs + 4096);
+					descs = (struct hw_desc *)((char *)btsk->sub_descs + PAGE_SIZE);
 					btsk->sub_descs = descs - bdi->da_fault_idx;
 				}
 				btsk->edl = edl;
@@ -174,10 +175,10 @@ static int test_batch(struct acctest_context *ctx, struct evl_desc_list *edl, si
 
 			if (tflags & TEST_FLAGS_CPFLT) {
 				mprotect(btsk_node->btsk->sub_comps,
-					 4096 * btsk_node->btsk->task_num,
+					 PAGE_SIZE * btsk_node->btsk->task_num,
 					 PROT_NONE);
 				mprotect(btsk_node->btsk->sub_comps,
-					 4096 * btsk_node->btsk->task_num,
+					 PAGE_SIZE * btsk_node->btsk->task_num,
 					 PROT_READ | PROT_WRITE);
 			}
 
@@ -189,28 +190,28 @@ static int test_batch(struct acctest_context *ctx, struct evl_desc_list *edl, si
 					struct desc_info *di = &edl->di[i];
 
 					if (di->desc_fault)
-						mprotect(btsk->sub_tasks[i].src1, 4096, PROT_NONE);
+						mprotect(btsk->sub_tasks[i].src1, PAGE_SIZE, PROT_NONE);
 					if (di->cp_fault) {
-						mprotect(btsk->sub_tasks[i].comp, 4096, PROT_NONE);
+						mprotect(btsk->sub_tasks[i].comp, PAGE_SIZE, PROT_NONE);
 						mprotect(btsk->sub_tasks[i].comp,
-							 4096, PROT_READ | PROT_WRITE);
+							 PAGE_SIZE, PROT_READ | PROT_WRITE);
 					}
 					if (di->cp_wr_fail)
-						mprotect(btsk->sub_tasks[i].comp, 4096, PROT_NONE);
+						mprotect(btsk->sub_tasks[i].comp, PAGE_SIZE, PROT_NONE);
 					if (di->fence)
 						btsk->sub_descs[i].flags |= IDXD_OP_FLAG_FENCE;
 				}
 
 				if (bdi->bc_fault) {
-					mprotect(btsk->core_task->comp, 4096, PROT_NONE);
+					mprotect(btsk->core_task->comp, PAGE_SIZE, PROT_NONE);
 					if (!bdi->bc_wr_fail)
 						mprotect(btsk->core_task->comp,
-							 4096, PROT_READ | PROT_WRITE);
+							 PAGE_SIZE, PROT_READ | PROT_WRITE);
 				}
 
 				if (bdi->da_fault)
 					mprotect(&btsk->sub_descs[bdi->da_fault_idx],
-						 4096, PROT_NONE);
+						 PAGE_SIZE, PROT_NONE);
 			}
 
 			acctest_desc_submit(ctx, btsk_node->btsk->core_task->desc);
@@ -280,7 +281,7 @@ static int test_batch(struct acctest_context *ctx, struct evl_desc_list *edl, si
 
 				if (bdi->da_fault) {
 					descs = &btsk->sub_descs[bdi->da_fault_idx];
-					btsk->sub_descs = (struct hw_desc *)((char *)descs - 4096);
+					btsk->sub_descs = (struct hw_desc *)((char *)descs - PAGE_SIZE);
 				}
 			}
 

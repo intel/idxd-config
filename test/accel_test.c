@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/user.h>
 #include <sys/mman.h>
 #include <accfg/libaccel_config.h>
 #include <accfg/idxd.h>
@@ -81,7 +82,7 @@ static int acctest_setup_wq(struct acctest_context *ctx, struct accfg_wq *wq)
 		return -errno;
 	}
 
-	ctx->wq_reg = mmap(NULL, 0x1000, PROT_WRITE,
+	ctx->wq_reg = mmap(NULL, PAGE_SIZE, PROT_WRITE,
 			   MAP_SHARED | MAP_POPULATE, ctx->fd, 0);
 	if (ctx->wq_reg == MAP_FAILED) {
 		perror("mmap");
@@ -269,7 +270,7 @@ struct task *acctest_alloc_task(struct acctest_context *ctx)
 
 	/* page fault test, alloc 4k size */
 	if (ctx->is_evl_test)
-		tsk->comp = aligned_alloc(1 << 12, 1 << 12);
+		tsk->comp = aligned_alloc(PAGE_SIZE, PAGE_SIZE);
 	else
 		tsk->comp = aligned_alloc(ctx->compl_size, sizeof(struct completion_record));
 	if (!tsk->comp) {
@@ -411,7 +412,7 @@ int memcmp_pattern(const void *src, const uint64_t pattern, size_t len)
 
 void acctest_free(struct acctest_context *ctx)
 {
-	if (munmap(ctx->wq_reg, 0x1000))
+	if (munmap(ctx->wq_reg, PAGE_SIZE))
 		err("munmap failed %d\n", errno);
 
 	close(ctx->fd);
@@ -464,8 +465,8 @@ void __clean_task(struct task *tsk)
 		return;
 
 	free(tsk->desc);
-	munmap(tsk->comp, 4096);
-	mprotect(tsk->src1, 4096, PROT_READ | PROT_WRITE);
+	munmap(tsk->comp, PAGE_SIZE);
+	mprotect(tsk->src1, PAGE_SIZE, PROT_READ | PROT_WRITE);
 	free(tsk->src1);
 	free(tsk->src2);
 	free(tsk->dst1);
@@ -495,7 +496,7 @@ void free_batch_task(struct batch_task *btsk)
 	free(btsk->sub_tasks);
 	if (btsk->edl) {
 		munmap(btsk->sub_descs, PAGE_ALIGN(btsk->task_num * sizeof(struct hw_desc)));
-		munmap(btsk->sub_comps, btsk->task_num * 4096);
+		munmap(btsk->sub_comps, btsk->task_num * PAGE_SIZE);
 	} else {
 		free(btsk->sub_descs);
 		free(btsk->sub_comps);

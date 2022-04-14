@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/user.h>
 #include <linux/vfio.h>
 #include <accfg/libaccel_config.h>
 #include <accfg/idxd.h>
@@ -51,7 +52,7 @@ unsigned long get_blks(unsigned long xfer_size)
 
 int init_memcpy(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
 {
-	unsigned long force_align = 1 << 12;
+	unsigned long force_align = PAGE_SIZE;
 
 	tsk->pattern = 0x0123456789abcdef;
 	tsk->pattern2 = 0xfedcba9876543210;
@@ -144,12 +145,12 @@ int init_dualcast(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 		return -ENOMEM;
 	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
 
-	tsk->dst1 = aligned_alloc(1 << 12, xfer_size);
+	tsk->dst1 = aligned_alloc(PAGE_SIZE, xfer_size);
 	if (!tsk->dst1)
 		return -ENOMEM;
 	memset_pattern(tsk->dst1, tsk->pattern2, xfer_size);
 
-	tsk->dst2 = aligned_alloc(1 << 12, xfer_size);
+	tsk->dst2 = aligned_alloc(PAGE_SIZE, xfer_size);
 	if (!tsk->dst2)
 		return -ENOMEM;
 	memset_pattern(tsk->dst2, tsk->pattern2, xfer_size);
@@ -566,19 +567,19 @@ int alloc_batch_task(struct acctest_context *ctx, unsigned int task_num, int num
 		memset(btsk->sub_tasks, 0, task_num * sizeof(struct task));
 
 		if (ctx->is_evl_test) {
-			btsk->sub_descs = mmap(NULL, PAGE_ALIGN(4096 +
+			btsk->sub_descs = mmap(NULL, PAGE_ALIGN(PAGE_SIZE +
 					       task_num * sizeof(struct hw_desc)),
 					       prot, mmap_flags, -1, 0);
 			if (!btsk->sub_descs)
 				return -ENOMEM;
-			memset(btsk->sub_descs, 0, PAGE_ALIGN(4096 +
+			memset(btsk->sub_descs, 0, PAGE_ALIGN(PAGE_SIZE +
 			       task_num * sizeof(struct hw_desc)));
 
-			btsk->sub_comps = aligned_alloc(1 << 12, task_num * 4096);
+			btsk->sub_comps = aligned_alloc(PAGE_SIZE, task_num * PAGE_SIZE);
 			if (!btsk->sub_comps)
 				return -ENOMEM;
 			memset(btsk->sub_comps, 0,
-			       task_num * 4096);
+			       task_num * PAGE_SIZE);
 		} else	{
 			btsk->sub_descs = aligned_alloc(64, task_num * sizeof(struct hw_desc));
 			if (!btsk->sub_descs)
@@ -616,7 +617,7 @@ int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
 	for (i = 0; i < task_num; i++) {
 		btsk->sub_tasks[i].desc = &btsk->sub_descs[i];
 		if (btsk->edl)
-			btsk->sub_tasks[i].comp = &btsk->sub_comps[(4096 * i) /
+			btsk->sub_tasks[i].comp = &btsk->sub_comps[(PAGE_SIZE * i) /
 				sizeof(struct completion_record)];
 		else
 			btsk->sub_tasks[i].comp = &btsk->sub_comps[i];
