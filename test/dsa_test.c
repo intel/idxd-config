@@ -6,11 +6,10 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdint.h>
+#include "accel_test.h"
 #include "dsa.h"
 
 #define DSA_TEST_SIZE 20000
-#define SHARED 1
-#define DEDICATED 0
 
 static void usage(void)
 {

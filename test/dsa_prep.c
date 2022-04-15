@@ -6,31 +6,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <accfg/idxd.h>
+#include "accel_test.h"
 #include "dsa.h"
 
 unsigned int dif_arr[] = {512, 520, 4096, 4104};
-
-void acctest_prep_desc_common(struct hw_desc *hw, char opcode,
-			      uint64_t dest, uint64_t src, size_t len, unsigned long dflags)
-{
-	hw->flags = dflags;
-	hw->opcode = opcode;
-	hw->src_addr = src;
-	hw->dst_addr = dest;
-	hw->xfer_size = len;
-}
-
-void acctest_desc_submit(struct acctest_context *ctx, struct hw_desc *hw)
-{
-	dump_desc(hw);
-
-	/* use MOVDIR64B for DWQ */
-	if (ctx->dedicated)
-		movdir64b(ctx->wq_reg, hw);
-	else /* use ENQCMD for SWQ */
-		if (acctest_enqcmd(ctx, hw))
-			usleep(10000);
-}
 
 void dsa_prep_noop(struct task *tsk)
 {
