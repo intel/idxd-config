@@ -92,6 +92,22 @@ struct task {
 	int guardtag;
 	unsigned long blks;
 	int blk_idx_flg;
+
+	/* Dedicate for IAA test */
+	union {
+		uint16_t iax_compr_flags;
+		uint16_t iax_decompr_flags;
+		uint16_t iax_crc64_flags;
+	};
+	uint32_t iax_max_dst_size;
+	uint32_t iax_src2_xfer_size;
+	union {
+		struct {
+			uint32_t iax_filter_flags;
+			uint32_t iax_num_inputs;
+		};
+	uint64_t iax_crc64_poly;
+	};
 };
 
 struct task_node {
