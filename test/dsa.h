@@ -72,8 +72,8 @@ extern int debug_logging;
 
 /* metadata for single DSA task */
 struct task {
-	struct dsa_hw_desc *desc;
-	struct dsa_completion_record *comp;
+	struct hw_desc *desc;
+	struct completion_record *comp;
 	uint32_t opcode;
 	void *src1;
 	void *src2;
@@ -119,8 +119,8 @@ struct task_node {
 struct batch_task {
 	struct task *core_task;     /* core task with batch opcode 0x1*/
 	struct task *sub_tasks;     /* array of sub-tasks in the batch */
-	struct dsa_hw_desc *sub_descs;              /* for sub-tasks */
-	struct dsa_completion_record *sub_comps;    /* for sub-tasks */
+	struct hw_desc *sub_descs;              /* for sub-tasks */
+	struct completion_record *sub_comps;    /* for sub-tasks */
 	int task_num;
 	int test_flags;
 };
@@ -130,7 +130,7 @@ struct btask_node {
 	struct btask_node *next;
 };
 
-struct dsa_context {
+struct acctest_context {
 	struct accfg_ctx *ctx;
 	struct accfg_wq *wq;
 
@@ -209,9 +209,9 @@ static inline void dbg(const char *msg, ...)
 }
 
 /* Dump DSA hardware descriptor to log */
-static inline void dump_desc(struct dsa_hw_desc *hw)
+static inline void dump_desc(struct hw_desc *hw)
 {
-	struct dsa_raw_desc *rhw = (void *)hw;
+	struct raw_desc *rhw = (void *)hw;
 	int i;
 
 	dbg("desc addr: %p\n", hw);
@@ -232,10 +232,10 @@ static inline void dump_sub_desc(struct batch_task *btsk)
 }
 
 /* Dump DSA completion record to log */
-static inline void dump_compl_rec(struct dsa_completion_record *compl, int compl_size)
+static inline void dump_compl_rec(struct completion_record *compl, int compl_size)
 {
 	int i;
-	struct dsa_raw_completion_record *rcompl = (void *)compl;
+	struct raw_completion_record *rcompl = (void *)compl;
 	int num_qword = compl_size / sizeof(uint64_t);
 
 	dbg("completion record addr: %p\n", compl);
@@ -271,12 +271,12 @@ static inline void resolve_page_fault(uint64_t addr, uint8_t status)
 
 void memset_pattern(void *dst, uint64_t pattern, size_t len);
 int memcmp_pattern(const void *src, const uint64_t pattern, size_t len);
-int acctest_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw);
+int acctest_enqcmd(struct acctest_context *ctx, struct hw_desc *hw);
 
-struct dsa_context *acctest_init(int tflags);
-int acctest_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
-int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr);
-struct task *acctest_alloc_task(struct dsa_context *ctx);
+struct acctest_context *acctest_init(int tflags);
+int acctest_alloc(struct acctest_context *ctx, int shared, int dev_id, int wq_id);
+int acctest_alloc_multiple_tasks(struct acctest_context *ctx, int num_itr);
+struct task *acctest_alloc_task(struct acctest_context *ctx);
 int init_memcpy(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
@@ -293,78 +293,78 @@ int init_cflush(struct task *tsk, int tflags, int opcode, unsigned long xfer_siz
 int init_task(struct task *tsk, int tflags, int opcode,
 	      unsigned long xfer_size);
 
-int dsa_noop_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_noop(struct dsa_context *ctx, struct task *tsk);
+int dsa_noop_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_noop(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_drain_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk);
+int dsa_drain_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_drain(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_memcpy_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_memcpy(struct dsa_context *ctx, struct task *tsk);
+int dsa_memcpy_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_memcpy(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_memfill_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_memfill(struct dsa_context *ctx, struct task *tsk);
+int dsa_memfill_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_memfill(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_compare_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_compare(struct dsa_context *ctx, struct task *tsk);
+int dsa_compare_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_compare(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_compval_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_compval(struct dsa_context *ctx, struct task *tsk);
+int dsa_compval_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_compval(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_dualcast(struct dsa_context *ctx, struct task *tsk);
+int dsa_dualcast_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_dualcast(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_cr_delta_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_cr_delta(struct dsa_context *ctx, struct task *tsk);
+int dsa_cr_delta_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_cr_delta(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_ap_delta_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_ap_delta(struct dsa_context *ctx, struct task *tsk);
+int dsa_ap_delta_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_ap_delta(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_crcgen_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_crcgen(struct dsa_context *ctx, struct task *tsk);
+int dsa_crcgen_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_crcgen(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_crc_copy_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_crc_copy(struct dsa_context *ctx, struct task *tsk);
+int dsa_crc_copy_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_crc_copy(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_dif_check_multi_task_nodes(struct dsa_context *ctx);
-int dsa_dif_ins_multi_task_nodes(struct dsa_context *ctx);
-int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx);
-int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_dif(struct dsa_context *ctx, struct task *tsk);
+int dsa_dif_check_multi_task_nodes(struct acctest_context *ctx);
+int dsa_dif_ins_multi_task_nodes(struct acctest_context *ctx);
+int dsa_dif_strp_multi_task_nodes(struct acctest_context *ctx);
+int dsa_dif_updt_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_dif(struct acctest_context *ctx, struct task *tsk);
 
-int dsa_cflush_multi_task_nodes(struct dsa_context *ctx);
-int dsa_wait_cflush(struct dsa_context *ctx, struct task *tsk);
+int dsa_cflush_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_cflush(struct acctest_context *ctx, struct task *tsk);
 
 void dsa_prep_noop(struct task *tsk);
 void dsa_prep_drain(struct task *tsk);
 void dsa_prep_memcpy(struct task *tsk);
-void dsa_reprep_memcpy(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_memcpy(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_memfill(struct task *tsk);
-void dsa_reprep_memfill(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_memfill(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_compare(struct task *tsk);
-void dsa_reprep_compare(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_compare(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_compval(struct task *tsk);
-void dsa_reprep_compval(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_compval(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_dualcast(struct task *tsk);
-void dsa_reprep_dualcast(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_dualcast(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_cr_delta(struct task *tsk);
-void dsa_reprep_cr_delta(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_cr_delta(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_ap_delta(struct task *tsk);
-void dsa_reprep_ap_delta(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_ap_delta(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_crcgen(struct task *tsk);
-void dsa_reprep_crcgen(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_crcgen(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_crc_copy(struct task *tsk);
-void dsa_reprep_crc_copy(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_crc_copy(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_dif_check(struct task *tsk);
 void dsa_prep_dif_insert(struct task *tsk);
 void dsa_prep_dif_strip(struct task *tsk);
 void dsa_prep_dif_update(struct task *tsk);
-void dsa_reprep_dif(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_dif(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_cflush(struct task *tsk);
-void dsa_reprep_cflush(struct dsa_context *ctx, struct task *tsk);
+void dsa_reprep_cflush(struct acctest_context *ctx, struct task *tsk);
 
 int task_result_verify(struct task *tsk, int mismatch_expected);
-int task_result_verify_task_nodes(struct dsa_context *ctx, int mismatch_expected);
+int task_result_verify_task_nodes(struct acctest_context *ctx, int mismatch_expected);
 int task_result_verify_memcpy(struct task *tsk, int mismatch_expected);
 int task_result_verify_memfill(struct task *tsk, int mismatch_expected);
 int task_result_verify_compare(struct task *tsk, int mismatch_expected);
@@ -377,7 +377,7 @@ int task_result_verify_dif(struct task *tsk, unsigned long xfer_size, int mismat
 int task_result_verify_dif_tags(struct task *tsk, unsigned long xfer_size);
 int batch_result_verify(struct batch_task *btsk, int bof);
 
-int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr);
+int alloc_batch_task(struct acctest_context *ctx, unsigned int task_num, int num_itr);
 int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
 		    int opcode, unsigned long xfer_size, unsigned long dflags);
 
@@ -397,17 +397,17 @@ void dsa_prep_batch_dif_insert(struct batch_task *btsk);
 void dsa_prep_batch_dif_strip(struct batch_task *btsk);
 void dsa_prep_batch_dif_update(struct batch_task *btsk);
 void dsa_prep_batch_cflush(struct batch_task *btsk);
-int dsa_wait_batch(struct batch_task *btsk, struct dsa_context *ctx);
+int dsa_wait_batch(struct batch_task *btsk, struct acctest_context *ctx);
 
-void acctest_free(struct dsa_context *ctx);
-void acctest_free_task(struct dsa_context *ctx);
+void acctest_free(struct acctest_context *ctx);
+void acctest_free_task(struct acctest_context *ctx);
 void free_task(struct task *tsk);
 void __clean_task(struct task *tsk);
 void free_batch_task(struct batch_task *btsk);
 
-void acctest_prep_desc_common(struct dsa_hw_desc *hw, char opcode,
+void acctest_prep_desc_common(struct hw_desc *hw, char opcode,
 			      uint64_t dest, uint64_t src, size_t len, unsigned long dflags);
-void acctest_desc_submit(struct dsa_context *ctx, struct dsa_hw_desc *hw);
+void acctest_desc_submit(struct acctest_context *ctx, struct hw_desc *hw);
 
 uint16_t dsa_calculate_crc_t10dif(unsigned char *buffer, size_t len, int flags);
 int get_dif_blksz_flg(unsigned long xfer_size);

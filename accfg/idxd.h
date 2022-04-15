@@ -144,7 +144,7 @@ enum iax_completion_status {
 #define DSA_COMP_STATUS_MASK		0x7f
 #define DSA_COMP_STATUS_WRITE		0x80
 
-struct dsa_hw_desc {
+struct hw_desc {
 	uint32_t	pasid:20;
 	uint32_t	rsvd:11;
 	uint32_t	priv:1;
@@ -243,7 +243,7 @@ struct dsa_hw_desc {
 	};
 } __attribute__((packed));
 
-struct dsa_raw_desc {
+struct raw_desc {
 	uint64_t	field[8];
 } __attribute__((packed));
 
@@ -251,7 +251,7 @@ struct dsa_raw_desc {
  * The status field will be modified by hardware, therefore it should be
  * __volatile__ and prevent the compiler from optimize the read.
  */
-struct dsa_completion_record {
+struct completion_record {
 	__volatile__ uint8_t	status;
 	union {
 		uint8_t		result;
@@ -332,7 +332,7 @@ struct dsa_completion_record {
 	};
 } __attribute__((packed));
 
-struct dsa_raw_completion_record {
+struct raw_completion_record {
 	/* To be compatible with IAX, alloc 64 bytes*/
 	uint64_t	field[8];
 } __attribute__((packed));

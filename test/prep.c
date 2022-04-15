@@ -10,7 +10,7 @@
 
 unsigned int dif_arr[] = {512, 520, 4096, 4104};
 
-void acctest_prep_desc_common(struct dsa_hw_desc *hw, char opcode,
+void acctest_prep_desc_common(struct hw_desc *hw, char opcode,
 			      uint64_t dest, uint64_t src, size_t len, unsigned long dflags)
 {
 	hw->flags = dflags;
@@ -20,7 +20,7 @@ void acctest_prep_desc_common(struct dsa_hw_desc *hw, char opcode,
 	hw->xfer_size = len;
 }
 
-void acctest_desc_submit(struct dsa_context *ctx, struct dsa_hw_desc *hw)
+void acctest_desc_submit(struct acctest_context *ctx, struct hw_desc *hw)
 {
 	dump_desc(hw);
 
@@ -69,10 +69,10 @@ void dsa_prep_memcpy(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
-void dsa_reprep_memcpy(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_memcpy(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -137,10 +137,10 @@ void dsa_prep_memfill(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
-void dsa_reprep_memfill(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_memfill(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -184,10 +184,10 @@ void dsa_prep_compare(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
-void dsa_reprep_compare(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_compare(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -232,10 +232,10 @@ void dsa_prep_compval(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
-void dsa_reprep_compval(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_compval(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -280,10 +280,10 @@ void dsa_prep_dualcast(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
-void dsa_reprep_dualcast(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_dualcast(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -357,10 +357,10 @@ void dsa_prep_cr_delta(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
-void dsa_reprep_cr_delta(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_cr_delta(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -393,10 +393,10 @@ void dsa_prep_ap_delta(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
-void dsa_reprep_ap_delta(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_ap_delta(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -448,10 +448,10 @@ void dsa_prep_crcgen(struct task *tsk)
 	tsk->desc->seed_addr = (uint64_t)tsk->crc_seed_addr;
 }
 
-void dsa_reprep_crcgen(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_crcgen(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -498,10 +498,10 @@ void dsa_prep_crc_copy(struct task *tsk)
 	tsk->desc->seed_addr = (uint64_t)tsk->crc_seed_addr;
 }
 
-void dsa_reprep_crc_copy(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_crc_copy(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,
@@ -593,10 +593,10 @@ void dsa_prep_dif_update(struct task *tsk)
 	tsk->desc->dif_upd_flags = tsk->blk_idx_flg;
 }
 
-void dsa_reprep_dif(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_dif(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 	unsigned long blks_completed = 0;
 
 	info("PF addr %#lx dir %d bc %#x\n",
@@ -734,10 +734,10 @@ void dsa_prep_cflush(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
-void dsa_reprep_cflush(struct dsa_context *ctx, struct task *tsk)
+void dsa_reprep_cflush(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *compl = tsk->comp;
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct completion_record *compl = tsk->comp;
+	struct hw_desc *hw = tsk->desc;
 
 	info("PF addr %#lx dir %d bc %#x\n",
 	     compl->fault_addr, compl->result,

@@ -31,7 +31,7 @@ static void usage(void)
 	"-h              ; print this message\n");
 }
 
-static int test_batch(struct dsa_context *ctx, size_t buf_size,
+static int test_batch(struct acctest_context *ctx, size_t buf_size,
 		      int tflags, uint32_t bopcode, unsigned int bsize, int num_desc)
 {
 	struct btask_node *btsk_node;
@@ -212,7 +212,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 	return rc;
 }
 
-static int test_dif(struct dsa_context *ctx, size_t buf_size,
+static int test_dif(struct acctest_context *ctx, size_t buf_size,
 		    int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
@@ -291,7 +291,7 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 	return rc;
 }
 
-static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
+static int test_noop(struct acctest_context *ctx, int tflags, int num_desc)
 {
 	struct task_node *tsk_node;
 	int rc = ACCTEST_STATUS_OK;
@@ -339,7 +339,7 @@ static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
 	return rc;
 }
 
-static int test_memory(struct dsa_context *ctx, size_t buf_size,
+static int test_memory(struct acctest_context *ctx, size_t buf_size,
 		       int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
@@ -430,7 +430,7 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 				((uint8_t *)(tsk_node->tsk->src2))[tsk_node->tsk->xfer_size / 2] =
 					1;
 				memset(tsk_node->tsk->comp, 0,
-				       sizeof(struct dsa_completion_record));
+				       sizeof(struct completion_record));
 				tsk_node = tsk_node->next;
 			}
 
@@ -460,7 +460,7 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 				((uint8_t *)(tsk_node->tsk->src1))[tsk_node->tsk->xfer_size / 2] =
 				~(((uint8_t *)(tsk_node->tsk->src1))[tsk_node->tsk->xfer_size / 2]);
 				memset(tsk_node->tsk->comp, 0,
-				       sizeof(struct dsa_completion_record));
+				       sizeof(struct completion_record));
 				tsk_node = tsk_node->next;
 			}
 
@@ -500,7 +500,7 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 	return rc;
 }
 
-static int test_delta(struct dsa_context *ctx, size_t buf_size,
+static int test_delta(struct acctest_context *ctx, size_t buf_size,
 		      int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
@@ -570,7 +570,7 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 	return rc;
 }
 
-static int test_crc(struct dsa_context *ctx, size_t buf_size,
+static int test_crc(struct acctest_context *ctx, size_t buf_size,
 		    int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
@@ -638,7 +638,7 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 
 int main(int argc, char *argv[])
 {
-	struct dsa_context *dsa;
+	struct acctest_context *dsa;
 	int rc = 0;
 	unsigned long buf_size = DSA_TEST_SIZE;
 	int wq_type = SHARED;

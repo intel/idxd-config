@@ -65,9 +65,9 @@ static inline void cpuid(unsigned int *eax, unsigned int *ebx,
 		: "memory");
 }
 
-struct dsa_context *acctest_init(int tflags)
+struct acctest_context *acctest_init(int tflags)
 {
-	struct dsa_context *dctx;
+	struct acctest_context *dctx;
 	unsigned int unused[2];
 	unsigned int leaf, waitpkg;
 	int rc;
@@ -84,10 +84,10 @@ struct dsa_context *acctest_init(int tflags)
 		dbg("no umwait, active poll\n");
 	}
 
-	dctx = malloc(sizeof(struct dsa_context));
+	dctx = malloc(sizeof(struct acctest_context));
 	if (!dctx)
 		return NULL;
-	memset(dctx, 0, sizeof(struct dsa_context));
+	memset(dctx, 0, sizeof(struct acctest_context));
 
 	rc = accfg_new(&ctx);
 	if (rc < 0) {
@@ -99,7 +99,7 @@ struct dsa_context *acctest_init(int tflags)
 	return dctx;
 }
 
-static int acctest_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
+static int acctest_setup_wq(struct acctest_context *ctx, struct accfg_wq *wq)
 {
 	char path[PATH_MAX];
 	int rc;
@@ -126,7 +126,7 @@ static int acctest_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
 	return 0;
 }
 
-static struct accfg_wq *acctest_get_wq(struct dsa_context *ctx,
+static struct accfg_wq *acctest_get_wq(struct acctest_context *ctx,
 				       int dev_id, int shared)
 {
 	struct accfg_device *device;
@@ -178,7 +178,7 @@ static struct accfg_wq *acctest_get_wq(struct dsa_context *ctx,
 	return NULL;
 }
 
-static struct accfg_wq *acctest_get_wq_byid(struct dsa_context *ctx,
+static struct accfg_wq *acctest_get_wq_byid(struct acctest_context *ctx,
 					    int dev_id, int wq_id)
 {
 	struct accfg_device *device;
@@ -227,7 +227,7 @@ static uint32_t bsr(uint32_t val)
 	return msb - 1;
 }
 
-int acctest_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
+int acctest_alloc(struct acctest_context *ctx, int shared, int dev_id, int wq_id)
 {
 	struct accfg_device *dev;
 
@@ -266,7 +266,7 @@ int acctest_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 	return 0;
 }
 
-int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
+int acctest_alloc_multiple_tasks(struct acctest_context *ctx, int num_itr)
 {
 	struct task_node *tmp_tsk_node;
 	int cnt = 0;
@@ -286,7 +286,7 @@ int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
 	return ACCTEST_STATUS_OK;
 }
 
-struct task *acctest_alloc_task(struct dsa_context *ctx)
+struct task *acctest_alloc_task(struct acctest_context *ctx)
 {
 	struct task *tsk;
 
@@ -295,19 +295,19 @@ struct task *acctest_alloc_task(struct dsa_context *ctx)
 		return NULL;
 	memset(tsk, 0, sizeof(struct task));
 
-	tsk->desc = malloc(sizeof(struct dsa_hw_desc));
+	tsk->desc = malloc(sizeof(struct hw_desc));
 	if (!tsk->desc) {
 		free_task(tsk);
 		return NULL;
 	}
-	memset(tsk->desc, 0, sizeof(struct dsa_hw_desc));
+	memset(tsk->desc, 0, sizeof(struct hw_desc));
 
-	tsk->comp = aligned_alloc(ctx->compl_size, sizeof(struct dsa_completion_record));
+	tsk->comp = aligned_alloc(ctx->compl_size, sizeof(struct completion_record));
 	if (!tsk->comp) {
 		free_task(tsk);
 		return NULL;
 	}
-	memset(tsk->comp, 0, sizeof(struct dsa_completion_record));
+	memset(tsk->comp, 0, sizeof(struct completion_record));
 
 	return tsk;
 }
@@ -791,7 +791,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	return ACCTEST_STATUS_OK;
 }
 
-int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr)
+int alloc_batch_task(struct acctest_context *ctx, unsigned int task_num, int num_itr)
 {
 	struct btask_node *btsk_node;
 	struct batch_task *btsk;
@@ -826,17 +826,17 @@ int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr
 			return -ENOMEM;
 		memset(btsk->sub_tasks, 0, task_num * sizeof(struct task));
 
-		btsk->sub_descs = aligned_alloc(64, task_num * sizeof(struct dsa_hw_desc));
+		btsk->sub_descs = aligned_alloc(64, task_num * sizeof(struct hw_desc));
 		if (!btsk->sub_descs)
 			return -ENOMEM;
-		memset(btsk->sub_descs, 0, task_num * sizeof(struct dsa_hw_desc));
+		memset(btsk->sub_descs, 0, task_num * sizeof(struct hw_desc));
 
 		btsk->sub_comps =
-			aligned_alloc(32, task_num * sizeof(struct dsa_completion_record));
+			aligned_alloc(32, task_num * sizeof(struct completion_record));
 		if (!btsk->sub_comps)
 			return -ENOMEM;
 		memset(btsk->sub_comps, 0,
-		       task_num * sizeof(struct dsa_completion_record));
+		       task_num * sizeof(struct completion_record));
 
 		dbg("batch task allocated %#lx, ctask %#lx, sub_tasks %#lx\n",
 		    btsk, btsk->core_task, btsk->sub_tasks);
@@ -871,7 +871,7 @@ int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
 	return ACCTEST_STATUS_OK;
 }
 
-int acctest_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw)
+int acctest_enqcmd(struct acctest_context *ctx, struct hw_desc *hw)
 {
 	int retry_count = 0;
 	int ret = 0;
@@ -913,8 +913,8 @@ static inline int umwait(unsigned long timeout, unsigned int state)
 	return r;
 }
 
-static int acctest_wait_on_desc_timeout(struct dsa_completion_record *comp,
-					struct dsa_context *ctx,
+static int acctest_wait_on_desc_timeout(struct completion_record *comp,
+					struct acctest_context *ctx,
 					unsigned int msec_timeout)
 {
 	unsigned int j = 0;
@@ -1004,7 +1004,7 @@ int memcmp_pattern(const void *src, const uint64_t pattern, size_t len)
 	return 0;
 }
 
-void acctest_free(struct dsa_context *ctx)
+void acctest_free(struct acctest_context *ctx)
 {
 	if (munmap(ctx->wq_reg, 0x1000))
 		err("munmap failed %d\n", errno);
@@ -1016,7 +1016,7 @@ void acctest_free(struct dsa_context *ctx)
 	free(ctx);
 }
 
-void acctest_free_task(struct dsa_context *ctx)
+void acctest_free_task(struct acctest_context *ctx)
 {
 	if (!ctx->is_batch) {
 		struct task_node *tsk_node = NULL, *tmp_node = NULL;
@@ -1092,9 +1092,9 @@ void free_batch_task(struct batch_task *btsk)
 	free(btsk);
 }
 
-int dsa_wait_noop(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_noop(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *comp = tsk->comp;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
@@ -1106,7 +1106,7 @@ int dsa_wait_noop(struct dsa_context *ctx, struct task *tsk)
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_noop_multi_task_nodes(struct dsa_context *ctx)
+int dsa_noop_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1136,7 +1136,7 @@ int dsa_noop_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_batch(struct batch_task *btsk, struct dsa_context *ctx)
+int dsa_wait_batch(struct batch_task *btsk, struct acctest_context *ctx)
 {
 	int rc;
 
@@ -1154,9 +1154,9 @@ int dsa_wait_batch(struct batch_task *btsk, struct dsa_context *ctx)
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_drain(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_completion_record *comp = tsk->comp;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
@@ -1168,7 +1168,7 @@ int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk)
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_drain_multi_task_nodes(struct dsa_context *ctx)
+int dsa_drain_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1199,10 +1199,10 @@ int dsa_drain_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_memcpy(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_memcpy(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1222,7 +1222,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_memcpy_multi_task_nodes(struct dsa_context *ctx)
+int dsa_memcpy_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1255,10 +1255,10 @@ int dsa_memcpy_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_memfill(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_memfill(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1279,7 +1279,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_memfill_multi_task_nodes(struct dsa_context *ctx)
+int dsa_memfill_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1312,10 +1312,10 @@ int dsa_memfill_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_compare(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_compare(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1336,7 +1336,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_compare_multi_task_nodes(struct dsa_context *ctx)
+int dsa_compare_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1369,10 +1369,10 @@ int dsa_compare_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_compval(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_compval(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1393,7 +1393,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_compval_multi_task_nodes(struct dsa_context *ctx)
+int dsa_compval_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1426,10 +1426,10 @@ int dsa_compval_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_dualcast(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_dualcast(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1449,7 +1449,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx)
+int dsa_dualcast_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1482,10 +1482,10 @@ int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_cr_delta(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_cr_delta(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1505,7 +1505,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_cr_delta_multi_task_nodes(struct dsa_context *ctx)
+int dsa_cr_delta_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1538,10 +1538,10 @@ int dsa_cr_delta_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_ap_delta(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_ap_delta(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1561,7 +1561,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_ap_delta_multi_task_nodes(struct dsa_context *ctx)
+int dsa_ap_delta_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1594,10 +1594,10 @@ int dsa_ap_delta_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_crcgen(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_crcgen(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1617,7 +1617,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_crcgen_multi_task_nodes(struct dsa_context *ctx)
+int dsa_crcgen_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1650,10 +1650,10 @@ int dsa_crcgen_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_crc_copy(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_crc_copy(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1673,7 +1673,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_crc_copy_multi_task_nodes(struct dsa_context *ctx)
+int dsa_crc_copy_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1706,10 +1706,10 @@ int dsa_crc_copy_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_dif(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_dif(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 	int rc;
 
 again:
@@ -1730,7 +1730,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_dif_check_multi_task_nodes(struct dsa_context *ctx)
+int dsa_dif_check_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1762,7 +1762,7 @@ int dsa_dif_check_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_dif_ins_multi_task_nodes(struct dsa_context *ctx)
+int dsa_dif_ins_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1793,7 +1793,7 @@ int dsa_dif_ins_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx)
+int dsa_dif_strp_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1826,7 +1826,7 @@ int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx)
+int dsa_dif_updt_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1858,10 +1858,10 @@ int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_cflush(struct dsa_context *ctx, struct task *tsk)
+int dsa_wait_cflush(struct acctest_context *ctx, struct task *tsk)
 {
-	struct dsa_hw_desc *desc = tsk->desc;
-	struct dsa_completion_record *comp = tsk->comp;
+	struct hw_desc *desc = tsk->desc;
+	struct completion_record *comp = tsk->comp;
 
 	int rc;
 
@@ -1882,7 +1882,7 @@ again:
 	return ACCTEST_STATUS_OK;
 }
 
-int dsa_cflush_multi_task_nodes(struct dsa_context *ctx)
+int dsa_cflush_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -1969,7 +1969,7 @@ int task_result_verify(struct task *tsk, int mismatch_expected)
 	return ACCTEST_STATUS_OK;
 }
 
-int task_result_verify_task_nodes(struct dsa_context *ctx, int mismatch_expected)
+int task_result_verify_task_nodes(struct acctest_context *ctx, int mismatch_expected)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
@@ -2253,7 +2253,7 @@ uint16_t dsa_calculate_crc_t10dif(unsigned char *buffer, size_t len, int flags)
 static int task_result_verify_dif_page_fault(struct task *tsk, unsigned long xfer_size,
 					     int mismatch_expected)
 {
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct hw_desc *hw = tsk->desc;
 	int rc = 0;
 	unsigned char *src1 = (unsigned char *)hw->src_addr;
 	unsigned char *dst1 = (unsigned char *)hw->dst_addr;
@@ -2343,7 +2343,7 @@ int task_result_verify_dif(struct task *tsk, unsigned long xfer_size, int mismat
 
 static int task_result_verify_dif_tags_page_fault(struct task *tsk, unsigned long xfer_size)
 {
-	struct dsa_hw_desc *hw = tsk->desc;
+	struct hw_desc *hw = tsk->desc;
 	unsigned long blks;
 	unsigned long buf_size;
 	unsigned char *dst1 = (uint8_t *)hw->dst_addr;
