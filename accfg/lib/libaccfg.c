@@ -1346,6 +1346,12 @@ ACCFG_EXPORT uint64_t accfg_device_get_max_transfer_size(
 	return device->max_transfer_size;
 }
 
+/* Helper function to retrieve completion record size */
+ACCFG_EXPORT unsigned int accfg_device_get_compl_size(struct accfg_device *device)
+{
+	return device->compl_size;
+}
+
 ACCFG_EXPORT int accfg_device_get_op_cap(struct accfg_device *device,
 		struct accfg_op_cap *op_cap)
 {

@@ -183,6 +183,7 @@ int accfg_device_get_numa_node(struct accfg_device *device);
 unsigned int accfg_device_get_ims_size(struct accfg_device *device);
 unsigned int accfg_device_get_max_batch_size(struct accfg_device *device);
 uint64_t accfg_device_get_max_transfer_size(struct accfg_device *device);
+unsigned int accfg_device_get_compl_size(struct accfg_device *device);
 int accfg_device_get_op_cap(struct accfg_device *device,
 		struct accfg_op_cap *op_cap);
 uint64_t accfg_device_get_gen_cap(struct accfg_device *device);

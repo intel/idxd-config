@@ -186,3 +186,8 @@ global:
 	accfg_wq_get_driver_name;
 	accfg_wq_driver_name_validate;
 } LIBACCFG_12;
+
+LIBACCFG_14 {
+global:
+	accfg_device_get_compl_size;
+} LIBACCFG_13;
