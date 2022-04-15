@@ -33,5 +33,5 @@ testcore =\
 libaccfg_SOURCES = libaccfg.c $(testcore)
 libaccfg_LDADD = $(LIBACCFG_LIB) $(UUID_LIBS)
 
-dsa_test_SOURCES = dsa_test.c dsa.c prep.c
+dsa_test_SOURCES = dsa_test.c dsa.c prep.c accel_test.c
 dsa_test_LDADD = $(LIBACCFG_LIB) $(UUID_LIBS)
