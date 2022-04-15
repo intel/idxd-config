@@ -63,6 +63,11 @@ ACCFG_EXPORT char *accfg_basenames[] = {
 	NULL
 };
 
+static unsigned int accfg_device_compl_size[] = {
+	[ACCFG_DEVICE_DSA] = 32,
+	[ACCFG_DEVICE_IAX] = 64,
+};
+
 ACCFG_EXPORT char *accfg_mdev_basenames[] = {
 	[ACCFG_MDEV_TYPE_1_DWQ]      = "1dwq",
 	[ACCFG_MDEV_TYPE_1_SWQ]      = "1swq",
@@ -540,6 +545,7 @@ static int device_parse_type(struct accfg_device *device)
 	for (b = accfg_basenames, i = 0; *b != NULL; b++, i++) {
 		if (!strcmp(device->device_type_str, *b)) {
 			device->type = i;
+			device->compl_size = accfg_device_compl_size[device->type];
 			return 0;
 		}
 	}
