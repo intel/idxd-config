@@ -155,7 +155,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 
 		btsk_node = ctx->multi_btask_node;
 		while (btsk_node) {
-			rc = dsa_wait_batch(btsk_node->btsk);
+			rc = dsa_wait_batch(btsk_node->btsk, ctx);
 			if (rc != ACCTEST_STATUS_OK) {
 				err("batch failed stat %d\n", rc);
 				return rc;
@@ -186,7 +186,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 
 			btsk_node = ctx->multi_btask_node;
 			while (btsk_node) {
-				rc = dsa_wait_batch(btsk_node->btsk);
+				rc = dsa_wait_batch(btsk_node->btsk, ctx);
 				if (rc != ACCTEST_STATUS_OK) {
 					err("batch failed stat %d\n", rc);
 					return rc;

@@ -257,6 +257,7 @@ int acctest_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 	ctx->max_batch_size = accfg_device_get_max_batch_size(dev);
 	ctx->max_xfer_size = accfg_device_get_max_transfer_size(dev);
 	ctx->max_xfer_bits = bsr(ctx->max_xfer_size);
+	ctx->compl_size = accfg_device_get_compl_size(dev);
 
 	info("alloc wq %d shared %d size %d addr %p batch sz %#x xfer sz %#x\n",
 	     ctx->wq_idx, ctx->dedicated, ctx->wq_size, ctx->wq_reg,
@@ -276,7 +277,7 @@ int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
 		if (!ctx->multi_task_node)
 			return -ENOMEM;
 
-		ctx->multi_task_node->tsk = acctest_alloc_task();
+		ctx->multi_task_node->tsk = acctest_alloc_task(ctx);
 		if (!ctx->multi_task_node->tsk)
 			return -ENOMEM;
 		ctx->multi_task_node->next = tmp_tsk_node;
@@ -285,7 +286,7 @@ int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
 	return ACCTEST_STATUS_OK;
 }
 
-struct task *acctest_alloc_task(void)
+struct task *acctest_alloc_task(struct dsa_context *ctx)
 {
 	struct task *tsk;
 
@@ -301,8 +302,7 @@ struct task *acctest_alloc_task(void)
 	}
 	memset(tsk->desc, 0, sizeof(struct dsa_hw_desc));
 
-	/* completion record need to be 32bits aligned */
-	tsk->comp = aligned_alloc(32, sizeof(struct dsa_completion_record));
+	tsk->comp = aligned_alloc(ctx->compl_size, sizeof(struct dsa_completion_record));
 	if (!tsk->comp) {
 		free_task(tsk);
 		return NULL;
@@ -817,7 +817,7 @@ int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr
 
 		btsk = ctx->multi_btask_node->btsk;
 
-		btsk->core_task = acctest_alloc_task();
+		btsk->core_task = acctest_alloc_task(ctx);
 		if (!btsk->core_task)
 			return -ENOMEM;
 
@@ -914,6 +914,7 @@ static inline int umwait(unsigned long timeout, unsigned int state)
 }
 
 static int acctest_wait_on_desc_timeout(struct dsa_completion_record *comp,
+					struct dsa_context *ctx,
 					unsigned int msec_timeout)
 {
 	unsigned int j = 0;
@@ -948,7 +949,7 @@ static int acctest_wait_on_desc_timeout(struct dsa_completion_record *comp,
 			j = msec_timeout;
 	}
 
-	dump_compl_rec(comp);
+	dump_compl_rec(comp, ctx->compl_size);
 
 	timed_out = (j == msec_timeout);
 
@@ -1096,7 +1097,7 @@ int dsa_wait_noop(struct dsa_context *ctx, struct task *tsk)
 	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("noop desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1135,7 +1136,7 @@ int dsa_noop_multi_task_nodes(struct dsa_context *ctx)
 	return ret;
 }
 
-int dsa_wait_batch(struct batch_task *btsk)
+int dsa_wait_batch(struct batch_task *btsk, struct dsa_context *ctx)
 {
 	int rc;
 
@@ -1143,13 +1144,13 @@ int dsa_wait_batch(struct batch_task *btsk)
 
 	info("wait batch\n");
 
-	rc = acctest_wait_on_desc_timeout(ctsk->comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(ctsk->comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("batch desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
 	}
 
-	dump_sub_compl_rec(btsk);
+	dump_sub_compl_rec(btsk, ctx->compl_size);
 	return ACCTEST_STATUS_OK;
 }
 
@@ -1158,7 +1159,7 @@ int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk)
 	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("drain desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1205,7 +1206,7 @@ int dsa_wait_memcpy(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1261,7 +1262,7 @@ int dsa_wait_memfill(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 
 	if (rc < 0) {
 		err("memfill desc timeout\n");
@@ -1318,7 +1319,7 @@ int dsa_wait_compare(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 
 	if (rc < 0) {
 		err("compare desc timeout\n");
@@ -1375,7 +1376,7 @@ int dsa_wait_compval(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 
 	if (rc < 0) {
 		err("compval desc timeout\n");
@@ -1432,7 +1433,7 @@ int dsa_wait_dualcast(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("dualcast desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1488,7 +1489,7 @@ int dsa_wait_cr_delta(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1544,7 +1545,7 @@ int dsa_wait_ap_delta(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1600,7 +1601,7 @@ int dsa_wait_crcgen(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("CRC desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1656,7 +1657,7 @@ int dsa_wait_crc_copy(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("CRC copy desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1712,7 +1713,7 @@ int dsa_wait_dif(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("DIF desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;
@@ -1865,7 +1866,7 @@ int dsa_wait_cflush(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
 	if (rc < 0) {
 		err("cflush desc timeout\n");
 		return ACCTEST_STATUS_TIMEOUT;

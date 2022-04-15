@@ -121,6 +121,7 @@ struct dsa_context {
 	unsigned int max_batch_size;
 	unsigned int max_xfer_size;
 	unsigned int max_xfer_bits;
+	unsigned int compl_size;
 
 	int fd;
 	int wq_idx;
@@ -215,25 +216,26 @@ static inline void dump_sub_desc(struct batch_task *btsk)
 }
 
 /* Dump DSA completion record to log */
-static inline void dump_compl_rec(struct dsa_completion_record *compl)
+static inline void dump_compl_rec(struct dsa_completion_record *compl, int compl_size)
 {
-	struct dsa_raw_completion_record *rcompl = (void *)compl;
 	int i;
+	struct dsa_raw_completion_record *rcompl = (void *)compl;
+	int num_qword = compl_size / sizeof(uint64_t);
 
 	dbg("completion record addr: %p\n", compl);
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < num_qword; i++)
 		dbg("compl[%d]: 0x%016lx\n", i, rcompl->field[i]);
 }
 
 /* dump all sub completion records for a batch task */
-static inline void dump_sub_compl_rec(struct batch_task *btsk)
+static inline void dump_sub_compl_rec(struct batch_task *btsk, int compl_size)
 {
 	int i;
 
 	for (i = 0; i < btsk->task_num; i++) {
 		dbg("sub_comp[%d]:\n", i);
-		dump_compl_rec(btsk->sub_tasks[i].comp);
+		dump_compl_rec(btsk->sub_tasks[i].comp, compl_size);
 	}
 }
 
@@ -258,7 +260,7 @@ int acctest_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw);
 struct dsa_context *acctest_init(int tflags);
 int acctest_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
 int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr);
-struct task *acctest_alloc_task(void);
+struct task *acctest_alloc_task(struct dsa_context *ctx);
 int init_memcpy(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
@@ -379,7 +381,7 @@ void dsa_prep_batch_dif_insert(struct batch_task *btsk);
 void dsa_prep_batch_dif_strip(struct batch_task *btsk);
 void dsa_prep_batch_dif_update(struct batch_task *btsk);
 void dsa_prep_batch_cflush(struct batch_task *btsk);
-int dsa_wait_batch(struct batch_task *btsk);
+int dsa_wait_batch(struct batch_task *btsk, struct dsa_context *ctx);
 
 void acctest_free(struct dsa_context *ctx);
 void acctest_free_task(struct dsa_context *ctx);
