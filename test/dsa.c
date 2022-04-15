@@ -65,7 +65,7 @@ static inline void cpuid(unsigned int *eax, unsigned int *ebx,
 		: "memory");
 }
 
-struct dsa_context *dsa_init(int tflags)
+struct dsa_context *acctest_init(int tflags)
 {
 	struct dsa_context *dctx;
 	unsigned int unused[2];
@@ -99,7 +99,7 @@ struct dsa_context *dsa_init(int tflags)
 	return dctx;
 }
 
-static int dsa_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
+static int acctest_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
 {
 	char path[PATH_MAX];
 	int rc;
@@ -126,8 +126,8 @@ static int dsa_setup_wq(struct dsa_context *ctx, struct accfg_wq *wq)
 	return 0;
 }
 
-static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
-				   int dev_id, int shared)
+static struct accfg_wq *acctest_get_wq(struct dsa_context *ctx,
+				       int dev_id, int shared)
 {
 	struct accfg_device *device;
 	struct accfg_wq *wq;
@@ -167,7 +167,7 @@ static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
 			    (mode == ACCFG_WQ_DEDICATED && shared))
 				continue;
 
-			rc = dsa_setup_wq(ctx, wq);
+			rc = acctest_setup_wq(ctx, wq);
 			if (rc < 0)
 				return NULL;
 
@@ -178,8 +178,8 @@ static struct accfg_wq *dsa_get_wq(struct dsa_context *ctx,
 	return NULL;
 }
 
-static struct accfg_wq *dsa_get_wq_byid(struct dsa_context *ctx,
-					int dev_id, int wq_id)
+static struct accfg_wq *acctest_get_wq_byid(struct dsa_context *ctx,
+					    int dev_id, int wq_id)
 {
 	struct accfg_device *device;
 	struct accfg_wq *wq;
@@ -208,7 +208,7 @@ static struct accfg_wq *dsa_get_wq_byid(struct dsa_context *ctx,
 			if (wq_id != accfg_wq_get_id(wq))
 				continue;
 
-			rc = dsa_setup_wq(ctx, wq);
+			rc = acctest_setup_wq(ctx, wq);
 			if (rc < 0)
 				return NULL;
 
@@ -227,7 +227,7 @@ static uint32_t bsr(uint32_t val)
 	return msb - 1;
 }
 
-int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
+int acctest_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 {
 	struct accfg_device *dev;
 
@@ -236,9 +236,9 @@ int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 		return 0;
 
 	if (wq_id != DSA_DEVICE_ID_NO_INPUT)
-		ctx->wq = dsa_get_wq_byid(ctx, dev_id, wq_id);
+		ctx->wq = acctest_get_wq_byid(ctx, dev_id, wq_id);
 	else
-		ctx->wq = dsa_get_wq(ctx, dev_id, shared);
+		ctx->wq = acctest_get_wq(ctx, dev_id, shared);
 
 	if (!ctx->wq) {
 		err("No usable wq found\n");
@@ -265,7 +265,7 @@ int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 	return 0;
 }
 
-int alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
+int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
 {
 	struct task_node *tmp_tsk_node;
 	int cnt = 0;
@@ -276,7 +276,7 @@ int alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
 		if (!ctx->multi_task_node)
 			return -ENOMEM;
 
-		ctx->multi_task_node->tsk = __alloc_task();
+		ctx->multi_task_node->tsk = acctest_alloc_task();
 		if (!ctx->multi_task_node->tsk)
 			return -ENOMEM;
 		ctx->multi_task_node->next = tmp_tsk_node;
@@ -285,7 +285,7 @@ int alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
 	return DSA_STATUS_OK;
 }
 
-struct task *__alloc_task(void)
+struct task *acctest_alloc_task(void)
 {
 	struct task *tsk;
 
@@ -817,7 +817,7 @@ int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr
 
 		btsk = ctx->multi_btask_node->btsk;
 
-		btsk->core_task = __alloc_task();
+		btsk->core_task = acctest_alloc_task();
 		if (!btsk->core_task)
 			return -ENOMEM;
 
@@ -871,7 +871,7 @@ int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
 	return DSA_STATUS_OK;
 }
 
-int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw)
+int acctest_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw)
 {
 	int retry_count = 0;
 	int ret = 0;
@@ -913,8 +913,8 @@ static inline int umwait(unsigned long timeout, unsigned int state)
 	return r;
 }
 
-static int dsa_wait_on_desc_timeout(struct dsa_completion_record *comp,
-				    unsigned int msec_timeout)
+static int acctest_wait_on_desc_timeout(struct dsa_completion_record *comp,
+					unsigned int msec_timeout)
 {
 	unsigned int j = 0;
 	bool timed_out = false;
@@ -1003,7 +1003,7 @@ int memcmp_pattern(const void *src, const uint64_t pattern, size_t len)
 	return 0;
 }
 
-void dsa_free(struct dsa_context *ctx)
+void acctest_free(struct dsa_context *ctx)
 {
 	if (munmap(ctx->wq_reg, 0x1000))
 		err("munmap failed %d\n", errno);
@@ -1011,11 +1011,11 @@ void dsa_free(struct dsa_context *ctx)
 	close(ctx->fd);
 
 	accfg_unref(ctx->ctx);
-	dsa_free_task(ctx);
+	acctest_free_task(ctx);
 	free(ctx);
 }
 
-void dsa_free_task(struct dsa_context *ctx)
+void acctest_free_task(struct dsa_context *ctx)
 {
 	if (!ctx->is_batch) {
 		struct task_node *tsk_node = NULL, *tmp_node = NULL;
@@ -1096,7 +1096,7 @@ int dsa_wait_noop(struct dsa_context *ctx, struct task *tsk)
 	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("noop desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1119,7 +1119,7 @@ int dsa_noop_multi_task_nodes(struct dsa_context *ctx)
 
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 	tsk_node = ctx->multi_task_node;
@@ -1143,7 +1143,7 @@ int dsa_wait_batch(struct batch_task *btsk)
 
 	info("wait batch\n");
 
-	rc = dsa_wait_on_desc_timeout(ctsk->comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(ctsk->comp, ms_timeout);
 	if (rc < 0) {
 		err("batch desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1158,7 +1158,7 @@ int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk)
 	struct dsa_completion_record *comp = tsk->comp;
 	int rc;
 
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("drain desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1182,7 +1182,7 @@ int dsa_drain_multi_task_nodes(struct dsa_context *ctx)
 
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 	tsk_node = ctx->multi_task_node;
@@ -1205,7 +1205,7 @@ int dsa_wait_memcpy(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1238,7 +1238,7 @@ int dsa_memcpy_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all memcpy jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1261,7 +1261,7 @@ int dsa_wait_memfill(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 
 	if (rc < 0) {
 		err("memfill desc timeout\n");
@@ -1295,7 +1295,7 @@ int dsa_memfill_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all memcpy jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1318,7 +1318,7 @@ int dsa_wait_compare(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 
 	if (rc < 0) {
 		err("compare desc timeout\n");
@@ -1352,7 +1352,7 @@ int dsa_compare_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all memcpy jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1375,7 +1375,7 @@ int dsa_wait_compval(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 
 	if (rc < 0) {
 		err("compval desc timeout\n");
@@ -1409,7 +1409,7 @@ int dsa_compval_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all memcpy jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1432,7 +1432,7 @@ int dsa_wait_dualcast(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("dualcast desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1465,7 +1465,7 @@ int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all memcpy jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1488,7 +1488,7 @@ int dsa_wait_cr_delta(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1521,7 +1521,7 @@ int dsa_cr_delta_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all cr delta jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1544,7 +1544,7 @@ int dsa_wait_ap_delta(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1577,7 +1577,7 @@ int dsa_ap_delta_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all ap delta jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1600,7 +1600,7 @@ int dsa_wait_crcgen(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("CRC desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1633,7 +1633,7 @@ int dsa_crcgen_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all crcgen jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1656,7 +1656,7 @@ int dsa_wait_crc_copy(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("CRC copy desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1689,7 +1689,7 @@ int dsa_crc_copy_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all crcgen jobs\n");
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1712,7 +1712,7 @@ int dsa_wait_dif(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("DIF desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1745,7 +1745,7 @@ int dsa_dif_check_multi_task_nodes(struct dsa_context *ctx)
 
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1777,7 +1777,7 @@ int dsa_dif_ins_multi_task_nodes(struct dsa_context *ctx)
 
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 	tsk_node = ctx->multi_task_node;
@@ -1808,7 +1808,7 @@ int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx)
 
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 
@@ -1841,7 +1841,7 @@ int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx)
 
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 	tsk_node = ctx->multi_task_node;
@@ -1865,7 +1865,7 @@ int dsa_wait_cflush(struct dsa_context *ctx, struct task *tsk)
 	int rc;
 
 again:
-	rc = dsa_wait_on_desc_timeout(comp, ms_timeout);
+	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("cflush desc timeout\n");
 		return DSA_STATUS_TIMEOUT;
@@ -1897,7 +1897,7 @@ int dsa_cflush_multi_task_nodes(struct dsa_context *ctx)
 
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
-		dsa_desc_submit(ctx, tsk_node->tsk->desc);
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
 		tsk_node = tsk_node->next;
 	}
 	tsk_node = ctx->multi_task_node;

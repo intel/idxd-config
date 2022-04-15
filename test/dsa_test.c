@@ -149,7 +149,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 
 		btsk_node = ctx->multi_btask_node;
 		while (btsk_node) {
-			dsa_desc_submit(ctx, btsk_node->btsk->core_task->desc);
+			acctest_desc_submit(ctx, btsk_node->btsk->core_task->desc);
 			btsk_node = btsk_node->next;
 		}
 
@@ -180,7 +180,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 
 			btsk_node = ctx->multi_btask_node;
 			while (btsk_node) {
-				dsa_desc_submit(ctx, btsk_node->btsk->core_task->desc);
+				acctest_desc_submit(ctx, btsk_node->btsk->core_task->desc);
 				btsk_node = btsk_node->next;
 			}
 
@@ -205,7 +205,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 			btsk_node = btsk_node->next;
 		}
 
-		dsa_free_task(ctx);
+		acctest_free_task(ctx);
 		itr = itr - range;
 	}
 
@@ -232,7 +232,7 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
-		rc = alloc_multiple_tasks(ctx, i);
+		rc = acctest_alloc_multiple_tasks(ctx, i);
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
@@ -284,7 +284,7 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
-		dsa_free_task(ctx);
+		acctest_free_task(ctx);
 		itr = itr - range;
 	}
 
@@ -309,7 +309,7 @@ static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
-		rc = alloc_multiple_tasks(ctx, i);
+		rc = acctest_alloc_multiple_tasks(ctx, i);
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
@@ -332,7 +332,7 @@ static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
 			tsk_node = tsk_node->next;
 		}
 
-		dsa_free_task(ctx);
+		acctest_free_task(ctx);
 		itr = itr - range;
 	}
 
@@ -359,7 +359,7 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
-		rc = alloc_multiple_tasks(ctx, i);
+		rc = acctest_alloc_multiple_tasks(ctx, i);
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
@@ -493,7 +493,7 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 			return -EINVAL;
 		}
 
-		dsa_free_task(ctx);
+		acctest_free_task(ctx);
 		itr = itr - range;
 	}
 
@@ -520,7 +520,7 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
-		rc = alloc_multiple_tasks(ctx, i);
+		rc = acctest_alloc_multiple_tasks(ctx, i);
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
@@ -563,7 +563,7 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
-		dsa_free_task(ctx);
+		acctest_free_task(ctx);
 		itr = itr - range;
 	}
 
@@ -590,7 +590,7 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 	while (itr > 0 && rc == DSA_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
-		rc = alloc_multiple_tasks(ctx, i);
+		rc = acctest_alloc_multiple_tasks(ctx, i);
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
@@ -629,7 +629,7 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 		if (rc != DSA_STATUS_OK)
 			return rc;
 
-		dsa_free_task(ctx);
+		acctest_free_task(ctx);
 		itr = itr - range;
 	}
 
@@ -698,12 +698,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	dsa = dsa_init(tflags);
+	dsa = acctest_init(tflags);
 
 	if (!dsa)
 		return -ENOMEM;
 
-	rc = dsa_alloc(dsa, wq_type, dev_id, wq_id);
+	rc = acctest_alloc(dsa, wq_type, dev_id, wq_id);
 	if (rc < 0)
 		return -ENOMEM;
 
@@ -771,6 +771,6 @@ int main(int argc, char *argv[])
 	}
 
  error:
-	dsa_free(dsa);
+	acctest_free(dsa);
 	return rc;
 }

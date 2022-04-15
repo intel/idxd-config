@@ -253,12 +253,12 @@ static inline void resolve_page_fault(uint64_t addr, uint8_t status)
 
 void memset_pattern(void *dst, uint64_t pattern, size_t len);
 int memcmp_pattern(const void *src, const uint64_t pattern, size_t len);
-int dsa_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw);
+int acctest_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw);
 
-struct dsa_context *dsa_init(int tflags);
-int dsa_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
-int alloc_multiple_tasks(struct dsa_context *ctx, int num_itr);
-struct task *__alloc_task(void);
+struct dsa_context *acctest_init(int tflags);
+int acctest_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id);
+int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr);
+struct task *acctest_alloc_task(void);
 int init_memcpy(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
@@ -381,15 +381,15 @@ void dsa_prep_batch_dif_update(struct batch_task *btsk);
 void dsa_prep_batch_cflush(struct batch_task *btsk);
 int dsa_wait_batch(struct batch_task *btsk);
 
-void dsa_free(struct dsa_context *ctx);
-void dsa_free_task(struct dsa_context *ctx);
+void acctest_free(struct dsa_context *ctx);
+void acctest_free_task(struct dsa_context *ctx);
 void free_task(struct task *tsk);
 void __clean_task(struct task *tsk);
 void free_batch_task(struct batch_task *btsk);
 
-void dsa_prep_desc_common(struct dsa_hw_desc *hw, char opcode,
-			  uint64_t dest, uint64_t src, size_t len, unsigned long dflags);
-void dsa_desc_submit(struct dsa_context *ctx, struct dsa_hw_desc *hw);
+void acctest_prep_desc_common(struct dsa_hw_desc *hw, char opcode,
+			      uint64_t dest, uint64_t src, size_t len, unsigned long dflags);
+void acctest_desc_submit(struct dsa_context *ctx, struct dsa_hw_desc *hw);
 
 uint16_t dsa_calculate_crc_t10dif(unsigned char *buffer, size_t len, int flags);
 int get_dif_blksz_flg(unsigned long xfer_size);
