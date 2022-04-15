@@ -192,7 +192,7 @@ static struct accfg_wq *acctest_get_wq_byid(struct dsa_context *ctx,
 
 		/* Match the device to the id requested */
 		if (accfg_device_get_id(device) != dev_id &&
-		    dev_id != DSA_DEVICE_ID_NO_INPUT)
+		    dev_id != ACCTEST_DEVICE_ID_NO_INPUT)
 			continue;
 
 		accfg_wq_foreach(device, wq) {
@@ -235,7 +235,7 @@ int acctest_alloc(struct dsa_context *ctx, int shared, int dev_id, int wq_id)
 	if (ctx->wq_reg)
 		return 0;
 
-	if (wq_id != DSA_DEVICE_ID_NO_INPUT)
+	if (wq_id != ACCTEST_DEVICE_ID_NO_INPUT)
 		ctx->wq = acctest_get_wq_byid(ctx, dev_id, wq_id);
 	else
 		ctx->wq = acctest_get_wq(ctx, dev_id, shared);
@@ -282,7 +282,7 @@ int acctest_alloc_multiple_tasks(struct dsa_context *ctx, int num_itr)
 		ctx->multi_task_node->next = tmp_tsk_node;
 		cnt++;
 	}
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 struct task *acctest_alloc_task(void)
@@ -332,7 +332,7 @@ int init_memcpy(struct task *tsk, int tflags, int opcode, unsigned long xfer_siz
 		return -ENOMEM;
 	memset_pattern(tsk->dst1, tsk->pattern2, xfer_size);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -350,7 +350,7 @@ int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_si
 		return -ENOMEM;
 	memset(tsk->dst1, tsk->pattern2, xfer_size);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -372,7 +372,7 @@ int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_si
 		return -ENOMEM;
 	memset_pattern(tsk->src2, tsk->pattern, xfer_size);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_compval(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -389,7 +389,7 @@ int init_compval(struct task *tsk, int tflags, int opcode, unsigned long xfer_si
 		return -ENOMEM;
 	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_dualcast(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -417,7 +417,7 @@ int init_dualcast(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 		return -ENOMEM;
 	memset_pattern(tsk->dst2, tsk->pattern2, xfer_size);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_cr_delta(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -452,7 +452,7 @@ int init_cr_delta(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 			return -ENOMEM;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_crcgen(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -475,7 +475,7 @@ int init_crcgen(struct task *tsk, int tflags, int opcode, unsigned long xfer_siz
 		tsk->crc_seed = 0x0;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_copy_crc(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -505,7 +505,7 @@ int init_copy_crc(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 		tsk->crc_seed = 0x0;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_dif_check(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -557,7 +557,7 @@ int init_dif_check(struct task *tsk, int tflags, int opcode, unsigned long xfer_
 		dif_reftag++;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_dif_ins(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -586,7 +586,7 @@ int init_dif_ins(struct task *tsk, int tflags, int opcode, unsigned long xfer_si
 	if (!tsk->dst1)
 		return -ENOMEM;
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_dif_strp(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -642,7 +642,7 @@ int init_dif_strp(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 	if (!tsk->dst1)
 		return -ENOMEM;
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_dif_updt(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -695,7 +695,7 @@ int init_dif_updt(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 	if (!tsk->dst1)
 		return -ENOMEM;
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_cflush(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
@@ -712,7 +712,7 @@ int init_cflush(struct task *tsk, int tflags, int opcode, unsigned long xfer_siz
 		return -ENOMEM;
 	memset_pattern(tsk->dst1, tsk->pattern, xfer_size);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 /* this function is re-used by batch task */
@@ -780,7 +780,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 		break;
 	}
 
-	if (rc != DSA_STATUS_OK) {
+	if (rc != ACCTEST_STATUS_OK) {
 		err("init: opcode %d data failed\n", opcode);
 		return rc;
 	}
@@ -788,7 +788,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 	dbg("Mem allocated: s1 %#lx s2 %#lx d1 %#lx d2 %#lx\n",
 	    tsk->src1, tsk->src2, tsk->dst1, tsk->dst2);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr)
@@ -846,7 +846,7 @@ int alloc_batch_task(struct dsa_context *ctx, unsigned int task_num, int num_itr
 		cnt++;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
@@ -862,13 +862,13 @@ int init_batch_task(struct batch_task *btsk, int task_num, int tflags,
 		btsk->sub_tasks[i].comp = &btsk->sub_comps[i];
 		btsk->sub_tasks[i].dflags = dflags;
 		rc = init_task(&btsk->sub_tasks[i], tflags, opcode, xfer_size);
-		if (rc != DSA_STATUS_OK) {
+		if (rc != ACCTEST_STATUS_OK) {
 			err("batch: init sub-task failed\n");
 			return rc;
 		}
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int acctest_enqcmd(struct dsa_context *ctx, struct dsa_hw_desc *hw)
@@ -1099,16 +1099,16 @@ int dsa_wait_noop(struct dsa_context *ctx, struct task *tsk)
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("noop desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_noop_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1127,7 +1127,7 @@ int dsa_noop_multi_task_nodes(struct dsa_context *ctx)
 
 	while (tsk_node) {
 		ret = dsa_wait_noop(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1146,11 +1146,11 @@ int dsa_wait_batch(struct batch_task *btsk)
 	rc = acctest_wait_on_desc_timeout(ctsk->comp, ms_timeout);
 	if (rc < 0) {
 		err("batch desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	dump_sub_compl_rec(btsk);
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk)
@@ -1161,16 +1161,16 @@ int dsa_wait_drain(struct dsa_context *ctx, struct task *tsk)
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("drain desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_drain_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		/* Block on fault is reserved for Drain */
@@ -1190,7 +1190,7 @@ int dsa_drain_multi_task_nodes(struct dsa_context *ctx)
 
 	while (tsk_node) {
 		ret = dsa_wait_drain(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1208,7 +1208,7 @@ again:
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1218,13 +1218,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_memcpy_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1245,7 +1245,7 @@ int dsa_memcpy_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_memcpy(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1265,7 +1265,7 @@ again:
 
 	if (rc < 0) {
 		err("memfill desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1275,13 +1275,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_memfill_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1302,7 +1302,7 @@ int dsa_memfill_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_memfill(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1322,7 +1322,7 @@ again:
 
 	if (rc < 0) {
 		err("compare desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1332,13 +1332,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_compare_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1359,7 +1359,7 @@ int dsa_compare_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_compare(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1379,7 +1379,7 @@ again:
 
 	if (rc < 0) {
 		err("compval desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1389,13 +1389,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_compval_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1416,7 +1416,7 @@ int dsa_compval_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_compval(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1435,7 +1435,7 @@ again:
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("dualcast desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1445,13 +1445,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1472,7 +1472,7 @@ int dsa_dualcast_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_dualcast(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1491,7 +1491,7 @@ again:
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1501,13 +1501,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_cr_delta_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1528,7 +1528,7 @@ int dsa_cr_delta_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_cr_delta(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1547,7 +1547,7 @@ again:
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("memcpy desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1557,13 +1557,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_ap_delta_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1584,7 +1584,7 @@ int dsa_ap_delta_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_ap_delta(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1603,7 +1603,7 @@ again:
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("CRC desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1613,13 +1613,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_crcgen_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1640,7 +1640,7 @@ int dsa_crcgen_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_crcgen(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1659,7 +1659,7 @@ again:
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("CRC copy desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1669,13 +1669,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_crc_copy_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1696,7 +1696,7 @@ int dsa_crc_copy_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_crc_copy(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1715,7 +1715,7 @@ again:
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("DIF desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1726,13 +1726,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_dif_check_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1753,7 +1753,7 @@ int dsa_dif_check_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_dif(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
 			     tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1764,7 +1764,7 @@ int dsa_dif_check_multi_task_nodes(struct dsa_context *ctx)
 int dsa_dif_ins_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1784,7 +1784,7 @@ int dsa_dif_ins_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all dif insert jobs\n");
 	while (tsk_node) {
 		ret = dsa_wait_dif(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
 			     tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1795,7 +1795,7 @@ int dsa_dif_ins_multi_task_nodes(struct dsa_context *ctx)
 int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1816,7 +1816,7 @@ int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_dif(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
 			     tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1828,7 +1828,7 @@ int dsa_dif_strp_multi_task_nodes(struct dsa_context *ctx)
 int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1849,7 +1849,7 @@ int dsa_dif_updt_multi_task_nodes(struct dsa_context *ctx)
 	info("Submitted all dif update jobs\n");
 	while (tsk_node) {
 		ret = dsa_wait_dif(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n", tsk_node->tsk->desc,
 			     tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1868,7 +1868,7 @@ again:
 	rc = acctest_wait_on_desc_timeout(comp, ms_timeout);
 	if (rc < 0) {
 		err("cflush desc timeout\n");
-		return DSA_STATUS_TIMEOUT;
+		return ACCTEST_STATUS_TIMEOUT;
 	}
 
 	/* re-submit if PAGE_FAULT reported by HW && BOF is off */
@@ -1878,13 +1878,13 @@ again:
 		goto again;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int dsa_cflush_multi_task_nodes(struct dsa_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -1905,7 +1905,7 @@ int dsa_cflush_multi_task_nodes(struct dsa_context *ctx)
 
 	while (tsk_node) {
 		ret = dsa_wait_cflush(ctx, tsk_node->tsk);
-		if (ret != DSA_STATUS_OK)
+		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
 		tsk_node = tsk_node->next;
@@ -1965,17 +1965,17 @@ int task_result_verify(struct task *tsk, int mismatch_expected)
 
 	info("test with op %d passed\n", tsk->opcode);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int task_result_verify_task_nodes(struct dsa_context *ctx, int mismatch_expected)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
-	int ret = DSA_STATUS_OK;
+	int ret = ACCTEST_STATUS_OK;
 
 	while (tsk_node) {
 		ret = task_result_verify(tsk_node->tsk, mismatch_expected);
-		if (ret != DSA_STATUS_OK) {
+		if (ret != ACCTEST_STATUS_OK) {
 			err("memory result verify failed %d\n", ret);
 			return ret;
 		}
@@ -1998,7 +1998,7 @@ int task_result_verify_memcpy(struct task *tsk, int mismatch_expected)
 		return -ENXIO;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int task_result_verify_memfill(struct task *tsk, int mismatch_expected)
@@ -2011,7 +2011,7 @@ int task_result_verify_memfill(struct task *tsk, int mismatch_expected)
 		return -ENXIO;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int task_result_verify_compare(struct task *tsk, int mismatch_expected)
@@ -2022,14 +2022,14 @@ int task_result_verify_compare(struct task *tsk, int mismatch_expected)
 			    tsk->comp->bytes_completed);
 			return -ENXIO;
 		}
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 	}
 
 	/* mismatch_expected */
 	if (tsk->comp->result) {
 		info("expected mismatch at index %#x\n",
 		     tsk->comp->bytes_completed);
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 	}
 
 	err("DSA wrongly says matching buffers\n");
@@ -2044,14 +2044,14 @@ int task_result_verify_compval(struct task *tsk, int mismatch_expected)
 			    tsk->comp->bytes_completed);
 			return -ENXIO;
 		}
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 	}
 
 	/* mismatch_expected */
 	if (tsk->comp->result) {
 		info("expected mismatch at index %#x\n",
 		     tsk->comp->bytes_completed);
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 	}
 
 	err("DSA wrongly says matching buffers\n");
@@ -2077,7 +2077,7 @@ int task_result_verify_dualcast(struct task *tsk, int mismatch_expected)
 		return -ENXIO;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int task_result_verify_ap_delta(struct task *tsk, int mismatch_expected)
@@ -2092,7 +2092,7 @@ int task_result_verify_ap_delta(struct task *tsk, int mismatch_expected)
 		err("apply delta mismatch, memcmp rc %d\n", rc);
 		return -ENXIO;
 	}
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 static uint8_t reverse_u8(uint8_t x)
@@ -2181,16 +2181,16 @@ int task_result_verify_crcgen(struct task *tsk, int mismatch_expected)
 			printf("\033[0m");
 			return -ENXIO;
 		}
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 	}
 
 	/* mismatch_expected */
 	if (tsk->comp->crc_val != expected_crc) {
 		info("expected mismatch in crcgen %#x\n",
 		     tsk->comp->crc_val);
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 	}
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int task_result_verify_crc_copy(struct task *tsk, int mismatch_expected)
@@ -2227,7 +2227,7 @@ int task_result_verify_crc_copy(struct task *tsk, int mismatch_expected)
 		return -ENXIO;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 /**
@@ -2259,7 +2259,7 @@ static int task_result_verify_dif_page_fault(struct task *tsk, unsigned long xfe
 	unsigned long i, blks;
 
 	if (tsk->comp->status == 0x16 || xfer_size == 0)
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 
 	info("Partial DIF Src and Dest Check Ongoing\n");
 
@@ -2292,7 +2292,7 @@ static int task_result_verify_dif_page_fault(struct task *tsk, unsigned long xfe
 		return -ENXIO;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int task_result_verify_dif(struct task *tsk, unsigned long xfer_size, int mismatch_expected)
@@ -2310,11 +2310,11 @@ int task_result_verify_dif(struct task *tsk, unsigned long xfer_size, int mismat
 		rc = task_result_verify_dif_page_fault(tsk, tsk->comp->bytes_completed, 0);
 		info("Partial DIF Src and Dest Checking Done\n");
 		if (!rc)
-			return DSA_STATUS_OK;
+			return ACCTEST_STATUS_OK;
 	}
 
 	if (tsk->comp->status == 0x16)
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 
 	info("Checking Src & Dst buffers\n");
 	if (tsk->opcode == DSA_OPCODE_DIF_INS) {
@@ -2337,7 +2337,7 @@ int task_result_verify_dif(struct task *tsk, unsigned long xfer_size, int mismat
 		return -ENXIO;
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 static int task_result_verify_dif_tags_page_fault(struct task *tsk, unsigned long xfer_size)
@@ -2360,7 +2360,7 @@ static int task_result_verify_dif_tags_page_fault(struct task *tsk, unsigned lon
 	info("Checking Partial DIF Tags\n");
 
 	if (tsk->comp->status == 0x16 || xfer_size == 0)
-		return DSA_STATUS_OK;
+		return ACCTEST_STATUS_OK;
 
 	if (tsk->opcode != DSA_OPCODE_DIF_UPDT)
 		blks = xfer_size / dif_blk_arr[tsk->blk_idx_flg];
@@ -2443,7 +2443,7 @@ static int task_result_verify_dif_tags_page_fault(struct task *tsk, unsigned lon
 	else
 		info("All Tags Validated\n", g_count, a_count, r_count);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int task_result_verify_dif_tags(struct task *tsk, unsigned long xfer_size)
@@ -2470,7 +2470,7 @@ int task_result_verify_dif_tags(struct task *tsk, unsigned long xfer_size)
 		rc = task_result_verify_dif_tags_page_fault(tsk, tsk->comp->bytes_completed);
 		info("Partial DIF Tags Checking Done\n");
 		if (!rc)
-			return DSA_STATUS_OK;
+			return ACCTEST_STATUS_OK;
 	}
 
 	info("Checking All Tags\n");
@@ -2540,7 +2540,7 @@ int task_result_verify_dif_tags(struct task *tsk, unsigned long xfer_size)
 	else
 		info("All Tags Validated\n", g_count, a_count, r_count);
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }
 
 int batch_result_verify(struct batch_task *btsk, int bof)
@@ -2556,7 +2556,7 @@ int batch_result_verify(struct batch_task *btsk, int bof)
 		info("partial complete with NBOF, checking sub-tasks\n");
 	} else {
 		err("batch core task failed with status %d\n", core_stat);
-		return DSA_STATUS_FAIL;
+		return ACCTEST_STATUS_FAIL;
 	}
 
 	for (i = 0; i < btsk->task_num; i++) {
@@ -2567,15 +2567,15 @@ int batch_result_verify(struct batch_task *btsk, int bof)
 			dbg("PF in sub-task[%d], consider as passed\n", i);
 		} else if (sub_stat == DSA_COMP_SUCCESS) {
 			rc = task_result_verify(tsk, 0);
-			if (rc != DSA_STATUS_OK) {
+			if (rc != ACCTEST_STATUS_OK) {
 				err("Sub-task[%d] failed with rc=%d", i, rc);
 				return rc;
 			}
 		} else {
 			err("Sub-task[%d] failed with stat=%d", i, sub_stat);
-			return DSA_STATUS_FAIL;
+			return ACCTEST_STATUS_FAIL;
 		}
 	}
 
-	return DSA_STATUS_OK;
+	return ACCTEST_STATUS_OK;
 }

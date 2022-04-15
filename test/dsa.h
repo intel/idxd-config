@@ -9,7 +9,7 @@
 
 #define MAX_PATH_LENGTH 1024
 
-#define DSA_DEVICE_ID_NO_INPUT -1
+#define ACCTEST_DEVICE_ID_NO_INPUT -1
 
 #define DSA_MAX_OPS 0x20
 
@@ -18,30 +18,30 @@
 #define TEST_FLAGS_WAIT    0x4     /* Wait in kernel */
 #define TEST_FLAGS_PREF    0x8     /* Pre-fault the buffers */
 
-#define DSA_STATUS_OK    0x0
-#define DSA_STATUS_RETRY 0x1
-#define DSA_STATUS_FAIL  0x2
-#define DSA_STATUS_RPF   0x3
-#define DSA_STATUS_URPF  0x4
-#define DSA_STATUS_TIMEOUT 0x5
+#define ACCTEST_STATUS_OK    0x0
+#define ACCTEST_STATUS_RETRY 0x1
+#define ACCTEST_STATUS_FAIL  0x2
+#define ACCTEST_STATUS_RPF   0x3
+#define ACCTEST_STATUS_URPF  0x4
+#define ACCTEST_STATUS_TIMEOUT 0x5
 
 #define DSA_BATCH_OPCODES 0x278
 
-#define DSA_CAP_BLOCK_ON_FAULT                  0x0000000000000001
-#define DSA_CAP_OVERLAP_COPY                    0x0000000000000002
-#define DSA_CAP_CACHE_MEM_CTRL                  0x0000000000000004
-#define DSA_CAP_CACHE_FLUSH_CTRL                0x0000000000000008
-#define DSA_CAP_DEST_RDBACK                     0x0000000000000100
-#define DSA_CAP_DUR_WRITE                       0x0000000000000200
+#define ACCTEST_CAP_BLOCK_ON_FAULT                  0x0000000000000001
+#define ACCTEST_CAP_OVERLAP_COPY                    0x0000000000000002
+#define ACCTEST_CAP_CACHE_MEM_CTRL                  0x0000000000000004
+#define ACCTEST_CAP_CACHE_FLUSH_CTRL                0x0000000000000008
+#define ACCTEST_CAP_DEST_RDBACK                     0x0000000000000100
+#define ACCTEST_CAP_DUR_WRITE                       0x0000000000000200
 
 #define DSA_CAP_MAX_BATCH_MASK                  0x0000000001E00000
 #define DSA_CAP_MAX_BATCH_SHIFT                 21
 
-#define DSA_CAP_MAX_XFER_MASK                   0x00000000001F0000
-#define DSA_CAP_MAX_XFER_SHIFT                  16
+#define ACCTEST_CAP_MAX_XFER_MASK                   0x00000000001F0000
+#define ACCTEST_CAP_MAX_XFER_SHIFT                  16
 
-#define DSA_COMP_STAT_CODE_MASK                 0x3F
-#define DSA_COMP_STAT_RW_MASK                   0x80
+#define ACCTEST_COMP_STAT_CODE_MASK                 0x3F
+#define ACCTEST_COMP_STAT_RW_MASK                   0x80
 
 /* CRC Flags */
 #define READ_CRC_SEED		((unsigned long)(1 << 16))
@@ -65,7 +65,7 @@
 
 #define MIN_DELTA_RECORD_SIZE 80
 /* helper macro to get lower 6 bits (ret code) from completion status */
-#define stat_val(status) ((status) & DSA_COMP_STAT_CODE_MASK)
+#define stat_val(status) ((status) & ACCTEST_COMP_STAT_CODE_MASK)
 
 extern unsigned int ms_timeout;
 extern int debug_logging;
@@ -247,7 +247,7 @@ static inline void resolve_page_fault(uint64_t addr, uint8_t status)
 	*addr_u8 =  ~(*addr_u8);
 
 	/* For PF at read, we need to restore it to the orginal value */
-	if (!(status & DSA_COMP_STAT_RW_MASK))
+	if (!(status & ACCTEST_COMP_STAT_RW_MASK))
 		*addr_u8 = ~(*addr_u8);
 }
 

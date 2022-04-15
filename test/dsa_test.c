@@ -36,7 +36,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 {
 	struct btask_node *btsk_node;
 	unsigned long dflags;
-	int rc = DSA_STATUS_OK;
+	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
 	info("batch: len %#lx tflags %#x bopcode %#x batch_no %d num_desc %ld\n",
@@ -54,10 +54,10 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 	else
 		range = ctx->wq_size;
 
-	while (itr > 0 && rc == DSA_STATUS_OK) {
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		rc = alloc_batch_task(ctx, bsize, i);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
@@ -69,7 +69,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 		while (btsk_node) {
 			rc = init_batch_task(btsk_node->btsk, bsize, tflags, bopcode,
 					     buf_size, dflags);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			switch (bopcode) {
@@ -156,7 +156,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 		btsk_node = ctx->multi_btask_node;
 		while (btsk_node) {
 			rc = dsa_wait_batch(btsk_node->btsk);
-			if (rc != DSA_STATUS_OK) {
+			if (rc != ACCTEST_STATUS_OK) {
 				err("batch failed stat %d\n", rc);
 				return rc;
 			}
@@ -187,7 +187,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 			btsk_node = ctx->multi_btask_node;
 			while (btsk_node) {
 				rc = dsa_wait_batch(btsk_node->btsk);
-				if (rc != DSA_STATUS_OK) {
+				if (rc != ACCTEST_STATUS_OK) {
 					err("batch failed stat %d\n", rc);
 					return rc;
 				}
@@ -198,7 +198,7 @@ static int test_batch(struct dsa_context *ctx, size_t buf_size,
 		btsk_node = ctx->multi_btask_node;
 		while (btsk_node) {
 			rc = batch_result_verify(btsk_node->btsk, dflags & IDXD_OP_FLAG_BOF);
-			if (rc != DSA_STATUS_OK) {
+			if (rc != ACCTEST_STATUS_OK) {
 				err("batch verification failed stat %d\n", rc);
 				return rc;
 			}
@@ -216,7 +216,7 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 		    int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
-	int rc = DSA_STATUS_OK;
+	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
 	info("testmemory: opcode %d len %#lx tflags %#x num_desc %ld\n",
@@ -229,11 +229,11 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 	else
 		range = ctx->wq_size;
 
-	while (itr > 0 && rc == DSA_STATUS_OK) {
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
 		rc = acctest_alloc_multiple_tasks(ctx, i);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
@@ -243,7 +243,7 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 			tsk_node->tsk->blk_idx_flg = get_dif_blksz_flg(tsk_node->tsk->xfer_size);
 
 			rc = init_task(tsk_node->tsk, tflags, opcode, buf_size);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			tsk_node = tsk_node->next;
@@ -252,25 +252,25 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 		switch (opcode) {
 		case DSA_OPCODE_DIF_CHECK:
 			rc = dsa_dif_check_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_DIF_INS:
 			rc = dsa_dif_ins_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_DIF_STRP:
 			rc = dsa_dif_strp_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_DIF_UPDT:
 			rc = dsa_dif_updt_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
@@ -281,7 +281,7 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 
 		/* Verification of all the nodes*/
 		rc = task_result_verify_task_nodes(ctx, 0);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		acctest_free_task(ctx);
@@ -294,7 +294,7 @@ static int test_dif(struct dsa_context *ctx, size_t buf_size,
 static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
 {
 	struct task_node *tsk_node;
-	int rc = DSA_STATUS_OK;
+	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
 	info("testnoop: tflags %#x num_desc %ld\n", tflags, num_desc);
@@ -306,11 +306,11 @@ static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
 	else
 		range = ctx->wq_size;
 
-	while (itr > 0 && rc == DSA_STATUS_OK) {
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
 		rc = acctest_alloc_multiple_tasks(ctx, i);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
@@ -322,7 +322,7 @@ static int test_noop(struct dsa_context *ctx, int tflags, int num_desc)
 		}
 
 		rc = dsa_noop_multi_task_nodes(ctx);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		/* Verification of all the nodes*/
@@ -343,7 +343,7 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 		       int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
-	int rc = DSA_STATUS_OK;
+	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
 	info("testmemory: opcode %d len %#lx tflags %#x num_desc %ld\n",
@@ -356,11 +356,11 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 	else
 		range = ctx->wq_size;
 
-	while (itr > 0 && rc == DSA_STATUS_OK) {
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
 		rc = acctest_alloc_multiple_tasks(ctx, i);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
@@ -369,7 +369,7 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 			tsk_node->tsk->xfer_size = buf_size;
 
 			rc = init_task(tsk_node->tsk, tflags, opcode, buf_size);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			tsk_node = tsk_node->next;
@@ -378,48 +378,48 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 		switch (opcode) {
 		case DSA_OPCODE_DRAIN:
 			rc = dsa_memcpy_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			rc = dsa_drain_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			rc = task_result_verify_task_nodes(ctx, 0);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_MEMMOVE:
 			rc = dsa_memcpy_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			/* Verification of all the nodes*/
 			rc = task_result_verify_task_nodes(ctx, 0);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_MEMFILL:
 			rc = dsa_memfill_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			/* Verification of all the nodes*/
 			rc = task_result_verify_task_nodes(ctx, 0);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_COMPARE:
 			rc = dsa_compare_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			/* Verification of all the nodes*/
 			rc = task_result_verify_task_nodes(ctx, 0);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			info("Testing mismatch buffers\n");
@@ -435,23 +435,23 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 			}
 
 			rc = dsa_compare_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			/* Verification of all the nodes*/
 			rc = task_result_verify_task_nodes(ctx, 1);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_COMPVAL:
 			rc = dsa_compval_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			/* Verification of all the nodes*/
 			rc = task_result_verify_task_nodes(ctx, 0);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			info("Testing mismatching buffers\n");
@@ -465,27 +465,27 @@ static int test_memory(struct dsa_context *ctx, size_t buf_size,
 			}
 
 			rc = dsa_compval_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			/* Verification of all the nodes*/
 			rc = task_result_verify_task_nodes(ctx, 1);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 		case DSA_OPCODE_DUALCAST:
 			rc = dsa_dualcast_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			/* Verification of all the nodes*/
 			rc = task_result_verify_task_nodes(ctx, 0);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 		case DSA_OPCODE_CFLUSH:
 			rc = dsa_cflush_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 		default:
@@ -504,7 +504,7 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 		      int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
-	int rc = DSA_STATUS_OK;
+	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
 	info("testmemory: opcode %d len %#lx tflags %#x num_desc %ld\n",
@@ -517,11 +517,11 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 	else
 		range = ctx->wq_size;
 
-	while (itr > 0 && rc == DSA_STATUS_OK) {
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
 		rc = acctest_alloc_multiple_tasks(ctx, i);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
@@ -530,7 +530,7 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 			tsk_node->tsk->xfer_size = buf_size;
 
 			rc = init_task(tsk_node->tsk, tflags, opcode, buf_size);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			tsk_node = tsk_node->next;
@@ -539,17 +539,17 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 		switch (opcode) {
 		case DSA_OPCODE_CR_DELTA:
 			rc = dsa_cr_delta_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_AP_DELTA:
 			rc = dsa_cr_delta_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			rc = dsa_ap_delta_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
@@ -560,7 +560,7 @@ static int test_delta(struct dsa_context *ctx, size_t buf_size,
 
 		/* Verification of all the nodes*/
 		rc = task_result_verify_task_nodes(ctx, 0);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		acctest_free_task(ctx);
@@ -574,7 +574,7 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 		    int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
-	int rc = DSA_STATUS_OK;
+	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
 	info("testmemory: opcode %d len %#lx tflags %#x num_desc %ld\n",
@@ -587,11 +587,11 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 	else
 		range = ctx->wq_size;
 
-	while (itr > 0 && rc == DSA_STATUS_OK) {
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
 		i = (itr < range) ? itr : range;
 		/* Allocate memory to all the task nodes, desc, completion record*/
 		rc = acctest_alloc_multiple_tasks(ctx, i);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
@@ -600,7 +600,7 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 			tsk_node->tsk->xfer_size = buf_size;
 
 			rc = init_task(tsk_node->tsk, tflags, opcode, buf_size);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 
 			tsk_node = tsk_node->next;
@@ -609,13 +609,13 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 		switch (opcode) {
 		case DSA_OPCODE_CRCGEN:
 			rc = dsa_crcgen_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
 		case DSA_OPCODE_COPY_CRC:
 			rc = dsa_crc_copy_multi_task_nodes(ctx);
-			if (rc != DSA_STATUS_OK)
+			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
 
@@ -626,7 +626,7 @@ static int test_crc(struct dsa_context *ctx, size_t buf_size,
 
 		/* Verification of all the nodes*/
 		rc = task_result_verify_task_nodes(ctx, 0);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		acctest_free_task(ctx);
@@ -648,9 +648,9 @@ int main(int argc, char *argv[])
 	int opt;
 	unsigned int bsize = 0;
 	char dev_type[MAX_DEV_LEN];
-	int wq_id = DSA_DEVICE_ID_NO_INPUT;
-	int dev_id = DSA_DEVICE_ID_NO_INPUT;
-	int dev_wq_id = DSA_DEVICE_ID_NO_INPUT;
+	int wq_id = ACCTEST_DEVICE_ID_NO_INPUT;
+	int dev_id = ACCTEST_DEVICE_ID_NO_INPUT;
+	int dev_wq_id = ACCTEST_DEVICE_ID_NO_INPUT;
 	unsigned int num_desc = 1;
 
 	while ((opt = getopt(argc, argv, "w:l:f:o:b:c:d:n:t:p:vh")) != -1) {
@@ -715,7 +715,7 @@ int main(int argc, char *argv[])
 	switch (opcode) {
 	case DSA_OPCODE_NOOP:
 		rc = test_noop(dsa, tflags, num_desc);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
 
@@ -738,21 +738,21 @@ int main(int argc, char *argv[])
 	case DSA_OPCODE_DUALCAST:
 	case DSA_OPCODE_CFLUSH:
 		rc = test_memory(dsa, buf_size, tflags, opcode, num_desc);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
 
 	case DSA_OPCODE_CR_DELTA:
 	case DSA_OPCODE_AP_DELTA:
 		rc = test_delta(dsa, buf_size, tflags, opcode, num_desc);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
 
 	case DSA_OPCODE_CRCGEN:
 	case DSA_OPCODE_COPY_CRC:
 		rc = test_crc(dsa, buf_size, tflags, opcode, num_desc);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
 
@@ -761,7 +761,7 @@ int main(int argc, char *argv[])
 	case DSA_OPCODE_DIF_STRP:
 	case DSA_OPCODE_DIF_UPDT:
 		rc = test_dif(dsa, buf_size, tflags, opcode, num_desc);
-		if (rc != DSA_STATUS_OK)
+		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
 
