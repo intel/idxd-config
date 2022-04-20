@@ -39,6 +39,17 @@ else
 	exit "$EXIT_FAILURE"
 fi
 
+# IAXTEST
+#
+if [ -f "./iaa_test" ] && [ -x "./iaa_test" ]; then
+	export IAXTEST=./iaa_test
+elif [ -f "$TESTDIR/iaa_test" ] && [ -x "$TESTDIR/iaa_test" ]; then
+	export IAXTEST="$TESTDIR"/iaa_test
+else
+	echo "Couldn't find an iaa_test binary"
+	exit "$EXIT_FAILURE"
+fi
+
 # CONFIGS
 #
 if [ -f "./configs/2g2q_user_1.conf" ]; then
@@ -48,6 +59,17 @@ elif [ -f "/usr/share/accel-config/test/configs/2g2q_user_1.conf" ]; then
 else
 	echo "Can't find config 1 file"
 	exit "$EXIT_FAILURE"
+fi
+
+# CONFIGS
+#
+if [ -f "./configs/2g2q_user_2.conf" ]; then
+    export CONFIG2=./configs/2g2q_user_2.conf
+elif [ -f "/usr/share/accel-config/test/configs/2g2q_user_2.conf" ]; then
+    export CONFIG2=/usr/share/accel-config/test/configs/2g2q_user_2.conf
+else
+    echo "Can't find config 2 file"
+    exit "$EXIT_FAILURE"
 fi
 
 # Functions
