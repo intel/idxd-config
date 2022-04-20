@@ -17,6 +17,50 @@
 #include "accel_test.h"
 #include "iaa.h"
 
+static int iax_wait_noop(struct acctest_context *ctx, struct task *tsk)
+{
+	struct completion_record *comp = tsk->comp;
+	int rc;
+
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
+	if (rc < 0) {
+		err("noop desc timeout\n");
+		return ACCTEST_STATUS_TIMEOUT;
+	}
+
+	return ACCTEST_STATUS_OK;
+}
+
+int iax_noop_multi_task_nodes(struct acctest_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = ACCTEST_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags |= (IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR);
+
+		iax_prep_noop(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+	tsk_node = ctx->multi_task_node;
+	info("Submitted all noop jobs\n");
+
+	while (tsk_node) {
+		ret = iax_wait_noop(ctx, tsk_node->tsk);
+		if (ret != ACCTEST_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+	return ret;
+}
+
 /* mismatch_expected: expect mismatched buffer with success status 0x1 */
 int iax_task_result_verify(struct task *tsk, int mismatch_expected)
 {

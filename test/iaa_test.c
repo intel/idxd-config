@@ -26,6 +26,54 @@ static void usage(void)
 	"-h              ; print this message\n");
 }
 
+static int test_noop(struct acctest_context *ctx, int tflags, int num_desc)
+{
+	struct task_node *tsk_node;
+	int rc = ACCTEST_STATUS_OK;
+	int itr = num_desc, i = 0, range = 0;
+
+	info("testnoop: tflags %#x num_desc %ld\n", tflags, num_desc);
+
+	ctx->is_batch = 0;
+
+	if (ctx->dedicated == ACCFG_WQ_SHARED)
+		range = ctx->threshold;
+	else
+		range = ctx->wq_size - 1;
+
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
+		i = (itr < range) ? itr : range;
+		/* Allocate memory to all the task nodes, desc, completion record*/
+		rc = acctest_alloc_multiple_tasks(ctx, i);
+		if (rc != ACCTEST_STATUS_OK)
+			return rc;
+
+		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
+		tsk_node = ctx->multi_task_node;
+		while (tsk_node) {
+			tsk_node->tsk->opcode = IAX_OPCODE_NOOP;
+			tsk_node->tsk->test_flags = tflags;
+			tsk_node = tsk_node->next;
+		}
+
+		rc = iax_noop_multi_task_nodes(ctx);
+		if (rc != ACCTEST_STATUS_OK)
+			return rc;
+
+		/* Verification of all the nodes*/
+		tsk_node = ctx->multi_task_node;
+		while (tsk_node) {
+			rc = iax_task_result_verify(tsk_node->tsk, 0);
+			tsk_node = tsk_node->next;
+		}
+
+		acctest_free_task(ctx);
+		itr = itr - range;
+	}
+
+	return rc;
+}
+
 int main(int argc, char *argv[])
 {
 	struct acctest_context *iax;
@@ -94,6 +142,19 @@ int main(int argc, char *argv[])
 		return -EINVAL;
 	}
 
+	switch (opcode) {
+	case IAX_OPCODE_NOOP:
+		rc = test_noop(iax, tflags, num_desc);
+		if (rc != ACCTEST_STATUS_OK)
+			goto error;
+		break;
+
+	default:
+		rc = -EINVAL;
+		break;
+	}
+
+ error:
 	acctest_free(iax);
 	return rc;
 }
