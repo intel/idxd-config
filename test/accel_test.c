@@ -331,7 +331,7 @@ int acctest_wait_on_desc_timeout(struct completion_record *comp,
 			j++;
 		}
 	} else {
-		unsigned long timeout = (ms_timeout * 1000000) * 3;
+		unsigned long timeout = (msec_timeout * 1000000UL) * 3;
 		int r = 1;
 		unsigned long t = 0;
 
