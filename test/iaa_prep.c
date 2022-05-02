@@ -9,7 +9,7 @@
 #include "accel_test.h"
 #include "iaa.h"
 
-void iax_prep_noop(struct task *tsk)
+void iaa_prep_noop(struct task *tsk)
 {
 	info("preparing descriptor for noop\n");
 
