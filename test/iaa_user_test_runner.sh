@@ -6,48 +6,48 @@
 
 rc="$EXIT_SKIP"
 
-IAX=iax1
+IAA=iax1
 WQ0=wq1.4
 WQ1=wq1.1
 
 trap 'err $LINENO' ERR
 
-[ ! -f "$IAXTEST" ] && echo "fail: $LINENO" && exit 1
+[ ! -f "$IAATEST" ] && echo "fail: $LINENO" && exit 1
 
 check_min_kver "5.6" || do_skip "kernel does not support idxd"
 
 # skip if no pasid support as iaa_test does not support operation w/o pasid yet.
-[ ! -f "/sys/bus/dsa/devices/$IAX/pasid_enabled" ] && echo "No SVM support" && exit "$EXIT_SKIP"
+[ ! -f "/sys/bus/dsa/devices/$IAA/pasid_enabled" ] && echo "No SVM support" && exit "$EXIT_SKIP"
 
-pasid_en=$(cat /sys/bus/dsa/devices/$IAX/pasid_enabled)
+pasid_en=$(cat /sys/bus/dsa/devices/$IAA/pasid_enabled)
 if [ "$pasid_en" -ne 1 ]; then
 	exit "$EXIT_SKIP"
 fi
 
-start_iax()
+start_iaa()
 {
-	configurable=$(cat /sys/bus/dsa/devices/$IAX/configurable)
+	configurable=$(cat /sys/bus/dsa/devices/$IAA/configurable)
 	if [ "$configurable" ]; then
 		"$ACCFG" load-config -c "$CONFIG2"
 	fi
-	"$ACCFG" enable-device "$IAX"
+	"$ACCFG" enable-device "$IAA"
 }
 
-stop_iax()
+stop_iaa()
 {
-	"$ACCFG" disable-device "$IAX"
+	"$ACCFG" disable-device "$IAA"
 }
 
 enable_wqs()
 {
-	"$ACCFG" enable-wq "$IAX"/"$WQ0"
-	"$ACCFG" enable-wq "$IAX"/"$WQ1"
+	"$ACCFG" enable-wq "$IAA"/"$WQ0"
+	"$ACCFG" enable-wq "$IAA"/"$WQ1"
 }
 
 disable_wqs()
 {
-	"$ACCFG" disable-wq "$IAX"/"$WQ0"
-	"$ACCFG" disable-wq "$IAX"/"$WQ1"
+	"$ACCFG" disable-wq "$IAA"/"$WQ0"
+	"$ACCFG" disable-wq "$IAA"/"$WQ1"
 }
 
 # Test operation with a given opcode
@@ -71,10 +71,10 @@ test_op()
 			echo "Testing $xfer_size bytes"
 			if [ "$extra_flag" != "" ]
 			then
-				"$IAXTEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
+				"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
 					-f "$flag" -e "$extra_flag" -t 5000 -v
 			else
-				"$IAXTEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
+				"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
 					-f "$flag" -t 5000 -v
 			fi
 		done
@@ -82,7 +82,7 @@ test_op()
 }
 
 _cleanup
-start_iax
+start_iaa
 enable_wqs
 # shellcheck disable=SC2034
 rc="$EXIT_FAILURE"
@@ -100,6 +100,6 @@ for opcode in "0x0"; do
 done
 
 disable_wqs
-stop_iax
+stop_iaa
 _cleanup
 exit 0

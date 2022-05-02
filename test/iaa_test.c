@@ -8,7 +8,7 @@
 #include "accel_test.h"
 #include "iaa.h"
 
-#define IAX_TEST_SIZE 20000
+#define IAA_TEST_SIZE 20000
 
 static void usage(void)
 {
@@ -18,7 +18,7 @@ static void usage(void)
 	"-f <test_flags> ; 0x1: block-on-fault\n"
 	"                ; 0x4: reserved\n"
 	"                ; 0x8: prefault buffers\n"
-	"-o <opcode>     ; opcode, same value as in IAX spec\n"
+	"-o <opcode>     ; opcode, same value as in IAA spec\n"
 	"-d              ; wq device such as iax1/wq1.0\n"
 	"-n <number of descriptors> ;descriptor count to submit\n"
 	"-t <ms timeout> ; ms to wait for descs to complete\n"
@@ -56,14 +56,14 @@ static int test_noop(struct acctest_context *ctx, int tflags, int num_desc)
 			tsk_node = tsk_node->next;
 		}
 
-		rc = iax_noop_multi_task_nodes(ctx);
+		rc = iaa_noop_multi_task_nodes(ctx);
 		if (rc != ACCTEST_STATUS_OK)
 			return rc;
 
 		/* Verification of all the nodes*/
 		tsk_node = ctx->multi_task_node;
 		while (tsk_node) {
-			rc = iax_task_result_verify(tsk_node->tsk, 0);
+			rc = iaa_task_result_verify(tsk_node->tsk, 0);
 			tsk_node = tsk_node->next;
 		}
 
@@ -76,10 +76,10 @@ static int test_noop(struct acctest_context *ctx, int tflags, int num_desc)
 
 int main(int argc, char *argv[])
 {
-	struct acctest_context *iax;
+	struct acctest_context *iaa;
 	int rc = 0;
 	int wq_type = SHARED;
-	unsigned long buf_size = IAX_TEST_SIZE;
+	unsigned long buf_size = IAA_TEST_SIZE;
 	int tflags = TEST_FLAGS_BOF;
 	int opcode = IAX_OPCODE_NOOP;
 	int opt;
@@ -128,23 +128,23 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	iax = acctest_init(tflags);
+	iaa = acctest_init(tflags);
 
-	if (!iax)
+	if (!iaa)
 		return -ENOMEM;
 
-	rc = acctest_alloc(iax, wq_type, dev_id, wq_id);
+	rc = acctest_alloc(iaa, wq_type, dev_id, wq_id);
 	if (rc < 0)
 		return -ENOMEM;
 
-	if (buf_size > iax->max_xfer_size) {
+	if (buf_size > iaa->max_xfer_size) {
 		err("invalid transfer size: %lu\n", buf_size);
 		return -EINVAL;
 	}
 
 	switch (opcode) {
 	case IAX_OPCODE_NOOP:
-		rc = test_noop(iax, tflags, num_desc);
+		rc = test_noop(iaa, tflags, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
@@ -155,6 +155,6 @@ int main(int argc, char *argv[])
 	}
 
  error:
-	acctest_free(iax);
+	acctest_free(iaa);
 	return rc;
 }

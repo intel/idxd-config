@@ -70,18 +70,18 @@ struct task {
 
 	/* Dedicate for IAA test */
 	union {
-		uint16_t iax_compr_flags;
-		uint16_t iax_decompr_flags;
-		uint16_t iax_crc64_flags;
+		uint16_t iaa_compr_flags;
+		uint16_t iaa_decompr_flags;
+		uint16_t iaa_crc64_flags;
 	};
-	uint32_t iax_max_dst_size;
-	uint32_t iax_src2_xfer_size;
+	uint32_t iaa_max_dst_size;
+	uint32_t iaa_src2_xfer_size;
 	union {
 		struct {
-			uint32_t iax_filter_flags;
-			uint32_t iax_num_inputs;
+			uint32_t iaa_filter_flags;
+			uint32_t iaa_num_inputs;
 		};
-		uint64_t iax_crc64_poly;
+		uint64_t iaa_crc64_poly;
 	};
 };
 
