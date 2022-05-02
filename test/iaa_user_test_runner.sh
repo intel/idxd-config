@@ -99,6 +99,20 @@ for opcode in "0x0"; do
 	test_op $opcode $flag
 done
 
+flag="0x1"
+extra_flag="0x8000"
+echo "Testing with 'block on fault' flag ON"
+for opcode in "0x44"; do
+	test_op $opcode $flag $extra_flag
+done
+
+flag="0x0"
+extra_flag="0x4000"
+echo "Testing with 'block on fault' flag OFF"
+for opcode in "0x44"; do
+	test_op $opcode $flag $extra_flag
+done
+
 disable_wqs
 stop_iaa
 _cleanup
