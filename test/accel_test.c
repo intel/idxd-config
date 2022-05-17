@@ -464,6 +464,7 @@ void __clean_task(struct task *tsk)
 	free(tsk->src2);
 	free(tsk->dst1);
 	free(tsk->dst2);
+	free(tsk->input);
 	free(tsk->output);
 }
 
