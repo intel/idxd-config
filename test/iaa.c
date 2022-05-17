@@ -17,6 +17,7 @@
 #include "accel_test.h"
 #include "iaa.h"
 #include "algorithms/iaa_crc64.h"
+#include "algorithms/iaa_zcompress.h"
 
 static int init_crc64(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_size)
 {
@@ -34,6 +35,33 @@ static int init_crc64(struct task *tsk, int tflags, int opcode, unsigned long sr
 	return ACCTEST_STATUS_OK;
 }
 
+static int init_zcompress16(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_size)
+{
+	tsk->pattern = 0x98765432abcdef01;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = src1_xfer_size;
+
+	tsk->src1 = aligned_alloc(ADDR_ALIGNMENT, src1_xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	iaa_zcompress16_randomize_input(tsk->src1, tsk->pattern, src1_xfer_size);
+
+	tsk->dst1 = aligned_alloc(ADDR_ALIGNMENT, src1_xfer_size * 2);
+	if (!tsk->dst1)
+		return -ENOMEM;
+	memset_pattern(tsk->dst1, 0, src1_xfer_size * 2);
+
+	tsk->output = aligned_alloc(ADDR_ALIGNMENT, src1_xfer_size * 2);
+	if (!tsk->output)
+		return -ENOMEM;
+	memset_pattern(tsk->output, 0, src1_xfer_size * 2);
+
+	tsk->iaa_max_dst_size = src1_xfer_size * 2;
+
+	return ACCTEST_STATUS_OK;
+}
+
 /* this function is re-used by batch task */
 int init_task(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_size)
 {
@@ -45,6 +73,9 @@ int init_task(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_
 	switch (opcode) {
 	case IAX_OPCODE_CRC64: /* intentionally empty */
 		rc = init_crc64(tsk, tflags, opcode, src1_xfer_size);
+		break;
+	case IAX_OPCODE_ZCOMPRESS16:
+		rc = init_zcompress16(tsk, tflags, opcode, src1_xfer_size);
 		break;
 	}
 
@@ -150,6 +181,53 @@ int iaa_crc64_multi_task_nodes(struct acctest_context *ctx)
 	return ret;
 }
 
+static int iaa_wait_zcompress16(struct acctest_context *ctx, struct task *tsk)
+{
+	struct completion_record *comp = tsk->comp;
+	int rc;
+
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
+	if (rc < 0) {
+		err("zcompress16 desc timeout\n");
+		return ACCTEST_STATUS_TIMEOUT;
+	}
+
+	return ACCTEST_STATUS_OK;
+}
+
+int iaa_zcompress16_multi_task_nodes(struct acctest_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = ACCTEST_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags |= (IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR);
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		iaa_prep_zcompress16(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all zcompress16 jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = iaa_wait_zcompress16(ctx, tsk_node->tsk);
+		if (ret != ACCTEST_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+
+	return ret;
+}
+
 /* mismatch_expected: expect mismatched buffer with success status 0x1 */
 int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 {
@@ -163,6 +241,10 @@ int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 	switch (tsk->opcode) {
 	case IAX_OPCODE_CRC64:
 		ret = task_result_verify_crc64(tsk, mismatch_expected);
+		break;
+	case IAX_OPCODE_ZCOMPRESS16:
+		ret = task_result_verify_zcompress16(tsk, mismatch_expected);
+		break;
 	}
 
 	if (ret == ACCTEST_STATUS_OK)
@@ -222,6 +304,47 @@ int task_result_verify_crc64(struct task *tsk, int mismatch_expected)
 	/* mismatch_expected */
 	if (rc) {
 		info("expected mismatch in crc 0x%llX\n", tsk->comp->crc64_result);
+		return ACCTEST_STATUS_OK;
+	}
+
+	return -ENXIO;
+}
+
+int task_result_verify_zcompress16(struct task *tsk, int mismatch_expected)
+{
+	int i;
+	int rc;
+	int expected_len;
+
+	if (mismatch_expected)
+		warn("invalid arg mismatch_expected for %d\n", tsk->opcode);
+
+	expected_len = iaa_do_zcompress16(tsk->output, tsk->src1, tsk->xfer_size);
+	rc = memcmp(tsk->dst1, tsk->output, expected_len);
+
+	if (!mismatch_expected) {
+		if (expected_len - tsk->comp->iax_output_size) {
+			err("zcompress16 mismatch, exp len %d, act len %d\n",
+			    expected_len, tsk->comp->iax_output_size);
+
+			return -ENXIO;
+		}
+		if (rc) {
+			err("zcompress16 mismatch, memcmp rc %d\n", rc);
+			for (i = 0; i < (expected_len / 2); i++) {
+				printf("Exp[%d]=0x%04X, Act[%d]=0x%4X\n",
+				       i, ((uint16_t *)tsk->output)[i],
+				       i, ((uint16_t *)tsk->dst1)[i]);
+			}
+
+			return -ENXIO;
+		}
+		return ACCTEST_STATUS_OK;
+	}
+
+	/* mismatch_expected */
+	if (rc) {
+		info("expected mismatch\n");
 		return ACCTEST_STATUS_OK;
 	}
 
