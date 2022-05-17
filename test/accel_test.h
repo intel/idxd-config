@@ -56,6 +56,7 @@ struct task {
 	void *dst1;
 	void *dst2;
 	void *delta1;
+	void *output;
 	uint64_t pattern;
 	uint64_t pattern2;
 	uint64_t xfer_size;
