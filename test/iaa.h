@@ -12,13 +12,16 @@ int init_task(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_
 int iaa_noop_multi_task_nodes(struct acctest_context *ctx);
 int iaa_crc64_multi_task_nodes(struct acctest_context *ctx);
 int iaa_zcompress16_multi_task_nodes(struct acctest_context *ctx);
+int iaa_zdecompress16_multi_task_nodes(struct acctest_context *ctx);
 void iaa_prep_noop(struct task *tsk);
 void iaa_prep_crc64(struct task *tsk);
 void iaa_prep_zcompress16(struct task *tsk);
+void iaa_prep_zdecompress16(struct task *tsk);
 
 int iaa_task_result_verify(struct task *tsk, int mismatch_expected);
 int iaa_task_result_verify_task_nodes(struct acctest_context *ctx, int mismatch_expected);
 int task_result_verify_crc64(struct task *tsk, int mismatch_expected);
 int task_result_verify_zcompress16(struct task *tsk, int mismatch_expected);
+int task_result_verify_zdecompress16(struct task *tsk, int mismatch_expected);
 
 #endif
