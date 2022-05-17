@@ -6,6 +6,8 @@
 #include <time.h>
 #include "algorithms/iaa_zcompress.h"
 
+#define IAA_ZCOMPRESS_BLOCK_SIZE (128)
+
 static int iaa_zcompress_get_random_value(void)
 {
 	static int extra_seed;
@@ -34,4 +36,52 @@ void iaa_zcompress16_randomize_input(void *dst, uint64_t pattern, int len)
 		else
 			((uint16_t *)dst)[i] = 0;
 	}
+}
+
+int iaa_do_zcompress16(void *dst, void *src, int src_len)
+{
+	int i, j, dst_len = 0;
+	uint16_t *tags;
+	int num_blocks = src_len / IAA_ZCOMPRESS_BLOCK_SIZE;
+	int remainder_bytes = src_len % IAA_ZCOMPRESS_BLOCK_SIZE;
+	uint16_t *src_ptr = (uint16_t *)src;
+	uint16_t *dst_ptr = (uint16_t *)dst;
+
+	for (i = 0; i < num_blocks; i++) {
+		tags = dst_ptr;
+		dst_ptr += 4;
+		dst_len += 8;
+		for (j = 0; j < (IAA_ZCOMPRESS_BLOCK_SIZE / 2); j++) {
+			if (*src_ptr != 0) {
+				tags[j / 16] |= ((uint16_t)1 << (j % 16));
+				*dst_ptr++ = *src_ptr;
+				dst_len += 2;
+			}
+
+			src_ptr++;
+		}
+	}
+
+	if (remainder_bytes) {
+		tags = dst_ptr;
+		tags[0] = 0xFFFF;
+		tags[1] = 0xFFFF;
+		tags[2] = 0xFFFF;
+		tags[3] = 0xFFFF;
+		dst_ptr += 4;
+		dst_len += 8;
+
+		for (i = 0; i < (remainder_bytes / 2); i++) {
+			if (*src_ptr == 0) {
+				tags[i / 16] &= ~((uint16_t)1 << (i % 16));
+			} else {
+				*dst_ptr++ = *src_ptr;
+				dst_len += 2;
+			}
+
+			src_ptr++;
+		}
+	}
+
+	return dst_len;
 }
