@@ -33,8 +33,6 @@
 #define DIF_INVERT_CRC_SEED         ((unsigned long)(1 << 2))
 #define DIF_INVERT_CRC_RESULT       ((unsigned long)(1 << 3))
 
-#define ADDR_ALIGNMENT 32
-
 #define MIN_DELTA_RECORD_SIZE 80
 
 /* dump all sub descriptors for a batch task */

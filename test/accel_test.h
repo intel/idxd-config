@@ -9,6 +9,7 @@
 #define SHARED 1
 #define DEDICATED 0
 
+#define ADDR_ALIGNMENT 32
 #define MAX_PATH_LENGTH 1024
 
 #define ACCTEST_DEVICE_ID_NO_INPUT -1

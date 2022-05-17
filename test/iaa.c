@@ -25,7 +25,7 @@ static int init_crc64(struct task *tsk, int tflags, int opcode, unsigned long sr
 	tsk->test_flags = tflags;
 	tsk->xfer_size = src1_xfer_size;
 
-	tsk->src1 = malloc(src1_xfer_size);
+	tsk->src1 = aligned_alloc(ADDR_ALIGNMENT, src1_xfer_size);
 	if (!tsk->src1)
 		return -ENOMEM;
 	memset_pattern(tsk->src1, tsk->pattern, src1_xfer_size);
