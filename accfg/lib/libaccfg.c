@@ -63,6 +63,11 @@ ACCFG_EXPORT char *accfg_basenames[] = {
 	NULL
 };
 
+static unsigned int accfg_device_compl_size[] = {
+	[ACCFG_DEVICE_DSA] = 32,
+	[ACCFG_DEVICE_IAX] = 64,
+};
+
 ACCFG_EXPORT char *accfg_mdev_basenames[] = {
 	[ACCFG_MDEV_TYPE_1_DWQ]      = "1dwq",
 	[ACCFG_MDEV_TYPE_1_SWQ]      = "1swq",
@@ -540,6 +545,7 @@ static int device_parse_type(struct accfg_device *device)
 	for (b = accfg_basenames, i = 0; *b != NULL; b++, i++) {
 		if (!strcmp(device->device_type_str, *b)) {
 			device->type = i;
+			device->compl_size = accfg_device_compl_size[device->type];
 			return 0;
 		}
 	}
@@ -1340,6 +1346,12 @@ ACCFG_EXPORT uint64_t accfg_device_get_max_transfer_size(
 	return device->max_transfer_size;
 }
 
+/* Helper function to retrieve completion record size */
+ACCFG_EXPORT unsigned int accfg_device_get_compl_size(struct accfg_device *device)
+{
+	return device->compl_size;
+}
+
 ACCFG_EXPORT int accfg_device_get_op_cap(struct accfg_device *device,
 		struct accfg_op_cap *op_cap)
 {
@@ -1923,8 +1935,9 @@ ACCFG_EXPORT int accfg_group_set_##field( \
 		return -errno; \
 	} \
 	if (sysfs_write_attr(ctx, path, buf) < 0) { \
-		err(ctx, "%s: write failed: %s\n", \
+		err(ctx, "%s: %s attribute write failed: %s\n", \
 				accfg_group_get_devname(group), \
+				#field, \
 				strerror(errno)); \
 		save_last_error(group->device, NULL, group, NULL); \
 		return -errno; \
@@ -2065,7 +2078,7 @@ ACCFG_EXPORT int accfg_wq_driver_name_validate(struct accfg_wq *wq,
 	char *path = NULL;
 	struct accfg_device *device = accfg_wq_get_device(wq);
 
-	rc = get_driver_bind_path(device->bus_type_str, wq->driver_name, &path);
+	rc = get_driver_bind_path(device->bus_type_str, drv_name, &path);
 	if (rc < 0)
 		return 0;
 
@@ -2190,6 +2203,7 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 		if (wq->driver_name && access(path, F_OK)) {
 			fprintf(stderr, "Invalid wq driver name \"%s\"\n",
 					wq->driver_name);
+			free(path);
 			return -ENOENT;
 		}
 	} else if (flag == ACCFG_WQ_DISABLE) {
@@ -2381,8 +2395,9 @@ ACCFG_EXPORT int accfg_wq_set_##field( \
 		} \
 	} \
 	if (sysfs_write_attr(ctx, path, buf) < 0) { \
-		err(ctx, "%s: write failed: %s\n", \
+		err(ctx, "%s: %s attribute write failed: %s\n", \
 				accfg_wq_get_devname(wq), \
+				#field, \
 				strerror(errno)); \
 		save_last_error(wq->device, wq, NULL, NULL); \
 		return -errno; \
@@ -2451,12 +2466,17 @@ ACCFG_EXPORT int accfg_wq_set_str_##field( \
 		return -errno; \
 	} \
 	if (!accfg_device_get_configurable(wq->device)) { \
-		if (strcmp(#field, "name")!= 0) { \
+		if (strcmp(#field, "name") != 0 && \
+			strcmp(#field, "driver_name") != 0) { \
 			err(ctx, "device is not configurable\n"); \
 			return -errno; \
 		} \
 	} \
-	if (sysfs_write_attr(ctx, path, buf) < 0) { \
+	rc = sysfs_write_attr(ctx, path, buf); \
+	if (rc < 0) { \
+		/* Silently skip attrs not supported by driver */ \
+		if (rc == -ENOENT && !strcmp(#field, "driver_name")) \
+			return 0; \
 		err(ctx, "%s: write failed: %s\n", \
 				accfg_wq_get_devname(wq), \
 				strerror(errno)); \
@@ -2607,8 +2627,9 @@ ACCFG_EXPORT int accfg_engine_set_##field( \
 		return -errno; \
 	} \
 	if (sysfs_write_attr(ctx, path, buf) < 0) { \
-		err(ctx, "%s: write failed: %s\n", \
+		err(ctx, "%s: %s attribute write failed: %s\n", \
 				accfg_engine_get_devname(engine), \
+				#field, \
 				strerror(errno)); \
 		save_last_error(engine->device, NULL, NULL, engine); \
 		return -errno; \

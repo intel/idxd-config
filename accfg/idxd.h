@@ -79,6 +79,18 @@ enum iax_opcode {
 	IAX_OPCODE_MEMMOVE,
 	IAX_OPCODE_DECOMPRESS = 0x42,
 	IAX_OPCODE_COMPRESS,
+	IAX_OPCODE_CRC64 = 0x44,
+	IAX_OPCODE_ZDECOMPRESS32 = 0x48,
+	IAX_OPCODE_ZDECOMPRESS16,
+	IAX_OPCODE_ZCOMPRESS32 = 0x4c,
+	IAX_OPCODE_ZCOMPRESS16,
+	IAX_OPCODE_SCAN = 0x50,
+	IAX_OPCODE_SET_MEMBERSHIP,
+	IAX_OPCODE_EXTRACT,
+	IAX_OPCODE_SELECT,
+	IAX_OPCODE_RLE_BURST,
+	IAX_OPCODE_FIND_UNIQUE,
+	IAX_OPCODE_EXPAND,
 };
 
 /* Completion record status */
@@ -144,7 +156,7 @@ enum iax_completion_status {
 #define DSA_COMP_STATUS_MASK		0x7f
 #define DSA_COMP_STATUS_WRITE		0x80
 
-struct dsa_hw_desc {
+struct hw_desc {
 	uint32_t	pasid:20;
 	uint32_t	rsvd:11;
 	uint32_t	priv:1;
@@ -168,7 +180,12 @@ struct dsa_hw_desc {
 		uint32_t	desc_count;
 	};
 	uint16_t	int_handle;
-	uint16_t	rsvd1;
+	union {
+		uint16_t	rsvd1;
+		uint16_t        iax_compr_flags;
+		uint16_t        iax_decompr_flags;
+		uint16_t        iax_crc64_flags;
+	};
 	union {
 		uint8_t		expected_res;
 		/* create delta record */
@@ -219,34 +236,26 @@ struct dsa_hw_desc {
 			uint16_t	dest_app_tag_mask;
 			uint16_t	dest_app_tag_seed;
 		};
+		/* IAX common */
+		struct {
+			uint64_t        iax_src2_addr;
+			uint32_t        iax_max_dst_size;
+			uint32_t        iax_src2_xfer_size;
+			uint32_t	iax_filter_flags;
+			uint32_t	iax_num_inputs;
+		};
+		/* CRC64 */
+		struct {
+			uint64_t        iax_crc64_rsvd;
+			uint64_t        iax_crc64_rsvd2;
+			uint64_t        iax_crc64_poly;
+		};
 
 		uint8_t		op_specific[24];
 	};
 } __attribute__((packed));
 
-struct iax_hw_desc {
-	uint32_t        pasid:20;
-	uint32_t        rsvd:11;
-	uint32_t        priv:1;
-	uint32_t        flags:24;
-	uint32_t        opcode:8;
-	uint64_t        completion_addr;
-	uint64_t        src1_addr;
-	uint64_t        dst_addr;
-	uint32_t        src1_size;
-	uint16_t        int_handle;
-	union {
-		uint16_t        compr_flags;
-		uint16_t        decompr_flags;
-	};
-	uint64_t        src2_addr;
-	uint32_t        max_dst_size;
-	uint32_t        src2_size;
-	uint32_t	filter_flags;
-	uint32_t	num_inputs;
-} __attribute__((packed));
-
-struct dsa_raw_desc {
+struct raw_desc {
 	uint64_t	field[8];
 } __attribute__((packed));
 
@@ -254,7 +263,7 @@ struct dsa_raw_desc {
  * The status field will be modified by hardware, therefore it should be
  * __volatile__ and prevent the compiler from optimize the read.
  */
-struct dsa_completion_record {
+struct completion_record {
 	__volatile__ uint8_t	status;
 	union {
 		uint8_t		result;
@@ -298,30 +307,45 @@ struct dsa_completion_record {
 			uint16_t	dif_upd_dest_app_tag;
 		};
 
-		uint8_t		op_specific[16];
+		/* IAX common */
+		struct {
+			uint32_t	iax_invalid_flags;
+			uint32_t	iax_rsvd;
+			uint32_t	iax_output_size;
+			uint8_t		iax_output_bits;
+			uint8_t		iax_rsvd2;
+			uint16_t	iax_xor_chksum;
+			uint32_t	iax_crc;
+			union {
+				uint32_t	iax_min;
+				uint32_t	iax_first;
+			};
+			union {
+				uint32_t	iax_max;
+				uint32_t	iax_last;
+			};
+			union {
+				uint32_t	iax_sum;
+				uint32_t	iax_population_cnt;
+			};
+		};
+
+		/* CRC64 */
+		struct {
+			uint32_t	crc64_invalid_flags;
+			uint32_t	crc64_rsvd;
+			uint64_t	crc64_rsvd2;
+			uint64_t	crc64_rsvd3;
+			uint64_t	crc64_result;
+		};
+
+		/* To be compatible with IAX, alloc 64 bytes*/
+		uint8_t		op_specific[48];
 	};
 } __attribute__((packed));
 
-struct dsa_raw_completion_record {
-	uint64_t	field[4];
-} __attribute__((packed));
-
-struct iax_completion_record {
-	__volatile__ uint8_t        status;
-	uint8_t                 error_code;
-	uint16_t                rsvd;
-	uint32_t                bytes_completed;
-	uint64_t                fault_addr;
-	uint32_t                invalid_flags;
-	uint32_t                rsvd2;
-	uint32_t                output_size;
-	uint8_t                 output_bits;
-	uint8_t                 rsvd3;
-	uint16_t                rsvd4;
-	uint64_t                rsvd5[4];
-} __attribute__((packed));
-
-struct iax_raw_completion_record {
+struct raw_completion_record {
+	/* To be compatible with IAX, alloc 64 bytes*/
 	uint64_t	field[8];
 } __attribute__((packed));
 

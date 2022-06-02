@@ -46,6 +46,7 @@ struct accfg_device {
 	int numa_node;
 	int ims_size;
 	int max_batch_size;
+	int compl_size;
 	int configurable;
 	int max_read_buffers;
 	unsigned int read_buffer_limit;
