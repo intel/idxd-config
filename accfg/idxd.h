@@ -51,6 +51,10 @@ enum idxd_scmd_stat {
 
 /* IAX */
 #define IDXD_OP_FLAG_RD_SRC2_AECS	0x010000
+#define IDXD_OP_FLAG_WR_SRC2_CMPL	0x040000
+
+#define IDXD_COMPRESS_FLAG_EOB_BFINAL 0x000c
+#define IDXD_COMPRESS_FLAG_FLUSH_OUTPUT 0x0002
 
 /* Opcode */
 enum dsa_opcode {
