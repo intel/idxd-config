@@ -268,6 +268,16 @@ static int test_compress(struct acctest_context *ctx, size_t buf_size, int tflag
 			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
+		case IAX_OPCODE_DECOMPRESS:
+			rc = iaa_decompress_multi_task_nodes(ctx);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			/* Verification of all the nodes*/
+			rc = iaa_task_result_verify_task_nodes(ctx, 0);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+			break;
 		default:
 			err("Unsupported op %#x\n", opcode);
 			return -EINVAL;
@@ -375,6 +385,7 @@ int main(int argc, char *argv[])
 		break;
 
 	case IAX_OPCODE_COMPRESS:
+	case IAX_OPCODE_DECOMPRESS:
 		rc = test_compress(iaa, buf_size, tflags, extra_flags, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;

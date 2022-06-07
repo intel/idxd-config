@@ -16,6 +16,7 @@ int iaa_zdecompress16_multi_task_nodes(struct acctest_context *ctx);
 int iaa_zcompress32_multi_task_nodes(struct acctest_context *ctx);
 int iaa_zdecompress32_multi_task_nodes(struct acctest_context *ctx);
 int iaa_compress_multi_task_nodes(struct acctest_context *ctx);
+int iaa_decompress_multi_task_nodes(struct acctest_context *ctx);
 
 void iaa_prep_noop(struct task *tsk);
 void iaa_prep_crc64(struct task *tsk);
@@ -24,6 +25,7 @@ void iaa_prep_zdecompress16(struct task *tsk);
 void iaa_prep_zcompress32(struct task *tsk);
 void iaa_prep_zdecompress32(struct task *tsk);
 void iaa_prep_compress(struct task *tsk);
+void iaa_prep_decompress(struct task *tsk);
 
 int iaa_task_result_verify(struct task *tsk, int mismatch_expected);
 int iaa_task_result_verify_task_nodes(struct acctest_context *ctx, int mismatch_expected);
@@ -33,5 +35,6 @@ int task_result_verify_zdecompress16(struct task *tsk, int mismatch_expected);
 int task_result_verify_zcompress32(struct task *tsk, int mismatch_expected);
 int task_result_verify_zdecompress32(struct task *tsk, int mismatch_expected);
 int task_result_verify_compress(struct task *tsk, int mismatch_expected);
+int task_result_verify_decompress(struct task *tsk, int mismatch_expected);
 
 #endif
