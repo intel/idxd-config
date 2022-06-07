@@ -164,3 +164,35 @@ int iaa_do_zdecompress16(void *dst, void *src, int src_len)
 
 	return dst_len;
 }
+
+int iaa_do_zdecompress32(void *dst, void *src, int src_len)
+{
+	int i, j, dst_len = 0;
+	uint32_t tags;
+	int remainder_len = src_len;
+	uint32_t *src_ptr = (uint32_t *)src;
+	uint32_t *dst_ptr = (uint32_t *)dst;
+
+	for (i = 0; i < (src_len / 4); i++) {
+		tags = *src_ptr++;
+		remainder_len -= 4;
+
+		for (j = 0; j < 32; j++) {
+			if (tags & ((uint32_t)1 << j)) {
+				if (remainder_len <= 0)
+					break;
+				*dst_ptr++ = *src_ptr++;
+				remainder_len -= 4;
+			} else {
+				*dst_ptr++ = 0;
+			}
+
+			dst_len += 4;
+		}
+
+		if (remainder_len <= 0)
+			break;
+	}
+
+	return dst_len;
+}
