@@ -86,6 +86,51 @@ int iaa_do_zcompress16(void *dst, void *src, int src_len)
 	return dst_len;
 }
 
+int iaa_do_zcompress32(void *dst, void *src, int src_len)
+{
+	int i, j, dst_len = 0;
+	uint32_t *tags;
+	int num_blocks = src_len / IAA_ZCOMPRESS_BLOCK_SIZE;
+	int remainder_bytes = src_len % IAA_ZCOMPRESS_BLOCK_SIZE;
+	uint32_t *src_ptr = (uint32_t *)src;
+	uint32_t *dst_ptr = (uint32_t *)dst;
+
+	for (i = 0; i < num_blocks; i++) {
+		tags = dst_ptr;
+		dst_ptr += 1;
+		dst_len += 4;
+		for (j = 0; j < (IAA_ZCOMPRESS_BLOCK_SIZE / 4); j++) {
+			if (*src_ptr != 0) {
+				*tags |= ((uint32_t)1 << j);
+				*dst_ptr++ = *src_ptr;
+				dst_len += 4;
+			}
+
+			src_ptr++;
+		}
+	}
+
+	if (remainder_bytes) {
+		tags = dst_ptr;
+		*tags = 0xFFFFFFFF;
+		dst_ptr += 1;
+		dst_len += 4;
+
+		for (i = 0; i < (remainder_bytes / 4); i++) {
+			if (*src_ptr == 0) {
+				*tags &= ~((uint32_t)1 << i);
+			} else {
+				*dst_ptr++ = *src_ptr;
+				dst_len += 4;
+			}
+
+			src_ptr++;
+		}
+	}
+
+	return dst_len;
+}
+
 int iaa_do_zdecompress16(void *dst, void *src, int src_len)
 {
 	int i, j, dst_len = 0;
