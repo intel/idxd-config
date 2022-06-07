@@ -89,3 +89,17 @@ void iaa_prep_compress(struct task *tsk)
 	tsk->desc->iax_max_dst_size = tsk->iaa_max_dst_size;
 	tsk->comp->status = 0;
 }
+
+void iaa_prep_decompress(struct task *tsk)
+{
+	info("preparing descriptor for decompress\n");
+
+	acctest_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+				 (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->desc->iax_decompr_flags = tsk->iaa_decompr_flags;
+	tsk->desc->iax_src2_addr = (uint64_t)(tsk->src2);
+	tsk->desc->iax_src2_xfer_size = tsk->iaa_src2_xfer_size;
+	tsk->desc->iax_max_dst_size = tsk->iaa_max_dst_size;
+	tsk->comp->status = 0;
+}
