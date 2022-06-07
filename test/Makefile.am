@@ -32,11 +32,14 @@ testcore =\
 	dsa.h \
 	accfg_test.h
 
+iaa_test_LDFLAGS = -lz
+
 libaccfg_SOURCES = libaccfg.c $(testcore)
 libaccfg_LDADD = $(LIBACCFG_LIB) $(UUID_LIBS)
 
 dsa_test_SOURCES = dsa_test.c dsa.c dsa_prep.c accel_test.c
 dsa_test_LDADD = $(LIBACCFG_LIB) $(UUID_LIBS)
 
-iaa_test_SOURCES = iaa_test.c iaa.c iaa_prep.c accel_test.c algorithms/iaa_crc64.c algorithms/iaa_zcompress.c
+iaa_test_SOURCES = iaa_test.c iaa.c iaa_prep.c accel_test.c \
+		algorithms/iaa_crc64.c algorithms/iaa_zcompress.c algorithms/iaa_compress.c
 iaa_test_LDADD = $(LIBACCFG_LIB) $(UUID_LIBS)
