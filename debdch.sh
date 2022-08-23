@@ -35,7 +35,7 @@ git log $prev_release..$cur_release --pretty=format:"%s" -i -E \
 		--invert-grep --grep=release 2>/dev/null |
 	while IFS= read -r line || [ -n "$line" ];
 	do
-		line=$(echo $line | sed -e "s/^accel-config: //")
+		line=$(echo $line | sed -e "s/^accel-config.*: //")
 		dch -a "$line" 2>/dev/null
 		echo "* $line"
 	done
