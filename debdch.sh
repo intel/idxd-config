@@ -29,7 +29,7 @@ echo "Adding changes..."
 echo
 
 dch -v $DEB_VERSION --package accel-config -D unstable ""
-cur_release=$(git describe --tags --abbrev=0)
+cur_release=HEAD
 prev_release=$(git describe --tags --abbrev=0 $cur_release^)
 git log $prev_release..$cur_release --pretty=format:"%s" -i -E \
 		--invert-grep --grep=release 2>/dev/null |
