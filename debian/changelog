@@ -1,5 +1,8 @@
-accel-config (3.1-1) unstable; urgency=medium
+accel-config (3.4.7-1) unstable; urgency=medium
 
-  * Initial release.
+  * debdch.sh was not processing commit tags correctly
+  * Fix last log entry missing bug in debdch.sh
+  * Add zlib package installation details
+  * Add contrib/config folder to installation
 
- -- Ramesh Thomas <ramesh.thomas@intel.com>  Sat, 17 Apr 2021 13:26:27 -0700
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Mon, 22 Aug 2022 20:29:22 -0700
