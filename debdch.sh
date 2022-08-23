@@ -33,7 +33,7 @@ cur_release=$(git describe --tags --abbrev=0)
 prev_release=$(git describe --tags --abbrev=0 $cur_release^)
 git log $prev_release..$cur_release --pretty=format:"%s" -i -E \
 		--invert-grep --grep=release 2>/dev/null |
-	while IFS= read -r line;
+	while IFS= read -r line || [ -n "$line" ];
 	do
 		line=$(echo $line | sed -e "s/^accel-config: //")
 		dch -a "$line" 2>/dev/null
