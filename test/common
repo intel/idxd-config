@@ -39,12 +39,12 @@ else
 	exit "$EXIT_FAILURE"
 fi
 
-# IAATEST
+# IAXTEST
 #
 if [ -f "./iaa_test" ] && [ -x "./iaa_test" ]; then
-	export IAATEST=./iaa_test
+	export IAXTEST=./iaa_test
 elif [ -f "$TESTDIR/iaa_test" ] && [ -x "$TESTDIR/iaa_test" ]; then
-	export IAATEST="$TESTDIR"/iaa_test
+	export IAXTEST="$TESTDIR"/iaa_test
 else
 	echo "Couldn't find an iaa_test binary"
 	exit "$EXIT_FAILURE"
@@ -124,8 +124,14 @@ _cleanup()
 	lsmod | grep -q "idxd_mdev" && {
 		rmmod idxd_mdev
 	}
+	lsmod | grep -q "idxd_vdev" && {
+		rmmod idxd_vdev
+	}
 	lsmod | grep -q "idxd_uacce" && {
 		rmmod idxd_uacce
+	}
+	lsmod | grep -q "iaa_crypto" && {
+		rmmod iaa_crypto
 	}
 	lsmod | grep -q "iax_crypto" && {
 		rmmod iax_crypto
