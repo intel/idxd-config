@@ -224,9 +224,9 @@ int acctest_alloc(struct acctest_context *ctx, int shared, int dev_id, int wq_id
 	ctx->max_xfer_bits = bsr(ctx->max_xfer_size);
 	ctx->compl_size = accfg_device_get_compl_size(dev);
 
-	info("alloc wq %d shared %d size %d addr %p batch sz %#x xfer sz %#x\n",
-	     ctx->wq_idx, ctx->dedicated, ctx->wq_size, ctx->wq_reg,
-	     ctx->max_batch_size, ctx->max_xfer_size);
+	info("alloc wq %d %s size %d addr %p batch sz %#x xfer sz %#x\n",
+	     ctx->wq_idx, (ctx->dedicated == ACCFG_WQ_SHARED) ? "shared" : "dedicated",
+	     ctx->wq_size, ctx->wq_reg, ctx->max_batch_size, ctx->max_xfer_size);
 
 	return 0;
 }
