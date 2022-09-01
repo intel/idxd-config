@@ -246,3 +246,32 @@ uint32_t iaa_do_rle_burst(void *dst, void *src1, void *src2,
 
 	return dst_size;
 }
+
+uint32_t iaa_do_find_unique(void *dst, void *src1, void *src2,
+			    uint32_t num_inputs, uint32_t filter_flags)
+{
+	uint32_t input_idx;
+	uint32_t dst_size;
+	uint32_t *src1_ptr = (uint32_t *)src1;
+	uint32_t *dst_ptr = (uint32_t *)dst;
+	struct iaa_filter_flags_t *flags_ptr = (struct iaa_filter_flags_t *)(&filter_flags);
+	uint32_t element_width = flags_ptr->src1_width + 1;
+	uint32_t valid_width = element_width -
+			       flags_ptr->drop_high_bits -
+			       flags_ptr->drop_low_bits;
+	uint32_t element_size = 1 << valid_width;
+	uint32_t element;
+
+	for (input_idx = 0; input_idx < num_inputs; input_idx++) {
+		element = get_element(src1_ptr, num_inputs,
+				      (struct iaa_filter_flags_t *)&filter_flags, input_idx);
+		dst_ptr[element / 32] |= 1 << (element % 32);
+	}
+
+	if (element_size % 8)
+		dst_size = element_size / 8 + 1;
+	else
+		dst_size = element_size / 8;
+
+	return dst_size;
+}
