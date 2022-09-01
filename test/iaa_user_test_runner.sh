@@ -72,7 +72,7 @@ test_op()
 			if [ "$extra_flag" != "" ]
 			then
 				"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
-					-f "$flag" -e "$extra_flag" -t 5000 -v
+					-f "$flag" -1 "$extra_flag" -t 5000 -v
 			else
 				"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
 					-f "$flag" -t 5000 -v
