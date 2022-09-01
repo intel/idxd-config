@@ -350,6 +350,16 @@ static int test_filter(struct acctest_context *ctx, size_t buf_size, int tflags,
 			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
+		case IAX_OPCODE_EXTRACT:
+			rc = iaa_extract_multi_task_nodes(ctx);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			/* Verification of all the nodes*/
+			rc = iaa_task_result_verify_task_nodes(ctx, 0);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+			break;
 		default:
 			err("Unsupported op %#x\n", opcode);
 			return -EINVAL;
@@ -473,6 +483,7 @@ int main(int argc, char *argv[])
 
 	case IAX_OPCODE_SCAN:
 	case IAX_OPCODE_SET_MEMBERSHIP:
+	case IAX_OPCODE_EXTRACT:
 		rc = test_filter(iaa, buf_size, tflags, extra_flags_2,
 				 extra_flags_3, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
