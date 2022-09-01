@@ -22,6 +22,7 @@ int iaa_set_membership_multi_task_nodes(struct acctest_context *ctx);
 int iaa_extract_multi_task_nodes(struct acctest_context *ctx);
 int iaa_select_multi_task_nodes(struct acctest_context *ctx);
 int iaa_rle_burst_multi_task_nodes(struct acctest_context *ctx);
+int iaa_find_unique_multi_task_nodes(struct acctest_context *ctx);
 
 void iaa_prep_noop(struct task *tsk);
 void iaa_prep_crc64(struct task *tsk);
@@ -36,6 +37,7 @@ void iaa_prep_set_membership(struct task *tsk);
 void iaa_prep_extract(struct task *tsk);
 void iaa_prep_select(struct task *tsk);
 void iaa_prep_rle_burst(struct task *tsk);
+void iaa_prep_find_unique(struct task *tsk);
 
 int iaa_task_result_verify(struct task *tsk, int mismatch_expected);
 int iaa_task_result_verify_task_nodes(struct acctest_context *ctx, int mismatch_expected);
@@ -51,5 +53,6 @@ int task_result_verify_set_membership(struct task *tsk, int mismatch_expected);
 int task_result_verify_extract(struct task *tsk, int mismatch_expected);
 int task_result_verify_select(struct task *tsk, int mismatch_expected);
 int task_result_verify_rle_burst(struct task *tsk, int mismatch_expected);
+int task_result_verify_find_unique(struct task *tsk, int mismatch_expected);
 
 #endif
