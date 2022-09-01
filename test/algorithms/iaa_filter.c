@@ -151,3 +151,34 @@ uint32_t iaa_do_extract(void *dst, void *src1, void *src2,
 
 	return dst_size;
 }
+
+uint32_t iaa_do_select(void *dst, void *src1, void *src2,
+		       uint32_t num_inputs, uint32_t filter_flags)
+{
+	uint32_t input_idx, output_idx = 0;
+	uint32_t dst_size, bit_size;
+	uint32_t *src1_ptr = (uint32_t *)src1;
+	uint32_t *src2_ptr = (uint32_t *)src2;
+	uint32_t *dst_ptr = (uint32_t *)dst;
+	struct iaa_filter_flags_t *flags_ptr = (struct iaa_filter_flags_t *)(&filter_flags);
+	uint32_t element_width = flags_ptr->src1_width + 1;
+	uint32_t element;
+
+	for (input_idx = 0; input_idx < num_inputs; input_idx++) {
+		if ((src2_ptr[input_idx / 32] >> (input_idx % 32)) & 0x1) {
+			element = get_element(src1_ptr, num_inputs,
+					      (struct iaa_filter_flags_t *)&filter_flags,
+					      input_idx);
+			set_element(dst_ptr, element,
+				    (struct iaa_filter_flags_t *)&filter_flags, output_idx++);
+		}
+	}
+
+	bit_size = output_idx * element_width;
+	if (bit_size % 8)
+		dst_size = bit_size / 8 + 1;
+	else
+		dst_size = bit_size / 8;
+
+	return dst_size;
+}
