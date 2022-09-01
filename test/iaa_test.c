@@ -19,6 +19,8 @@ static void usage(void)
 	"                ; 0x4: reserved\n"
 	"                ; 0x8: prefault buffers\n"
 	"-1 <extra_flags_1> ; specified by each opcpde\n"
+	"-2 <extra_flags_2> ; specified by each opcpde\n"
+	"-3 <extra_flags_3> ; specified by each opcpde\n"
 	"-o <opcode>     ; opcode, same value as in IAA spec\n"
 	"-d              ; wq device such as iax1/wq1.0\n"
 	"-n <number of descriptors> ;descriptor count to submit\n"
@@ -290,6 +292,66 @@ static int test_compress(struct acctest_context *ctx, size_t buf_size, int tflag
 	return rc;
 }
 
+static int test_filter(struct acctest_context *ctx, size_t buf_size, int tflags,
+		       int extra_flags_2, int extra_flags_3, uint32_t opcode, int num_desc)
+{
+	struct task_node *tsk_node;
+	int rc = ACCTEST_STATUS_OK;
+	int itr = num_desc, i = 0, range = 0;
+
+	info("testcrc64: opcode %d len %#lx tflags %#x num_desc %ld\n",
+	     opcode, buf_size, tflags, num_desc);
+
+	ctx->is_batch = 0;
+
+	if (ctx->dedicated == ACCFG_WQ_SHARED)
+		range = ctx->threshold;
+	else
+		range = ctx->wq_size;
+
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
+		i = (itr < range) ? itr : range;
+		/* Allocate memory to all the task nodes, desc, completion record*/
+		rc = acctest_alloc_multiple_tasks(ctx, i);
+		if (rc != ACCTEST_STATUS_OK)
+			return rc;
+
+		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
+		tsk_node = ctx->multi_task_node;
+		while (tsk_node) {
+			tsk_node->tsk->iaa_filter_flags = (uint32_t)extra_flags_2;
+			tsk_node->tsk->iaa_num_inputs = (uint32_t)extra_flags_3;
+
+			rc = init_task(tsk_node->tsk, tflags, opcode, buf_size);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			tsk_node = tsk_node->next;
+		}
+
+		switch (opcode) {
+		case IAX_OPCODE_SCAN:
+			rc = iaa_scan_multi_task_nodes(ctx);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			/* Verification of all the nodes*/
+			rc = iaa_task_result_verify_task_nodes(ctx, 0);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+			break;
+		default:
+			err("Unsupported op %#x\n", opcode);
+			return -EINVAL;
+		}
+
+		acctest_free_task(ctx);
+		itr = itr - range;
+	}
+
+	return rc;
+}
+
 int main(int argc, char *argv[])
 {
 	struct acctest_context *iaa;
@@ -298,6 +360,8 @@ int main(int argc, char *argv[])
 	unsigned long buf_size = IAA_TEST_SIZE;
 	int tflags = TEST_FLAGS_BOF;
 	int extra_flags_1 = 0;
+	int extra_flags_2 = 0;
+	int extra_flags_3 = 0;
 	int opcode = IAX_OPCODE_NOOP;
 	int opt;
 	char dev_type[MAX_DEV_LEN];
@@ -306,7 +370,7 @@ int main(int argc, char *argv[])
 	int dev_wq_id = ACCTEST_DEVICE_ID_NO_INPUT;
 	unsigned int num_desc = 1;
 
-	while ((opt = getopt(argc, argv, "w:l:f:1:o:b:c:d:n:t:p:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "w:l:f:1:2:3:o:b:c:d:n:t:p:vh")) != -1) {
 		switch (opt) {
 		case 'w':
 			wq_type = atoi(optarg);
@@ -319,6 +383,12 @@ int main(int argc, char *argv[])
 			break;
 		case '1':
 			extra_flags_1 = strtoul(optarg, NULL, 0);
+			break;
+		case '2':
+			extra_flags_2 = strtoul(optarg, NULL, 0);
+			break;
+		case '3':
+			extra_flags_3 = strtoul(optarg, NULL, 0);
 			break;
 		case 'o':
 			opcode = strtoul(optarg, NULL, 0);
@@ -387,6 +457,13 @@ int main(int argc, char *argv[])
 	case IAX_OPCODE_COMPRESS:
 	case IAX_OPCODE_DECOMPRESS:
 		rc = test_compress(iaa, buf_size, tflags, extra_flags_1, opcode, num_desc);
+		if (rc != ACCTEST_STATUS_OK)
+			goto error;
+		break;
+
+	case IAX_OPCODE_SCAN:
+		rc = test_filter(iaa, buf_size, tflags, extra_flags_2,
+				 extra_flags_3, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
