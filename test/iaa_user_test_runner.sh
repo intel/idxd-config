@@ -193,6 +193,19 @@ test_op_filter()
 			-o 0x55 -f 0x0 -t 5000 -v
 		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x38 -3 1048576 \
 			-o 0x55 -f 0x0 -t 5000 -v
+
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c -3 128 \
+			-o 0x56 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c -3 256 \
+			-o 0x56 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c -3 1024 \
+			-o 0x56 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c -3 16384 \
+			-o 0x56 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c -3 262144 \
+			-o 0x56 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c -3 524288 \
+			-o 0x56 -f 0x0 -t 5000 -v
 	done
 }
 
