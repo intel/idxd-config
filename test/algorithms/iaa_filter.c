@@ -36,6 +36,26 @@ static uint32_t get_element(uint32_t *src1_ptr, uint32_t num_inputs,
 	return element;
 }
 
+static void set_element(uint32_t *dst_ptr, uint32_t element,
+			struct iaa_filter_flags_t *flags_ptr, uint32_t input_idx)
+{
+	uint64_t *qword_addr;
+	uint32_t dword_offset;
+	uint32_t bit_offset;
+	uint32_t element_width = flags_ptr->src1_width + 1;
+	/* For Scan, Extract, Select, RLE Burst and Expand,
+	 * drop_high_bits and drop_low_bits will always be 0
+	 */
+	uint32_t valid_width = element_width -
+			       flags_ptr->drop_high_bits -
+			       flags_ptr->drop_low_bits;
+
+	dword_offset = (valid_width * input_idx) / 32;
+	bit_offset = (valid_width * input_idx) % 32;
+	qword_addr = (uint64_t *)&dst_ptr[dword_offset];
+	*qword_addr |= ((uint64_t)element) << bit_offset;
+}
+
 uint32_t iaa_do_scan(void *dst, void *src1, void *src2,
 		     uint32_t num_inputs, uint32_t filter_flags)
 {
@@ -89,6 +109,45 @@ uint32_t iaa_do_set_membership(void *dst, void *src1, void *src2,
 		dst_size = num_inputs / 8 + 1;
 	else
 		dst_size = num_inputs / 8;
+
+	return dst_size;
+}
+
+uint32_t iaa_do_extract(void *dst, void *src1, void *src2,
+			uint32_t num_inputs, uint32_t filter_flags)
+{
+	uint32_t input_idx;
+	uint32_t dst_size;
+	uint32_t bit_size;
+	uint32_t *src1_ptr = (uint32_t *)src1;
+	struct iaa_filter_aecs_t *src2_ptr = (struct iaa_filter_aecs_t *)src2;
+	uint32_t *dst_ptr = (uint32_t *)dst;
+	struct iaa_filter_flags_t *flags_ptr = (struct iaa_filter_flags_t *)(&filter_flags);
+	uint32_t element_width = flags_ptr->src1_width + 1;
+	uint32_t element;
+
+	for (input_idx = src2_ptr->low_filter_param;
+	     input_idx <= src2_ptr->high_filter_param;
+	     input_idx++) {
+		element = get_element(src1_ptr, num_inputs,
+				      (struct iaa_filter_flags_t *)&filter_flags, input_idx);
+		set_element(dst_ptr, element,
+			    (struct iaa_filter_flags_t *)&filter_flags,
+			    input_idx - src2_ptr->low_filter_param);
+	}
+
+	if ((num_inputs - 1) < src2_ptr->low_filter_param)
+		bit_size = 0;
+	else if ((num_inputs - 1) < src2_ptr->high_filter_param)
+		bit_size = (num_inputs - src2_ptr->low_filter_param) * element_width;
+	else
+		bit_size = (src2_ptr->high_filter_param - src2_ptr->low_filter_param + 1) *
+			   element_width;
+
+	if (bit_size % 8)
+		dst_size = bit_size / 8 + 1;
+	else
+		dst_size = bit_size / 8;
 
 	return dst_size;
 }
