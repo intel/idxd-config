@@ -141,6 +141,45 @@ test_op_filter()
 			-o 0x53 -f 0x0 -t 5000 -v
 		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c -3 524288 \
 			-o 0x53 -f 0x0 -t 5000 -v
+
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x1c -3 512 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x1c -3 1024 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x1c -3 4096 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 32768 -2 0x1c -3 32768 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x1c -3 65536 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 131072 -2 0x1c -3 131072 \
+			-o 0x54 -f 0x0 -t 5000 -v
+
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 32 -2 0x3c -3 16 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 64 -2 0x3c -3 32 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 128 -2 0x3c -3 64 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 256 -2 0x3c -3 128 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x3c -3 256 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x3c -3 512 \
+			-o 0x54 -f 0x0 -t 5000 -v
+
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 64 -2 0x7c -3 16 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 128 -2 0x7c -3 32 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 256 -2 0x7c -3 64 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c -3 128 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c -3 256 \
+			-o 0x54 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2048 -2 0x7c -3 512 \
+			-o 0x54 -f 0x0 -t 5000 -v
 	done
 }
 
