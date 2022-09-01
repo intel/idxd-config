@@ -182,3 +182,67 @@ uint32_t iaa_do_select(void *dst, void *src1, void *src2,
 
 	return dst_size;
 }
+
+uint32_t iaa_do_rle_burst(void *dst, void *src1, void *src2,
+			  uint32_t num_inputs, uint32_t filter_flags)
+{
+	uint32_t input_idx, i;
+	uint32_t dst_size;
+	uint32_t replica_times, total_replica_times = 0;
+	uint32_t *src2_ptr = (uint32_t *)src2;
+	uint32_t *dst_ptr = (uint32_t *)dst;
+	struct iaa_filter_flags_t *flags_ptr = (struct iaa_filter_flags_t *)(&filter_flags);
+	uint32_t element_width = flags_ptr->src1_width + 1;
+
+	if (element_width == 8) {
+		for (input_idx = 0; input_idx < num_inputs; input_idx++) {
+			replica_times = ((uint8_t *)src1)[input_idx];
+			if ((src2_ptr[input_idx / 32] >> (input_idx % 32)) & 0x1) {
+				for (i = total_replica_times;
+				     i < (total_replica_times + replica_times); i++)
+					dst_ptr[i / 32] |= (1 << (i % 32));
+			} else {
+				for (i = total_replica_times;
+				     i < (total_replica_times + replica_times); i++)
+					dst_ptr[i / 32] &= ~(1 << (i % 32));
+			}
+			total_replica_times += replica_times;
+		}
+	} else if (element_width == 16) {
+		for (input_idx = 0; input_idx < num_inputs; input_idx++) {
+			replica_times = ((uint16_t *)src1)[input_idx];
+			if ((src2_ptr[input_idx / 32] >> (input_idx % 32)) & 0x1) {
+				for (i = total_replica_times;
+				     i < (total_replica_times + replica_times); i++)
+					dst_ptr[i / 32] |= (1 << (i % 32));
+			} else {
+				for (i = total_replica_times;
+				     i < (total_replica_times + replica_times); i++)
+					dst_ptr[i / 32] &= ~(1 << (i % 32));
+			}
+			total_replica_times += replica_times;
+		}
+	} else if (element_width == 32) {
+		for (input_idx = 0; input_idx < (num_inputs - 1); input_idx++) {
+			replica_times = ((uint32_t *)src1)[input_idx + 1] -
+					((uint32_t *)src1)[input_idx];
+			if ((src2_ptr[input_idx / 32] >> (input_idx % 32)) & 0x1) {
+				for (i = total_replica_times;
+				     i < (total_replica_times + replica_times); i++)
+					dst_ptr[i / 32] |= (1 << (i % 32));
+			} else {
+				for (i = total_replica_times;
+				     i < (total_replica_times + replica_times); i++)
+					dst_ptr[i / 32] &= ~(1 << (i % 32));
+			}
+			total_replica_times += replica_times;
+		}
+	}
+
+	if (total_replica_times % 8)
+		dst_size = total_replica_times / 8 + 1;
+	else
+		dst_size = total_replica_times / 8;
+
+	return dst_size;
+}
