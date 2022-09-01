@@ -1643,7 +1643,7 @@ int task_result_verify_compress(struct task *tsk, int mismatch_expected)
 		if (rc) {
 			err("Compress mismatch, memcmp rc %d\n", rc);
 			for (i = 0; i < (expected_len / 4); i++) {
-				printf("Exp[%d]=0x%04X, Act[%d]=0x%04X\n",
+				printf("Exp[%d]=0x%08X, Act[%d]=0x%08X\n",
 				       i, ((uint32_t *)tsk->output)[i],
 				       i, ((uint32_t *)tsk->src1)[i]);
 			}
@@ -1682,7 +1682,7 @@ int task_result_verify_decompress(struct task *tsk, int mismatch_expected)
 		if (rc) {
 			err("Decompress mismatch, memcmp rc %d\n", rc);
 			for (i = 0; i < (tsk->input_size / 4); i++) {
-				printf("Exp[%d]=0x%04X, Act[%d]=0x%04X\n",
+				printf("Exp[%d]=0x%08X, Act[%d]=0x%08X\n",
 				       i, ((uint32_t *)tsk->input)[i],
 				       i, ((uint32_t *)tsk->dst1)[i]);
 			}
