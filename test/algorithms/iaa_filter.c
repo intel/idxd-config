@@ -66,3 +66,29 @@ uint32_t iaa_do_scan(void *dst, void *src1, void *src2,
 
 	return dst_size;
 }
+
+uint32_t iaa_do_set_membership(void *dst, void *src1, void *src2,
+			       uint32_t num_inputs, uint32_t filter_flags)
+{
+	uint32_t input_idx;
+	uint32_t dst_size;
+	uint32_t *src1_ptr = (uint32_t *)src1;
+	uint32_t *src2_ptr = (uint32_t *)src2;
+	uint32_t *dst_ptr = (uint32_t *)dst;
+	uint32_t element;
+
+	for (input_idx = 0; input_idx < num_inputs; input_idx++) {
+		element = get_element(src1_ptr, num_inputs,
+				      (struct iaa_filter_flags_t *)&filter_flags, input_idx);
+
+		dst_ptr[input_idx / 32] |= ((src2_ptr[element / 32] >> (element % 32)) & 0x1) <<
+					   (input_idx % 32);
+	}
+
+	if (num_inputs % 8)
+		dst_size = num_inputs / 8 + 1;
+	else
+		dst_size = num_inputs / 8;
+
+	return dst_size;
+}
