@@ -23,6 +23,7 @@ accfg/accel-config
 rhel/
 sles/accfg.spec
 test/dsa_test
+test/iaa_test
 test/libaccfg
 util/log.lo
 util/sysfs.lo
