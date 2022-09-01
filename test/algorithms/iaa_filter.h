@@ -36,5 +36,7 @@ struct iaa_filter_aecs_t {
 
 uint32_t iaa_do_scan(void *dst, void *src1, void *src2,
 		     uint32_t num_inputs, uint32_t filter_flags);
+uint32_t iaa_do_set_membership(void *dst, void *src1, void *src2,
+			       uint32_t num_inputs, uint32_t filter_flags);
 
 #endif
