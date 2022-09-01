@@ -455,6 +455,43 @@ static int init_find_unique(struct task *tsk, int tflags,
 	return ACCTEST_STATUS_OK;
 }
 
+static int init_expand(struct task *tsk, int tflags,
+		       int opcode, unsigned long src1_xfer_size)
+{
+	uint32_t i;
+	uint32_t pattern = 0x98765432;
+
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = src1_xfer_size;
+
+	tsk->src1 = aligned_alloc(ADDR_ALIGNMENT, src1_xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	for (i = 0; i < (src1_xfer_size / 4); i++)
+		((uint32_t *)tsk->src1)[i] = pattern++;
+
+	tsk->src2 = aligned_alloc(32, IAA_FILTER_MAX_SRC2_SIZE);
+	if (!tsk->src2)
+		return -ENOMEM;
+	memset_pattern(tsk->src2, 0xa5a5a5a55a5a5a5a, IAA_FILTER_MAX_SRC2_SIZE);
+	tsk->iaa_src2_xfer_size = IAA_FILTER_MAX_SRC2_SIZE;
+
+	tsk->dst1 = aligned_alloc(ADDR_ALIGNMENT, IAA_FILTER_MAX_DEST_SIZE);
+	if (!tsk->dst1)
+		return -ENOMEM;
+	memset_pattern(tsk->dst1, 0, IAA_FILTER_MAX_DEST_SIZE);
+
+	tsk->iaa_max_dst_size = IAA_FILTER_MAX_DEST_SIZE;
+
+	tsk->output = aligned_alloc(ADDR_ALIGNMENT, IAA_FILTER_MAX_DEST_SIZE);
+	if (!tsk->output)
+		return -ENOMEM;
+	memset_pattern(tsk->output, 0, IAA_FILTER_MAX_DEST_SIZE);
+
+	return ACCTEST_STATUS_OK;
+}
+
 int init_task(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_size)
 {
 	int rc = 0;
@@ -501,6 +538,9 @@ int init_task(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_
 		break;
 	case IAX_OPCODE_FIND_UNIQUE:
 		rc = init_find_unique(tsk, tflags, opcode, src1_xfer_size);
+		break;
+	case IAX_OPCODE_EXPAND:
+		rc = init_expand(tsk, tflags, opcode, src1_xfer_size);
 		break;
 	}
 
@@ -1251,6 +1291,55 @@ int iaa_find_unique_multi_task_nodes(struct acctest_context *ctx)
 	return ret;
 }
 
+static int iaa_wait_expand(struct acctest_context *ctx, struct task *tsk)
+{
+	struct completion_record *comp = tsk->comp;
+	int rc;
+
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
+	if (rc < 0) {
+		err("expand desc timeout\n");
+		return ACCTEST_STATUS_TIMEOUT;
+	}
+
+	return ACCTEST_STATUS_OK;
+}
+
+int iaa_expand_multi_task_nodes(struct acctest_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = ACCTEST_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags |= (IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR);
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		tsk_node->tsk->dflags |= IDXD_OP_FLAG_RD_SRC2_2ND;
+
+		iaa_prep_expand(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all expand jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = iaa_wait_expand(ctx, tsk_node->tsk);
+		if (ret != ACCTEST_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+
+	return ret;
+}
+
 /* mismatch_expected: expect mismatched buffer with success status 0x1 */
 int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 {
@@ -1297,6 +1386,9 @@ int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 		break;
 	case IAX_OPCODE_FIND_UNIQUE:
 		ret = task_result_verify_find_unique(tsk, mismatch_expected);
+		break;
+	case IAX_OPCODE_EXPAND:
+		ret = task_result_verify_expand(tsk, mismatch_expected);
 		break;
 	}
 
@@ -1841,6 +1933,48 @@ int task_result_verify_find_unique(struct task *tsk, int mismatch_expected)
 		}
 		if (rc) {
 			err("Find unique mismatch, memcmp rc %d\n", rc);
+			for (i = 0; i < (expected_len / 4); i++) {
+				printf("Exp[%d]=0x%08X, Act[%d]=0x%08X\n",
+				       i, ((uint32_t *)tsk->output)[i],
+				       i, ((uint32_t *)tsk->dst1)[i]);
+			}
+
+			return -ENXIO;
+		}
+		return ACCTEST_STATUS_OK;
+	}
+
+	/* mismatch_expected */
+	if (rc) {
+		info("expected mismatch\n");
+		return ACCTEST_STATUS_OK;
+	}
+
+	return -ENXIO;
+}
+
+int task_result_verify_expand(struct task *tsk, int mismatch_expected)
+{
+	uint32_t i;
+	int rc;
+	uint32_t expected_len;
+
+	if (mismatch_expected)
+		warn("invalid arg mismatch_expected for %d\n", tsk->opcode);
+
+	expected_len = iaa_do_expand(tsk->output, tsk->src1, tsk->src2,
+				     tsk->iaa_num_inputs, tsk->iaa_filter_flags);
+	rc = memcmp(tsk->dst1, tsk->output, expected_len);
+
+	if (!mismatch_expected) {
+		if (expected_len - tsk->comp->iax_output_size) {
+			err("Expand mismatch, exp len %d, act len %d\n",
+			    expected_len, tsk->comp->iax_output_size);
+
+			return -ENXIO;
+		}
+		if (rc) {
+			err("Expand mismatch, memcmp rc %d\n", rc);
 			for (i = 0; i < (expected_len / 4); i++) {
 				printf("Exp[%d]=0x%08X, Act[%d]=0x%08X\n",
 				       i, ((uint32_t *)tsk->output)[i],
