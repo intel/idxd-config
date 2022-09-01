@@ -81,6 +81,30 @@ test_op()
 	done
 }
 
+test_op_filter()
+{
+	local flag="$1"
+	local wq_mode_code
+	local wq_mode_name
+
+	for wq_mode_code in 0 1; do
+		wq_mode_name=$(wq_mode2name "$wq_mode_code")
+
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c -3 128 \
+			-o 0x50 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c -3 256 \
+			-o 0x50 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c -3 1024 \
+			-o 0x50 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c -3 16384 \
+			-o 0x50 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c -3 262144 \
+			-o 0x50 -f 0x0 -t 5000 -v
+		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c -3 524288 \
+			-o 0x50 -f 0x0 -t 5000 -v
+	done
+}
+
 _cleanup
 start_iaa
 enable_wqs
@@ -126,6 +150,12 @@ echo "Testing with 'block on fault' flag OFF"
 for opcode in "0x4d" "0x49" "0x4c" "0x48" "0x43" "0x42"; do
 	test_op $opcode $flag
 done
+
+flag="0x1"
+test_op_filter $flag
+
+flag="0x0"
+test_op_filter $flag
 
 disable_wqs
 stop_iaa
