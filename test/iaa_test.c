@@ -18,7 +18,7 @@ static void usage(void)
 	"-f <test_flags> ; 0x1: block-on-fault\n"
 	"                ; 0x4: reserved\n"
 	"                ; 0x8: prefault buffers\n"
-	"-e <extra_flags> ; specified by each opcpde\n"
+	"-1 <extra_flags_1> ; specified by each opcpde\n"
 	"-o <opcode>     ; opcode, same value as in IAA spec\n"
 	"-d              ; wq device such as iax1/wq1.0\n"
 	"-n <number of descriptors> ;descriptor count to submit\n"
@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 	int wq_type = SHARED;
 	unsigned long buf_size = IAA_TEST_SIZE;
 	int tflags = TEST_FLAGS_BOF;
-	int extra_flags = 0;
+	int extra_flags_1 = 0;
 	int opcode = IAX_OPCODE_NOOP;
 	int opt;
 	char dev_type[MAX_DEV_LEN];
@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 	int dev_wq_id = ACCTEST_DEVICE_ID_NO_INPUT;
 	unsigned int num_desc = 1;
 
-	while ((opt = getopt(argc, argv, "w:l:f:e:o:b:c:d:n:t:p:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "w:l:f:1:o:b:c:d:n:t:p:vh")) != -1) {
 		switch (opt) {
 		case 'w':
 			wq_type = atoi(optarg);
@@ -317,8 +317,8 @@ int main(int argc, char *argv[])
 		case 'f':
 			tflags = strtoul(optarg, NULL, 0);
 			break;
-		case 'e':
-			extra_flags = strtoul(optarg, NULL, 0);
+		case '1':
+			extra_flags_1 = strtoul(optarg, NULL, 0);
 			break;
 		case 'o':
 			opcode = strtoul(optarg, NULL, 0);
@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
 		break;
 
 	case IAX_OPCODE_CRC64:
-		rc = test_crc64(iaa, buf_size, tflags, extra_flags, opcode, num_desc);
+		rc = test_crc64(iaa, buf_size, tflags, extra_flags_1, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
@@ -386,7 +386,7 @@ int main(int argc, char *argv[])
 
 	case IAX_OPCODE_COMPRESS:
 	case IAX_OPCODE_DECOMPRESS:
-		rc = test_compress(iaa, buf_size, tflags, extra_flags, opcode, num_desc);
+		rc = test_compress(iaa, buf_size, tflags, extra_flags_1, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;
