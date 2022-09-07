@@ -1,13 +1,13 @@
 [
   {
     "dev":"dsa0",
-    "token_limit":0,
+    "read_buffer_limit":0,
     "groups":[
       {
         "dev":"group0.0",
-        "tokens_reserved":0,
-        "use_token_limit":0,
-        "tokens_allowed":0,
+        "read_buffers_reserved":0,
+        "use_read_buffer_limit":0,
+        "read_buffers_allowed":0,
         "traffic_class_a":-1,
         "traffic_class_b":-1,
         "grouped_workqueues":[
@@ -19,6 +19,7 @@
             "priority":10,
             "block_on_fault":1,
             "type":"user",
+            "driver_name":"user",
             "name":"app1",
             "threshold":15
           }
@@ -36,9 +37,9 @@
       },
       {
         "dev":"group0.1",
-        "tokens_reserved":0,
-        "use_token_limit":0,
-        "tokens_allowed":0,
+        "read_buffers_reserved":0,
+        "use_read_buffer_limit":0,
+        "read_buffers_allowed":0,
         "traffic_class_a":-1,
         "traffic_class_b":-1,
         "grouped_workqueues":[
@@ -50,6 +51,7 @@
             "priority":10,
             "block_on_fault":1,
             "type":"user",
+            "driver_name":"user",
 	    "name":"app2",
             "threshold":0
           }
@@ -67,17 +69,17 @@
       },
       {
         "dev":"group0.2",
-        "tokens_reserved":0,
-        "use_token_limit":0,
-        "tokens_allowed":0,
+        "read_buffers_reserved":0,
+        "use_read_buffer_limit":0,
+        "read_buffers_allowed":0,
         "traffic_class_a":-1,
         "traffic_class_b":-1
       },
       {
         "dev":"group0.3",
-        "tokens_reserved":0,
-        "use_token_limit":0,
-        "tokens_allowed":0,
+        "read_buffers_reserved":0,
+        "use_read_buffer_limit":0,
+        "read_buffers_allowed":0,
         "traffic_class_a":-1,
         "traffic_class_b":-1
       }
