@@ -1,3 +1,38 @@
+accel-config (3.4.8-1) unstable; urgency=medium
+
+  * load/unload idxd_vdev and iaa_crypto modules at cleanup
+  * replace token with read_buffer in test config files
+  * replace token with read_buffer of config files in contrib
+  * Modify incorrect printing format
+  * Modify script for executing Expand test
+  * Add test code of operation Expand
+  * Add the algorithm of operation Expand
+  * Modify script for executing Find unique test
+  * Add test code of operation Find unique
+  * Add the algorithm of operation Find unique
+  * Modify script for executing RLE burst test
+  * Add test code of operation RLE burst
+  * Add the algorithm of operation RLE burst
+  * Modify script for executing Select test
+  * Add test code of operation Select
+  * Add the algorithm of operation Select
+  * Modify script for executing Extract test
+  * Add test code of operation Extract
+  * Add the algorithm of operation Extract
+  * Modify script for executing Set membership test
+  * Add test code of operation Set membership
+  * Add the algorithm of operation Set membership
+  * Modify script for executing Scan test
+  * Add test code of operation Scan
+  * Add the algorithm of operation Scan
+  * Add file to place algorithms of operation filter
+  * Modify input parameter of main function
+  * Add macro to enable bit for Operation flags
+  * Add iaa_test into .gitignore
+  * Fix dsa_test reports opposite WQ mode output info
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Wed, 21 Sep 2022 14:14:49 -0700
+
 accel-config (3.4.7-1) unstable; urgency=medium
 
   * debdch.sh was not processing commit tags correctly
