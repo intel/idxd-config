@@ -27,7 +27,7 @@ Description: Utility for configuring the DSA subsystem
  This package contains a utility for configuring the DSA (Data Stream
  Accelerator) subsystem in the Linux kernel.
 
-Package: libaccel-config
+Package: libaccel-config1
 Architecture: linux-any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Utility library wrapping the Intel DSA sysfs ABI. It provides
@@ -41,7 +41,7 @@ Description: Utility library wrapping the Intel DSA sysfs ABI. It provides
 Package: libaccel-config-dev
 Section: libdevel
 Architecture: linux-any
-Depends: libaccel-config (= ${binary:Version}), ${misc:Depends}
+Depends: libaccel-config1 (= ${binary:Version}), ${misc:Depends}
 Description: Development files for libaccel-config
  Header files and development library for compiling C programs to link with the
  libaccel-config library and manage the DSA subsystem in the Linux kernel.
