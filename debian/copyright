@@ -4,18 +4,18 @@ Source: https://github.com/intel/idxd-config
 
 Files: *
 Copyright: 2021 Intel Corporation
-License: LGPLv2.1
-
-Files: accfg/lib/*
-Copyright: 2021 Intel Corporation
-License: LGPLv2.1
+License: LGPL-2.1
 
 Files: accfg/*
        Documentation/*
        util/*
        test/*
 Copyright: 2021 Intel Corporation
-License: GPLv2
+License: GPL-2
+
+Files: accfg/lib/*
+Copyright: 2021 Intel Corporation
+License: LGPL-2.1
 
 Files: debian/*
 Copyright: 2021 Intel Corporation
