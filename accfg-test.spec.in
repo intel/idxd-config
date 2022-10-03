@@ -70,8 +70,8 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %license licenses/accel-config-licenses LICENSE_GPL_2_0
 %{_bindir}/accel-config
 %{_mandir}/man1/accel-config*
-%{_sysconfdir}/accel-config/accel-config.conf.sample
-%{_datadir}/accel-config/contrib/configs/*
+%{_prefix}/lib/accel-config/accel-config.conf.sample
+%{_prefix}/lib/accel-config/contrib/configs/*
 
 %files -n LNAME
 %defattr(-,root,root)
@@ -90,6 +90,6 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %files -n %{name}-test
 %defattr(-,root,root)
 %license Documentation/COPYING LICENSE_GPL_2_0
-%{_datadir}/accel-config/test/*
+%{_prefix}/lib/accel-config/test/*
 
 %changelog
