@@ -16,7 +16,7 @@ Build-Depends: asciidoctor,
 
 Package: accel-config
 Section: misc
-Architecture: linux-any
+Architecture: i386 amd64
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Description: Utility for configuring the DSA subsystem
@@ -28,7 +28,7 @@ Description: Utility for configuring the DSA subsystem
  Accelerator) subsystem in the Linux kernel.
 
 Package: libaccel-config1
-Architecture: linux-any
+Architecture: i386 amd64
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Utility library wrapping the Intel DSA sysfs ABI. It provides
  access to work queues by using the mmap portal from the character device and
@@ -40,7 +40,7 @@ Description: Utility library wrapping the Intel DSA sysfs ABI. It provides
 
 Package: libaccel-config-dev
 Section: libdevel
-Architecture: linux-any
+Architecture: i386 amd64
 Depends: libaccel-config1 (= ${binary:Version}), ${misc:Depends}
 Description: Development files for libaccel-config
  Header files and development library for compiling C programs to link with the
@@ -48,7 +48,7 @@ Description: Development files for libaccel-config
 
 Package: accel-config-test
 Section: misc
-Architecture: linux-any
+Architecture: i386 amd64
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Description: Utility to test the DSA subsystem
