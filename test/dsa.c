@@ -459,7 +459,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 {
 	int rc = 0;
 
-	dbg("initilizing task %#lx\n", tsk);
+	dbg("initializing task %#lx\n", tsk);
 
 	switch (opcode) {
 	/* After memory move, do drain opcode test */

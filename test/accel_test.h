@@ -246,7 +246,7 @@ static inline void resolve_page_fault(uint64_t addr, uint8_t status)
 	/* overwritten again by the HW */
 	*addr_u8 =  ~(*addr_u8);
 
-	/* For PF at read, we need to restore it to the orginal value */
+	/* For PF at read, we need to restore it to the original value */
 	if (!(status & ACCTEST_COMP_STAT_RW_MASK))
 		*addr_u8 = ~(*addr_u8);
 }

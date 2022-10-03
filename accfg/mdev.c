@@ -112,7 +112,7 @@ int cmd_create_mdev(int argc, const char **argv, void *ctx)
 		return rc;
 
 	uuid_unparse(uuid, uuid_str);
-	printf("Created mdev wth uuid: %s\n", uuid_str);
+	printf("Created mdev with uuid: %s\n", uuid_str);
 
 	return 0;
 }
