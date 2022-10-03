@@ -496,7 +496,7 @@ int init_task(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_
 {
 	int rc = 0;
 
-	dbg("initilizing single task %#lx\n", tsk);
+	dbg("initializing single task %#lx\n", tsk);
 
 	/* allocate memory: src1*/
 	switch (opcode) {

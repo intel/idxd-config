@@ -28,7 +28,7 @@ OPTIONS
 
 -t::
 --read-buffers-allowed=::
-	specify the maxinum number of read buffers that may be in use at
+	specify the maximum number of read buffers that may be in use at
 	one time by all engines in the group. This value can be used to
 	limit the maximum bandwidth used by engines in the group. The limit
 	of this value must be:
