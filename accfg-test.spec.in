@@ -90,6 +90,6 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %files -n %{name}-test
 %defattr(-,root,root)
 %license Documentation/COPYING LICENSE_GPL_2_0
-%{_datadir}/accel-config/test/*
+%{_prefix}/lib/accel-config/test/*
 
 %changelog
