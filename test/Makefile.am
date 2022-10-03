@@ -13,7 +13,7 @@ check_PROGRAMS =\
 	iaa_test
 
 if ENABLE_TEST
-testprogdir = $(datadir)/accel-config/test/
+testprogdir = $(prefix)/lib/accel-config/test/
 testprog_DATA = common
 testprog_SCRIPTS = dsa_user_test_runner.sh iaa_user_test_runner.sh
 testprog_PROGRAMS = dsa_test iaa_test

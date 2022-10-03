@@ -34,13 +34,13 @@ bashcompletiondir = $(BASH_COMPLETION_DIR)
 endif
 
 accfgconf_file = contrib/accel-config.conf.sample
-accfgconfdir = $(sysconfdir)/accel-config/
+accfgconfdir = $(prefix)/lib/accel-config/
 accfgconf_DATA = $(accfgconf_file)
 
 EXTRA_DIST += $(accfgconf_file) accfg.spec.in accfg-test.spec.in
 
 contrib_configs = contrib/configs/*
-contribdir = $(prefix)/share/accel-config/contrib/configs
+contribdir = $(prefix)/lib/accel-config/contrib/configs
 contrib_DATA = $(contrib_configs)
 
 noinst_LIBRARIES = libccan.a
