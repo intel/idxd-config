@@ -40,7 +40,7 @@ static int cmd_help(int argc, const char **argv, void *ctx)
 		NULL
 	};
 
-	argc = parse_options_subcommand(argc, argv, builtin_help_options,
+	parse_options_subcommand(argc, argv, builtin_help_options,
 					builtin_help_subcommands,
 					builtin_help_usage, 0);
 

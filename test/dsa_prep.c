@@ -610,7 +610,6 @@ void dsa_reprep_dif(struct acctest_context *ctx, struct task *tsk)
 		hw->dest_ref_tag_seed = compl->dif_upd_dest_ref_tag;
 	}
 	if (tsk->opcode == DSA_OPCODE_DIF_CHECK) {
-		blks_completed = compl->bytes_completed / (dif_arr[tsk->blk_idx_flg] + 8);
 		hw->xfer_size -= compl->bytes_completed;
 		hw->chk_app_tag_seed = compl->dif_chk_app_tag;
 		hw->chk_ref_tag_seed = compl->dif_chk_ref_tag;
