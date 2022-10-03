@@ -1505,6 +1505,8 @@ int task_result_verify(struct task *tsk, int mismatch_expected)
 		return rc;
 	case DSA_OPCODE_DIF_INS:
 		rc = task_result_verify_dif(tsk, tsk->xfer_size, mismatch_expected);
+		if (rc != ACCTEST_STATUS_OK)
+			return rc;
 		rc = task_result_verify_dif_tags(tsk, tsk->xfer_size);
 		return rc;
 	case DSA_OPCODE_DIF_STRP:
@@ -1514,6 +1516,9 @@ int task_result_verify(struct task *tsk, int mismatch_expected)
 	case DSA_OPCODE_DIF_UPDT:
 		rc = task_result_verify_dif(tsk, tsk->xfer_size - 8 * tsk->blks,
 					    mismatch_expected);
+		if (rc != ACCTEST_STATUS_OK)
+			return rc;
+
 		rc = task_result_verify_dif_tags(tsk, tsk->xfer_size - 8 * tsk->blks);
 		return rc;
 	}
@@ -1852,7 +1857,7 @@ static int task_result_verify_dif_page_fault(struct task *tsk, unsigned long xfe
 
 int task_result_verify_dif(struct task *tsk, unsigned long xfer_size, int mismatch_expected)
 {
-	int rc;
+	int rc = 0;
 	unsigned long i;
 	unsigned long blks = tsk->blks;
 	unsigned long buf_size = dif_blk_arr[tsk->blk_idx_flg];

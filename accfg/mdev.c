@@ -95,7 +95,7 @@ int cmd_create_mdev(int argc, const char **argv, void *ctx)
 		return 0;
 	}
 
-	argc = parse_options(argc, argv, options, u, 0);
+	parse_options(argc, argv, options, u, 0);
 	if (opt_called)
 		return 0;
 
@@ -148,7 +148,7 @@ int cmd_remove_mdev(int argc, const char **argv, void *ctx)
 		return 0;
 	}
 
-	argc = parse_options(argc, argv, options, u, 0);
+	parse_options(argc, argv, options, u, 0);
 	if (opt_called)
 		return 0;
 

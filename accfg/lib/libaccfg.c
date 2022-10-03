@@ -806,9 +806,11 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 
 	if (sscanf(basename(wq_base_string),
 				"wq%" SCNu64 ".%" SCNu64, &device_id, &wq_id) != 2) {
+		free(wq_base_string);
 		close(dfd);
 		goto err_wq;
 	}
+	free(wq_base_string);
 
 	wq->id = wq_id;
 	wq->group = group;
@@ -902,9 +904,12 @@ static void *add_group(void *parent, int id, const char *group_base,
 	}
 	if (sscanf(basename(group_base_string),
 				"group%" SCNu64 ".%" SCNu64, &device_id, &group_id) != 2) {
+		free(group_base_string);
 		close(dfd);
 		goto err_group;
 	}
+	free(group_base_string);
+
 	group->group_path = (char *)group_base;
 	group->device = device;
 	device->group = group;
@@ -994,11 +999,13 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	}
 	if (sscanf(basename(engine_base_string),
 			"engine%" SCNu64 ".%" SCNu64, &device_id, &engine_id) != 2) {
+		free(engine_base_string);
 		close(dfd);
 		free(path);
 		free(engine);
 		return NULL;
 	}
+	free(engine_base_string);
 
 	engine->id = engine_id;
 	engine->group = group;

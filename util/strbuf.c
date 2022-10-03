@@ -85,7 +85,8 @@ static void strbuf_splice(struct strbuf *sb, size_t pos, size_t len,
 	memmove(sb->buf + pos + dlen,
 			sb->buf + pos + len,
 			sb->len - pos - len);
-	memcpy(sb->buf + pos, data, dlen);
+	if (data)
+		memcpy(sb->buf + pos, data, dlen);
 	strbuf_setlen(sb, sb->len + dlen - len);
 }
 

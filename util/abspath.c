@@ -7,14 +7,9 @@
 char *prefix_filename(const char *pfx, const char *arg)
 {
 	struct strbuf path = STRBUF_INIT;
-	size_t pfx_len = pfx ? strlen(pfx) : 0;
 
-	if (!pfx_len)
-		;
-	else if (is_absolute_path(arg))
-		pfx_len = 0;
-	else
-		strbuf_add(&path, pfx, pfx_len);
+	if (pfx && !is_absolute_path(arg))
+		strbuf_add(&path, pfx, strlen(pfx));
 
 	strbuf_addstr(&path, arg);
 	return strbuf_detach(&path, NULL);

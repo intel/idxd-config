@@ -90,22 +90,18 @@ static int device_action(int argc, const char **argv, const char *usage,
 		NULL
 	};
 	int i, rc = -EINVAL, success = 0;
-	const char *all = "all";
 	enum accfg_device_state state;
 
 	argc = parse_options(argc, argv, options, u, 0);
 
-	if (argc == 0) {
-		argc = 1;
-		argv = &all;
-		usage_with_options(u, options);
-	} else {
-		for (i = 0; i < argc; i++) {
-			if (strcmp(argv[i], "all") == 0) {
-				argv[0] = "all";
-				argc = 1;
-				break;
-			}
+	if (argc == 0)
+		usage_with_options(u, options); /* exits app */
+
+	for (i = 0; i < argc; i++) {
+		if (strcmp(argv[i], "all") == 0) {
+			argv[0] = "all";
+			argc = 1;
+			break;
 		}
 	}
 
@@ -206,21 +202,17 @@ static int wq_action(int argc, const char **argv, const char *usage,
 		NULL
 	};
 	int i, rc = -EINVAL, success = 0;
-	const char *all = "all";
 
 	argc = parse_options(argc, argv, options, u, 0);
 
-	if (argc == 0) {
-		argc = 1;
-		argv = &all;
-		usage_with_options(u, options);
-	} else {
-		for (i = 0; i < argc; i++) {
-			if (strcmp(argv[i], "all") == 0) {
-				argv[0] = "all";
-				argc = 1;
-				break;
-			}
+	if (argc == 0)
+		usage_with_options(u, options); /* exits app */
+
+	for (i = 0; i < argc; i++) {
+		if (strcmp(argv[i], "all") == 0) {
+			argv[0] = "all";
+			argc = 1;
+			break;
 		}
 	}
 
