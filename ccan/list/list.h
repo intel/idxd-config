@@ -553,20 +553,20 @@ static inline void list_prepend_list_(struct list_head *to,
 /**
  * list_for_each_off - iterate through a list of memory regions.
  * @h: the list_head
- * @i: the pointer to a memory region wich contains list node data.
+ * @i: the pointer to a memory region which contains list node data.
  * @off: offset(relative to @i) at which list node data resides.
  *
  * This is a low-level wrapper to iterate @i over the entire list, used to
- * implement all oher, more high-level, for-each constructs. It's a for loop,
+ * implement all other, more high-level, for-each constructs. It's a for loop,
  * so you can break and continue as normal.
  *
  * WARNING! Being the low-level macro that it is, this wrapper doesn't know
- * nor care about the type of @i. The only assumtion made is that @i points
+ * nor care about the type of @i. The only assumption made is that @i points
  * to a chunk of memory that at some @offset, relative to @i, contains a
  * properly filled `struct node_list' which in turn contains pointers to
- * memory chunks and it's turtles all the way down. Whith all that in mind
+ * memory chunks and it's turtles all the way down. With all that in mind
  * remember that given the wrong pointer/offset couple this macro will
- * happilly churn all you memory untill SEGFAULT stops it, in other words
+ * happily churn all you memory until SEGFAULT stops it, in other words
  * caveat emptor.
  *
  * It is worth mentioning that one of legitimate use-cases for that wrapper
@@ -590,7 +590,7 @@ static inline void list_prepend_list_(struct list_head *to,
  * list_for_each_safe_off - iterate through a list of memory regions, maybe
  * during deletion
  * @h: the list_head
- * @i: the pointer to a memory region wich contains list node data.
+ * @i: the pointer to a memory region which contains list node data.
  * @nxt: the structure containing the list_node
  * @off: offset(relative to @i) at which list node data resides.
  *

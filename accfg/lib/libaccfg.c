@@ -87,7 +87,7 @@ const char *accfg_device_cmd_status[] = {
 	[0x1]	= "Invalid command code",
 	[0x2]	= "Invalid WQ index",
 	[0x3]	= "Internal or platform hardware error",
-	[0x4]	= "Non-zero reserved field in comand",
+	[0x4]	= "Non-zero reserved field in command",
 	[0x10]	= "Device not disabled",
 	[0x11]	= "Unspecified error in config for device enable",
 	[0x12]	= "Bus master enable is 0",
@@ -114,7 +114,7 @@ const char *accfg_device_cmd_status[] = {
 	[0x41]	= "Invalid interrupt table index",
 	[0x42]	= "No interrupt handle available",
 	[0x43]	= "No interrupt handles associated with the index",
-	[0x44]	= "No revoked handles associted with the index",
+	[0x44]	= "No revoked handles associated with the index",
 	[ACCFG_CMD_STATUS_MAX]	= "Unknown error",
 };
 

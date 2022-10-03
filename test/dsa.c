@@ -458,7 +458,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 {
 	int rc = 0;
 
-	dbg("initilizing task %#lx\n", tsk);
+	dbg("initializing task %#lx\n", tsk);
 
 	switch (opcode) {
 	/* After memory move, do drain opcode test */
@@ -2069,7 +2069,7 @@ int batch_result_verify(struct batch_task *btsk, int bof)
 
 	core_stat = stat_val(btsk->core_task->comp->status);
 	if (core_stat == DSA_COMP_SUCCESS) {
-		info("core task success, chekcing sub-tasks\n");
+		info("core task success, checking sub-tasks\n");
 	} else if (!bof && core_stat == DSA_COMP_BATCH_FAIL) {
 		info("partial complete with NBOF, checking sub-tasks\n");
 	} else {

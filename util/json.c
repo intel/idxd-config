@@ -35,7 +35,7 @@ static int display_size(struct json_object *jobj, struct printbuf *pbuf,
 	/*
 	 * We convert bytes to either centi-M{ega,ibi}bytes or
 	 * centi-G{igi,ibi}bytes, with appropriate rounding, and then print
-	 * 1/100th of those as a decimal.  We allow upto 2048Megabytes before
+	 * 1/100th of those as a decimal.  We allow up to 2048Megabytes before
 	 * converting to gigabytes, as that shows more precision and isn't too
 	 * large a number.  Terabytes are not yet handled.
 	 *
