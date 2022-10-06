@@ -39,12 +39,12 @@ else
 	exit "$EXIT_FAILURE"
 fi
 
-# IAXTEST
+# IAATEST
 #
 if [ -f "./iaa_test" ] && [ -x "./iaa_test" ]; then
-	export IAXTEST=./iaa_test
+	export IAATEST=./iaa_test
 elif [ -f "$TESTDIR/iaa_test" ] && [ -x "$TESTDIR/iaa_test" ]; then
-	export IAXTEST="$TESTDIR"/iaa_test
+	export IAATEST="$TESTDIR"/iaa_test
 else
 	echo "Couldn't find an iaa_test binary"
 	exit "$EXIT_FAILURE"
