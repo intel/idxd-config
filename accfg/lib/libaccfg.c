@@ -767,7 +767,6 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	struct accfg_device *device = parent;
 	struct accfg_group *group;
 	struct accfg_ctx *ctx;
-	char *path;
 	char *wq_base_string;
 	uint64_t device_id, wq_id;
 	int dfd;
@@ -782,18 +781,10 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	if (dfd < 0)
 		return NULL;
 
-	path = calloc(1, strlen(wq_base) + 100);
-	if (!path) {
-		err(ctx, "%s: allocation of path failed\n", __func__);
-		close(dfd);
-		return NULL;
-	}
-
 	wq = calloc(1, sizeof(*wq));
 	if (!wq) {
 		err(ctx, "allocation of wq failed\n");
 		close(dfd);
-		free(path);
 		return NULL;
 	}
 
@@ -849,7 +840,6 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	wq->buf_len = strlen(wq_base) + MAX_BUF_LEN;
 
 	list_add_tail(&device->wqs, &wq->list);
-	free(path);
 	return wq;
 
 err_read:
@@ -860,7 +850,6 @@ err_read:
 	free(wq->name);
 err_wq:
 	free(wq);
-	free(path);
 	return NULL;
 }
 
@@ -870,7 +859,6 @@ static void *add_group(void *parent, int id, const char *group_base,
 	struct accfg_group *group;
 	struct accfg_device *device = parent;
 	struct accfg_ctx *ctx;
-	char *path;
 	char *group_base_string;
 	int dfd;
 	uint64_t device_id, group_id;
@@ -883,17 +871,11 @@ static void *add_group(void *parent, int id, const char *group_base,
 	if (dfd < 0)
 		return NULL;
 
-	path = calloc(1, strlen(group_base) + 100);
-	if (!path) {
-		err(ctx, "%s: allocation of path failed\n", __func__);
-		close(dfd);
-		return NULL;
-	}
 	group = calloc(1, sizeof(*group));
 	if (!group) {
 		err(ctx, "allocation of group failed\n");
 		close(dfd);
-		goto err_group;
+		return NULL;
 	}
 
 	group_base_string = strdup(group_base);
@@ -941,7 +923,6 @@ static void *add_group(void *parent, int id, const char *group_base,
 	}
 
 	list_add_tail(&device->groups, &group->list);
-	free(path);
 	return group;
 
 err_read:
@@ -950,7 +931,6 @@ err_read:
 	free(group->group_wqs);
 err_group:
 	free(group);
-	free(path);
 	return NULL;
 }
 
@@ -961,7 +941,6 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	struct accfg_device *device = parent;
 	struct accfg_ctx *ctx;
 	struct accfg_group *group;
-	char *path;
 	char *engine_base_string;
 	int dfd;
 	uint64_t device_id, engine_id;
@@ -975,18 +954,11 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	if (dfd < 0)
 		return NULL;
 
-	path = calloc(1, strlen(engine_base) + 100);
-	if (!path) {
-		err(ctx, "%s: allocation of path failed\n", __func__);
-		close(dfd);
-		return NULL;
-	}
-
 	engine = calloc(1, sizeof(*engine));
 	if (!engine) {
 		err(ctx, "allocation of engine failed\n");
 		close(dfd);
-		goto err_engine;
+		return NULL;
 	}
 
 	engine_base_string = strdup(engine_base);
@@ -994,13 +966,12 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 		err(ctx, "conversion of engine_base_string failed\n");
 		close(dfd);
 		free(engine);
-		goto err_engine;
+		return NULL;
 	}
 	if (sscanf(basename(engine_base_string),
 			"engine%" SCNu64 ".%" SCNu64, &device_id, &engine_id) != 2) {
 		free(engine_base_string);
 		close(dfd);
-		free(path);
 		free(engine);
 		return NULL;
 	}
@@ -1026,15 +997,12 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	engine->buf_len = strlen(engine_base) + MAX_BUF_LEN;
 
 	list_add_tail(&device->engines, &engine->list);
-	free(path);
 	return engine;
 
 err_read:
 	free(engine->engine_buf);
 	free(engine->engine_path);
 	free(engine);
-err_engine:
-	free(path);
 	return NULL;
 }
 
