@@ -910,7 +910,6 @@ static void *add_group(void *parent, int id, const char *group_base,
 	}
 	free(group_base_string);
 
-	group->group_path = (char *)group_base;
 	group->device = device;
 	device->group = group;
 	group->id = group_id;
