@@ -835,16 +835,16 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	wq->wq_buf = calloc(1, strlen(wq_base) + MAX_BUF_LEN);
 	if (!wq->wq_buf) {
 		err(ctx, "allocation of wq buffer failed\n");
-		goto err_read;
+		goto err_path;
 	}
 	wq->buf_len = strlen(wq_base) + MAX_BUF_LEN;
 
 	list_add_tail(&device->wqs, &wq->list);
 	return wq;
 
-err_read:
-	free(wq->wq_buf);
+err_path:
 	free(wq->wq_path);
+err_read:
 	free(wq->mode);
 	free(wq->state);
 	free(wq->name);
@@ -919,14 +919,15 @@ static void *add_group(void *parent, int id, const char *group_base,
 	group->group_path = strdup(group_base);
 	if (!group->group_path) {
 		err(ctx, "forming of group path failed\n");
-		goto err_read;
+		goto err_buf;
 	}
 
 	list_add_tail(&device->groups, &group->list);
 	return group;
 
-err_read:
+err_buf:
 	free(group->group_buf);
+err_read:
 	free(group->group_engines);
 	free(group->group_wqs);
 err_group:
@@ -965,15 +966,13 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	if (!engine_base_string) {
 		err(ctx, "conversion of engine_base_string failed\n");
 		close(dfd);
-		free(engine);
-		return NULL;
+		goto err_engine;
 	}
 	if (sscanf(basename(engine_base_string),
 			"engine%" SCNu64 ".%" SCNu64, &device_id, &engine_id) != 2) {
 		free(engine_base_string);
 		close(dfd);
-		free(engine);
-		return NULL;
+		goto err_engine;
 	}
 	free(engine_base_string);
 
@@ -986,22 +985,22 @@ static void *add_engine(void *parent, int id, const char *engine_base,
 	engine->engine_path = strdup(engine_base);
 	if (!engine->engine_path) {
 		err(ctx, "forming of engine path failed\n");
-		goto err_read;
+		goto err_engine;
 	}
 
 	engine->engine_buf = calloc(1, strlen(engine_base) + MAX_BUF_LEN);
 	if (!engine->engine_buf) {
 		err(ctx, "allocation of engine buffer failed\n");
-		goto err_read;
+		goto err_path;
 	}
 	engine->buf_len = strlen(engine_base) + MAX_BUF_LEN;
 
 	list_add_tail(&device->engines, &engine->list);
 	return engine;
 
-err_read:
-	free(engine->engine_buf);
+err_path:
 	free(engine->engine_path);
+err_engine:
 	free(engine);
 	return NULL;
 }
