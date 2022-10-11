@@ -46,6 +46,7 @@ int cmd_test(int argc, const char **argv, struct accfg_ctx *ctx)
 	printf("run test_libaccfg\n");
 	rc = test_libaccfg(loglevel, test, ctx);
 	fprintf(stderr, "test-libaccfg: %s\n", result(rc));
+	free(test);
 	if (rc)
 		return rc;
 	printf("SUCCESS!\n");
