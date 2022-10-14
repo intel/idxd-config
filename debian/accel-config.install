@@ -1,4 +1,3 @@
-etc/accel-config/accel-config.conf.sample
 usr/bin/accel-config
 usr/share/man/man1/accel-config*
-usr/share/accel-config/contrib/configs/*
+etc/accel-config/contrib/configs/*
