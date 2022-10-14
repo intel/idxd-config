@@ -33,15 +33,11 @@ if ENABLE_BASH_COMPLETION
 bashcompletiondir = $(BASH_COMPLETION_DIR)
 endif
 
-accfgconf_file = contrib/accel-config.conf.sample
-accfgconfdir = $(sysconfdir)/accel-config/
-accfgconf_DATA = $(accfgconf_file)
-
-EXTRA_DIST += $(accfgconf_file) accfg.spec.in accfg-test.spec.in
-
 contrib_configs = contrib/configs/*
-contribdir = $(prefix)/share/accel-config/contrib/configs
+contribdir = $(sysconfdir)/accel-config/contrib/configs
 contrib_DATA = $(contrib_configs)
+
+EXTRA_DIST += $(contrib_configs) accfg.spec.in accfg-test.spec.in
 
 noinst_LIBRARIES = libccan.a
 libccan_a_SOURCES = \
