@@ -1,3 +1,28 @@
+accel-config (3.5.0-1) unstable; urgency=medium
+
+  * Update debian scripts to install contrib/configs in /etc
+  * Update rpm scripts to install contrib/configs in /etc
+  * Install contrib/configs folder in /etc
+  * Rename IAXTEST to IAATEST in test/common
+  * Make error paths more consistent for add_wq, add_group, add_engine
+  * Clean up unused path variable.
+  * Clean up memory leak, and erroneous assignment
+  * Update debian scripts to install test programs in /usr/lib
+  * Update rpm scripts to install test programs in /usr/lib
+  * Install test programs in /usr/lib
+  * Fix some clang scan-build warnings and bugs
+  * Fix various typos and spelling mistakes in code and comments
+  * debian/control: set architecture to just i386 and amd64
+  * debian: libaccel library should be suffixed with 1
+  * test/common: Make bash script executable
+  * debian/copyright: remove trailing comments, clean up linitan
+    warnings
+  * debian/copyright: clean up lintian copyright warnings
+  * debian/copyright: clean up globbing order lintian warnings
+  * debian/rules: add execute bit to script
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Fri, 14 Oct 2022 17:25:50 -0700
+
 accel-config (3.4.8-1) unstable; urgency=medium
 
   * load/unload idxd_vdev and iaa_crypto modules at cleanup
