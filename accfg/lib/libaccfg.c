@@ -1342,6 +1342,8 @@ ACCFG_EXPORT int accfg_device_get_op_cap(struct accfg_device *device,
 		return -errno;
 	oc = accfg_get_param_str(ctx, dfd, "op_cap");
 	close(dfd);
+	if (!oc)
+		return -EIO;
 	rc = sscanf(oc, "%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32
 			",%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32,
 			&op_cap->bits[0], &op_cap->bits[1],
@@ -2146,6 +2148,8 @@ ACCFG_EXPORT int accfg_wq_get_op_config(struct accfg_wq *wq,
 		return -errno;
 	oc = accfg_get_param_str(ctx, dfd, "op_config");
 	close(dfd);
+	if (!oc)
+		return -EIO;
 	rc = sscanf(oc, "%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32
 			",%" SCNx32 ",%" SCNx32 ",%" SCNx32 ",%" SCNx32,
 			&op_config->bits[0], &op_config->bits[1],
