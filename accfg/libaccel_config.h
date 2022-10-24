@@ -192,6 +192,7 @@ unsigned int accfg_device_get_compl_size(struct accfg_device *device);
 int accfg_device_get_op_cap(struct accfg_device *device,
 		struct accfg_op_cap *op_cap);
 uint64_t accfg_device_get_gen_cap(struct accfg_device *device);
+int accfg_device_get_iaa_cap(struct accfg_device *device, uint64_t *iaa_cap);
 unsigned int accfg_device_get_configurable(struct accfg_device *device);
 bool accfg_device_get_pasid_enabled(struct accfg_device  *device);
 bool accfg_device_get_mdev_enabled(struct accfg_device *device);

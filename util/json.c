@@ -148,6 +148,7 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	struct json_object *jobj;
 	struct accfg_error *error;
 	struct accfg_op_cap op_cap;
+	uint64_t iaa_cap;
 	enum accfg_device_state dev_state;
 	int int_val;
 	uint64_t ulong_val;
@@ -245,6 +246,13 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		if (!jobj)
 			goto err;
 		json_object_object_add(jdevice, "op_cap", jobj);
+	}
+
+	if (!accfg_device_get_iaa_cap(device, &iaa_cap)) {
+		jobj = util_json_object_hex(iaa_cap, flags);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "iaa_cap", jobj);
 	}
 
 	jobj = util_json_object_hex(accfg_device_get_gen_cap(device), flags);

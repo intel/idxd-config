@@ -193,4 +193,5 @@ global:
 LIBACCFG_14 {
 global:
 	accfg_device_get_compl_size;
+	accfg_device_get_iaa_cap;
 } LIBACCFG_13;

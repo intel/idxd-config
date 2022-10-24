@@ -1364,6 +1364,35 @@ ACCFG_EXPORT uint64_t accfg_device_get_gen_cap(struct accfg_device *device)
 	return device->gencap;
 }
 
+ACCFG_EXPORT int accfg_device_get_iaa_cap(struct accfg_device *device,
+		uint64_t *iaa_cap)
+{
+	int fd;
+	int rc;
+	struct accfg_ctx *ctx;
+	char *buf;
+
+	if (!device)
+		return -EINVAL;
+
+	ctx = accfg_device_get_ctx(device);
+	fd = open(device->device_path, O_PATH);
+	if (fd < 0)
+		return -errno;
+	buf = accfg_get_param_str(ctx, fd, "iaa_cap");
+	close(fd);
+	if (!buf)
+		return -EIO;
+
+	errno = 0;
+	*iaa_cap = strtoull(buf, NULL, 0);
+	rc = -errno;
+
+	free(buf);
+
+	return rc;
+}
+
 ACCFG_EXPORT unsigned int accfg_device_get_configurable(
 		struct accfg_device *device)
 {
