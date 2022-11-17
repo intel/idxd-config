@@ -35,7 +35,7 @@ static int test_noop(struct acctest_context *ctx, int tflags, int num_desc)
 	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
-	info("testnoop: tflags %#x num_desc %ld\n", tflags, num_desc);
+	info("test noop: tflags %#x num_desc %ld\n", tflags, num_desc);
 
 	ctx->is_batch = 0;
 
@@ -84,7 +84,7 @@ static int test_crc64(struct acctest_context *ctx, size_t buf_size, int tflags,
 	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
-	info("testcrc64: opcode %d len %#lx tflags %#x num_desc %ld extra_flags %#lx\n",
+	info("test crc64: opcode %d len %#lx tflags %#x num_desc %ld extra_flags %#lx\n",
 	     opcode, buf_size, tflags, num_desc, extra_flags);
 
 	ctx->is_batch = 0;
@@ -143,7 +143,7 @@ static int test_zcompress(struct acctest_context *ctx, size_t buf_size,
 	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
-	info("testcrc64: opcode %d len %#lx tflags %#x num_desc %ld\n",
+	info("test zcompress: opcode %d len %#lx tflags %#x num_desc %ld\n",
 	     opcode, buf_size, tflags, num_desc);
 
 	ctx->is_batch = 0;
@@ -230,7 +230,7 @@ static int test_compress(struct acctest_context *ctx, size_t buf_size, int tflag
 	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
-	info("testcompress: opcode %d len %#lx tflags %#x num_desc %ld extra_flags %#lx\n",
+	info("test compress: opcode %d len %#lx tflags %#x num_desc %ld extra_flags %#lx\n",
 	     opcode, buf_size, tflags, num_desc, extra_flags);
 
 	ctx->is_batch = 0;
@@ -299,7 +299,7 @@ static int test_filter(struct acctest_context *ctx, size_t buf_size, int tflags,
 	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
-	info("testcrc64: opcode %d len %#lx tflags %#x num_desc %ld\n",
+	info("test filter: opcode %d len %#lx tflags %#x num_desc %ld\n",
 	     opcode, buf_size, tflags, num_desc);
 
 	ctx->is_batch = 0;
