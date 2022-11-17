@@ -42,7 +42,7 @@ static int test_noop(struct acctest_context *ctx, int tflags, int num_desc)
 	if (ctx->dedicated == ACCFG_WQ_SHARED)
 		range = ctx->threshold;
 	else
-		range = ctx->wq_size - 1;
+		range = ctx->wq_size;
 
 	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
 		i = (itr < range) ? itr : range;
