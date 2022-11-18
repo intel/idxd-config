@@ -50,7 +50,7 @@ static int cmd_help(int argc, const char **argv, void *ctx)
 		return 0;
 	}
 
-	return help_show_man_page(argv[0], "accfg", "ACCFG_MAN_VIEWER");
+	return help_show_man_page(argv[0], "accel-config", "ACCFG_MAN_VIEWER");
 }
 
 static struct cmd_struct commands[] = {
