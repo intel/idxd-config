@@ -176,7 +176,6 @@ OPTIONS
 --engines::
 	Include active engine info in the listing
 
-TO BE CHANGED
 -i::
 --idle::
 	Include both idle (not enabled) and active devices in the listing
