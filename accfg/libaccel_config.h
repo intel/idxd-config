@@ -110,6 +110,7 @@ struct group_parameters {
 	unsigned int use_read_buffer_limit;
 	int traffic_class_a;
 	int traffic_class_b;
+	int desc_progress_limit;
 };
 
 struct wq_parameters {
@@ -273,6 +274,8 @@ int accfg_group_set_use_token_limit(struct accfg_group *group, int val)
 int accfg_group_set_use_read_buffer_limit(struct accfg_group *group, int val);
 int accfg_group_set_traffic_class_a(struct accfg_group *group, int val);
 int accfg_group_set_traffic_class_b(struct accfg_group *group, int val);
+int accfg_group_get_desc_progress_limit(struct accfg_group *group);
+int accfg_group_set_desc_progress_limit(struct accfg_group *group, int val);
 
 /* libaccfg function for wq */
 struct accfg_wq;

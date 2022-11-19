@@ -194,4 +194,6 @@ LIBACCFG_14 {
 global:
 	accfg_device_get_compl_size;
 	accfg_device_get_iaa_cap;
+	accfg_group_get_desc_progress_limit;
+	accfg_group_set_desc_progress_limit;
 } LIBACCFG_13;

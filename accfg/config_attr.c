@@ -26,7 +26,8 @@ static struct group_parameters group_param = {
 	.read_buffers_allowed = UINT_MAX,
 	.use_read_buffer_limit = UINT_MAX,
 	.traffic_class_a = INT_MAX,
-	.traffic_class_b = INT_MAX
+	.traffic_class_b = INT_MAX,
+	.desc_progress_limit = INT_MAX,
 };
 
 static struct wq_parameters wq_param = {
@@ -72,6 +73,14 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 			group_params->read_buffers_reserved >= UCHAR_MAX) {
 		fprintf(stderr,
 			"configured read-buffers-reserved for group is not within range\n");
+		return -EINVAL;
+	}
+
+	if (group_params->desc_progress_limit != INT_MAX &&
+			(group_params->desc_progress_limit < 0 ||
+			 group_params->desc_progress_limit > 3)) {
+		fprintf(stderr,
+			"configured desc-progress-limit reserved for group is not within range\n");
 		return -EINVAL;
 	}
 
@@ -134,6 +143,13 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 	if (group_params->traffic_class_b != INT_MAX) {
 		rc = accfg_group_set_traffic_class_b(group,
 			group_params->traffic_class_b);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (group_params->desc_progress_limit != INT_MAX) {
+		rc = accfg_group_set_desc_progress_limit(group,
+			group_params->desc_progress_limit);
 		if (rc < 0)
 			return rc;
 	}
@@ -391,6 +407,9 @@ int cmd_config_group(int argc, const char **argv, void *ctx)
 		OPT_INTEGER('b', "traffic-class-b",
 			    &group_param.traffic_class_b,
 			    "specify traffic-class-b by group"),
+		OPT_INTEGER('d', "desc-progress-limit",
+			     &group_param.desc_progress_limit,
+			     "specify desc progress limit for group"),
 		OPT_END(),
 	};
 

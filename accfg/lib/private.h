@@ -88,6 +88,7 @@ struct accfg_group {
 	unsigned int use_read_buffer_limit;
 	int traffic_class_a;
 	int traffic_class_b;
+	unsigned int desc_progress_limit;
 };
 
 struct accfg_engine {

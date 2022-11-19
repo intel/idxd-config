@@ -55,6 +55,7 @@ static struct json_object *group_to_json(struct accfg_group *group,
 	struct json_object *jgroup = json_object_new_object();
 	struct json_object *jobj = NULL;
 	struct accfg_device *dev = NULL;
+	int dpl;
 
 	dev = accfg_group_get_device(group);
 
@@ -97,6 +98,16 @@ static struct json_object *group_to_json(struct accfg_group *group,
 		goto err;
 
 	json_object_object_add(jgroup, "traffic_class_b", jobj);
+
+	dpl = accfg_group_get_desc_progress_limit(group);
+	if (dpl >= 0) {
+		jobj = json_object_new_int(dpl);
+		if (!jobj)
+			goto err;
+
+		json_object_object_add(jgroup, "desc_progress_limit", jobj);
+	}
+
 	return jgroup;
 
 err:
