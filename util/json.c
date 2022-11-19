@@ -397,6 +397,7 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	enum accfg_wq_state wq_state;
 	struct accfg_op_config op_config;
 	int int_val;
+	int pd;
 
 	if (!jaccfg)
 		return NULL;
@@ -476,6 +477,13 @@ struct json_object *util_wq_to_json(struct accfg_wq *wq,
 	jobj = json_object_new_int(accfg_wq_get_threshold(wq));
 	if (jobj)
 		json_object_object_add(jaccfg, "threshold", jobj);
+
+	pd = accfg_wq_get_prs_disable(wq);
+	if (pd >= 0) {
+		jobj = json_object_new_int(pd);
+		if (jobj)
+			json_object_object_add(jaccfg, "prs_disable", jobj);
+	}
 
 	jobj = json_object_new_int(accfg_wq_get_ats_disable(wq));
 	if (jobj)

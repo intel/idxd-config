@@ -130,6 +130,7 @@ struct accfg_wq {
 	unsigned int max_batch_size;
 	uint64_t max_transfer_size;
 	int ats_disable;
+	int prs_disable;
 };
 
 #define ACCFG_EXPORT __attribute__ ((visibility("default")))

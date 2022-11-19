@@ -40,6 +40,7 @@ static struct wq_parameters wq_param = {
 	.max_batch_size = INT_MAX,
 	.max_transfer_size = INT_MAX,
 	.ats_disable = INT_MAX,
+	.prs_disable = INT_MAX,
 };
 
 static struct engine_parameters engine_param;
@@ -217,6 +218,13 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 		return -EINVAL;
 	}
 
+	if (wq_params->prs_disable > 1
+		&& (wq_params->prs_disable != INT_MAX)) {
+		fprintf(stderr,
+			"prs-disable value should be either 0 or 1\n");
+		return -EINVAL;
+	}
+
 	if ((wq_params->max_batch_size < 1
 		|| wq_params->max_batch_size > max_batch_size)
 		&& (wq_params->max_batch_size != INT_MAX)) {
@@ -300,6 +308,13 @@ static int accel_config_parse_wq_attribs(struct accfg_device *device,
 	if (wq_params->block_on_fault != INT_MAX) {
 		rc = accfg_wq_set_block_on_fault(wq,
 					wq_params->block_on_fault);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (wq_params->prs_disable != INT_MAX) {
+		rc = accfg_wq_set_prs_disable(wq,
+					wq_params->prs_disable);
 		if (rc < 0)
 			return rc;
 	}
@@ -481,6 +496,8 @@ int cmd_config_wq(int argc, const char **argv, void *ctx)
 			    "specify priority used by wq"),
 		OPT_INTEGER('b', "block-on-fault", &wq_param.block_on_fault,
 			    "specify block-on-fault by wq"),
+		OPT_INTEGER('r', "prs-disable", &wq_param.prs_disable,
+			    "specify prs-disable for wq"),
 		OPT_UINTEGER('t', "threshold", &wq_param.threshold,
 			    "specify threshold by wq"),
 		OPT_STRING('y', "type", &wq_param.type, "type",

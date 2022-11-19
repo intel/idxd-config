@@ -821,6 +821,7 @@ static void *add_wq(void *parent, int id, const char *wq_base,
 	wq->max_batch_size =  accfg_get_param_long(ctx, dfd, "max_batch_size");
 	wq->max_transfer_size =  accfg_get_param_long(ctx, dfd, "max_transfer_size");
 	wq->ats_disable = accfg_get_param_long(ctx, dfd, "ats_disable");
+	wq->prs_disable = accfg_get_param_long(ctx, dfd, "prs_disable");
 
 	wq_parse_type(wq, wq_type);
 	free(wq_type);
@@ -2509,6 +2510,7 @@ accfg_wq_set_field(wq, val, block_on_fault)
 accfg_wq_set_field(wq, val, threshold)
 accfg_wq_set_field(wq, val, max_batch_size)
 accfg_wq_set_field(wq, val, ats_disable)
+accfg_wq_set_field(wq, val, prs_disable)
 
 #define accfg_wq_set_long_field(wq, val, field) \
 ACCFG_EXPORT int accfg_wq_set_##field( \
@@ -2644,6 +2646,7 @@ accfg_wq_get_field(wq, threshold)
 accfg_wq_get_field(wq, group_id)
 accfg_wq_get_field(wq, block_on_fault)
 accfg_wq_get_field(wq, ats_disable)
+accfg_wq_get_field(wq, prs_disable)
 
 ACCFG_EXPORT int accfg_wq_set_mode(struct accfg_wq *wq,
 		enum accfg_wq_mode wq_mode)

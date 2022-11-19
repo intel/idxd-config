@@ -123,6 +123,7 @@ struct wq_parameters {
 	unsigned int max_batch_size;
 	uint64_t max_transfer_size;
 	int ats_disable;
+	int prs_disable;
 	const char *mode;
 	const char *type;
 	const char *name;
@@ -340,6 +341,8 @@ int accfg_wq_get_op_config(struct accfg_wq *wq,
 int accfg_wq_set_op_config(struct accfg_wq *wq,
 		struct accfg_op_config *op_config);
 int accfg_wq_set_op_config_str(struct accfg_wq *wq, const char *op_config);
+int accfg_wq_get_prs_disable(struct accfg_wq *wq);
+int accfg_wq_set_prs_disable(struct accfg_wq *wq, int val);
 
 /* libaccfg function for engine */
 struct accfg_engine;

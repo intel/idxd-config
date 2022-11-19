@@ -198,4 +198,6 @@ global:
 	accfg_group_set_desc_progress_limit;
 	accfg_group_get_batch_progress_limit;
 	accfg_group_set_batch_progress_limit;
+	accfg_wq_get_prs_disable;
+	accfg_wq_set_prs_disable;
 } LIBACCFG_13;

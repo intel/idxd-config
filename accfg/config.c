@@ -115,6 +115,7 @@ static const struct group_set_table group_table[] = {
 };
 
 static bool is_wq_threshold_writable(struct accfg_wq *wq, int val);
+static bool is_wq_prs_disable_writable(struct accfg_wq *wq, int val);
 
 static const struct wq_set_table wq_table[] = {
 	{ "size", accfg_wq_set_size, NULL, NULL, NULL },
@@ -131,6 +132,8 @@ static const struct wq_set_table wq_table[] = {
 	{ "threshold", accfg_wq_set_threshold, NULL, NULL,
 		is_wq_threshold_writable },
 	{ "ats_disable", accfg_wq_set_ats_disable, NULL, NULL, NULL },
+	{ "prs_disable", accfg_wq_set_prs_disable, NULL, NULL,
+		is_wq_prs_disable_writable },
 };
 
 static const struct engine_set_table engine_table[] = {
@@ -211,6 +214,17 @@ static bool is_group_traffic_class_writable(struct accfg_group *group,
 static bool is_wq_threshold_writable(struct accfg_wq *wq, int val)
 {
 	if (accfg_wq_get_mode(wq) == ACCFG_WQ_DEDICATED)
+		return false;
+
+	return true;
+}
+
+static bool is_wq_prs_disable_writable(struct accfg_wq *wq, int val)
+{
+	if (val < 0 || val > 1)
+		return false;
+
+	if (accfg_wq_get_prs_disable(wq) < 0)
 		return false;
 
 	return true;
