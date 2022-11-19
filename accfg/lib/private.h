@@ -50,6 +50,7 @@ struct accfg_device {
 	int configurable;
 	int max_read_buffers;
 	unsigned int read_buffer_limit;
+	int event_log_size;
 	unsigned int cdev_major;
 	unsigned int version;
 	uint64_t max_transfer_size;

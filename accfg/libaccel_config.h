@@ -96,6 +96,7 @@ struct accfg_op_config {
 struct dev_parameters {
 	unsigned int token_limit __attribute((deprecated));
 	unsigned int read_buffer_limit;
+	int event_log_size;
 };
 
 extern char *accfg_basenames[];
@@ -214,6 +215,8 @@ int accfg_device_get_clients(struct accfg_device *device);
 int accfg_device_set_token_limit(struct accfg_device *dev, int val)
 	__attribute((deprecated));
 int accfg_device_set_read_buffer_limit(struct accfg_device *dev, int val);
+int accfg_device_get_event_log_size(struct accfg_device *device);
+int accfg_device_set_event_log_size(struct accfg_device *dev, int val);
 int accfg_device_is_active(struct accfg_device *device);
 unsigned int accfg_device_get_cmd_status(struct accfg_device *device);
 const char *accfg_device_get_cmd_status_str(struct accfg_device *device);

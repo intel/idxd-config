@@ -19,7 +19,13 @@
 #include <sys/stat.h>
 #include <accfg.h>
 
-static struct dev_parameters dev_param;
+#define DEV_EVL_SIZE_MIN	0x0040
+#define DEV_EVL_SIZE_MAX	0xffff
+
+static struct dev_parameters dev_param = {
+	.read_buffer_limit = UINT_MAX,
+	.event_log_size = INT_MAX,
+};
 
 static struct group_parameters group_param = {
 	.read_buffers_reserved = UINT_MAX,
@@ -50,9 +56,28 @@ static int accel_config_parse_device_attribs(struct accfg_device *dev,
 {
 	int rc = 0;
 
-	rc = accfg_device_set_read_buffer_limit(dev, device_param->read_buffer_limit);
-	if (rc < 0)
-		return rc;
+	if ((device_param->event_log_size != INT_MAX) &&
+			(device_param->event_log_size < DEV_EVL_SIZE_MIN ||
+			 device_param->event_log_size > DEV_EVL_SIZE_MAX)) {
+		fprintf(stderr,
+			"configured event-log-size for device is not within range (%d-%d)\n",
+			DEV_EVL_SIZE_MIN, DEV_EVL_SIZE_MAX);
+		return -EINVAL;
+	}
+
+	if (device_param->read_buffer_limit != UINT_MAX) {
+		rc = accfg_device_set_read_buffer_limit(dev,
+				device_param->read_buffer_limit);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (device_param->event_log_size != INT_MAX) {
+		rc = accfg_device_set_event_log_size(dev,
+				device_param->event_log_size);
+		if (rc < 0)
+			return rc;
+	}
 
 	return 0;
 }
@@ -378,6 +403,8 @@ int cmd_config_device(int argc, const char **argv, void *ctx)
 	const struct option options[] = {
 		OPT_UINTEGER('l', "read-buffer-limit", &dev_param.read_buffer_limit,
 			     "specify read buffer limit by device"),
+		OPT_INTEGER('e', "event-log-size", &dev_param.event_log_size,
+			     "specify event log size for device"),
 		OPT_END(),
 	};
 

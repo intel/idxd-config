@@ -160,6 +160,7 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	char uuid_string[UUID_STR_LEN];
 	int mdev_found = 0;
 	struct json_object *json_mdev;
+	int evls;
 
 	if (!jdevice)
 		return NULL;
@@ -187,6 +188,14 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 		goto err;
 	if (accfg_device_get_type(device) != ACCFG_DEVICE_IAX)
 		json_object_object_add(jdevice, "read_buffer_limit", jobj);
+
+	evls = accfg_device_get_event_log_size(device);
+	if (evls >= 0) {
+		jobj = json_object_new_int(evls);
+		if (!jobj)
+			goto err;
+		json_object_object_add(jdevice, "event_log_size", jobj);
+	}
 
 	if (flags & UTIL_JSON_SAVE) {
 		free(error);

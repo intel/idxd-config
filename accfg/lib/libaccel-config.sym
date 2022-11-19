@@ -200,4 +200,6 @@ global:
 	accfg_group_set_batch_progress_limit;
 	accfg_wq_get_prs_disable;
 	accfg_wq_set_prs_disable;
+	accfg_device_get_event_log_size;
+	accfg_device_set_event_log_size;
 } LIBACCFG_13;
