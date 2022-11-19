@@ -55,7 +55,7 @@ static struct json_object *group_to_json(struct accfg_group *group,
 	struct json_object *jgroup = json_object_new_object();
 	struct json_object *jobj = NULL;
 	struct accfg_device *dev = NULL;
-	int dpl;
+	int dpl, gpl;
 
 	dev = accfg_group_get_device(group);
 
@@ -106,6 +106,15 @@ static struct json_object *group_to_json(struct accfg_group *group,
 			goto err;
 
 		json_object_object_add(jgroup, "desc_progress_limit", jobj);
+	}
+
+	gpl = accfg_group_get_batch_progress_limit(group);
+	if (gpl >= 0) {
+		jobj = json_object_new_int(gpl);
+		if (!jobj)
+			goto err;
+
+		json_object_object_add(jgroup, "batch_progress_limit", jobj);
 	}
 
 	return jgroup;

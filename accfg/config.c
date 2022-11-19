@@ -88,6 +88,8 @@ static bool is_group_read_buffer_limit_writable(struct accfg_group *group,
 		int val);
 static bool is_group_desc_progress_limit_writable(struct accfg_group *group,
 		int val);
+static bool is_group_batch_progress_limit_writable(struct accfg_group *group,
+		int val);
 
 static const struct group_set_table group_table[] = {
 	{ "tokens_reserved", accfg_group_set_read_buffers_reserved, NULL,
@@ -108,6 +110,8 @@ static const struct group_set_table group_table[] = {
 		is_group_traffic_class_writable},
 	{ "desc_progress_limit", accfg_group_set_desc_progress_limit, NULL,
 		is_group_desc_progress_limit_writable },
+	{ "batch_progress_limit", accfg_group_set_batch_progress_limit, NULL,
+		is_group_batch_progress_limit_writable },
 };
 
 static bool is_wq_threshold_writable(struct accfg_wq *wq, int val);
@@ -172,6 +176,18 @@ static bool is_group_desc_progress_limit_writable(struct accfg_group *group,
 		return false;
 
 	if (accfg_group_get_desc_progress_limit(group) < 0)
+		return false;
+
+	return true;
+}
+
+static bool is_group_batch_progress_limit_writable(struct accfg_group *group,
+		int val)
+{
+	if (val < 0 || val > 3)
+		return false;
+
+	if (accfg_group_get_batch_progress_limit(group) < 0)
 		return false;
 
 	return true;
@@ -696,7 +712,7 @@ static struct json_object *config_group_to_json(struct accfg_group *group,
 {
 	struct json_object *jgroup = json_object_new_object();
 	struct json_object *jobj = NULL;
-	int dpl;
+	int dpl, gpl;
 
 	if (!jgroup)
 		return NULL;
@@ -741,6 +757,15 @@ static struct json_object *config_group_to_json(struct accfg_group *group,
 			goto err;
 
 		json_object_object_add(jgroup, "desc_progress_limit", jobj);
+	}
+
+	gpl = accfg_group_get_batch_progress_limit(group);
+	if (gpl >= 0) {
+		jobj = json_object_new_int(gpl);
+		if (!jobj)
+			goto err;
+
+		json_object_object_add(jgroup, "batch_progress_limit", jobj);
 	}
 
 	return jgroup;

@@ -909,6 +909,8 @@ static void *add_group(void *parent, int id, const char *group_base,
 			"traffic_class_b");
 	group->desc_progress_limit = accfg_get_param_long(ctx, dfd,
 			"desc_progress_limit");
+	group->batch_progress_limit = accfg_get_param_long(ctx, dfd,
+			"batch_progress_limit");
 
 	close(dfd);
 	group->group_buf = calloc(1, strlen(group_base) + MAX_BUF_LEN);
@@ -1964,6 +1966,7 @@ accfg_group_set_field(group, val, use_read_buffer_limit)
 accfg_group_set_field(group, val, traffic_class_a)
 accfg_group_set_field(group, val, traffic_class_b)
 accfg_group_set_field(group, val, desc_progress_limit)
+accfg_group_set_field(group, val, batch_progress_limit)
 
 #define accfg_group_get_field(group, field) \
 ACCFG_EXPORT int accfg_group_get_##field( \
@@ -1978,6 +1981,7 @@ accfg_group_get_field(group, use_read_buffer_limit);
 accfg_group_get_field(group, traffic_class_a);
 accfg_group_get_field(group, traffic_class_b);
 accfg_group_get_field(group, desc_progress_limit);
+accfg_group_get_field(group, batch_progress_limit);
 
 static void wqs_init(struct accfg_device *device)
 {

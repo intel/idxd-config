@@ -28,6 +28,7 @@ static struct group_parameters group_param = {
 	.traffic_class_a = INT_MAX,
 	.traffic_class_b = INT_MAX,
 	.desc_progress_limit = INT_MAX,
+	.batch_progress_limit = INT_MAX,
 };
 
 static struct wq_parameters wq_param = {
@@ -81,6 +82,14 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 			 group_params->desc_progress_limit > 3)) {
 		fprintf(stderr,
 			"configured desc-progress-limit reserved for group is not within range\n");
+		return -EINVAL;
+	}
+
+	if (group_params->batch_progress_limit != INT_MAX &&
+			(group_params->batch_progress_limit < 0 ||
+			 group_params->batch_progress_limit > 3)) {
+		fprintf(stderr,
+			"configured batch-progress-limit reserved for group is not within range\n");
 		return -EINVAL;
 	}
 
@@ -150,6 +159,13 @@ static int accel_config_parse_group_attribs(struct accfg_group *group,
 	if (group_params->desc_progress_limit != INT_MAX) {
 		rc = accfg_group_set_desc_progress_limit(group,
 			group_params->desc_progress_limit);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (group_params->batch_progress_limit != INT_MAX) {
+		rc = accfg_group_set_batch_progress_limit(group,
+			group_params->batch_progress_limit);
 		if (rc < 0)
 			return rc;
 	}
@@ -410,6 +426,9 @@ int cmd_config_group(int argc, const char **argv, void *ctx)
 		OPT_INTEGER('d', "desc-progress-limit",
 			     &group_param.desc_progress_limit,
 			     "specify desc progress limit for group"),
+		OPT_INTEGER('p', "batch-progress-limit",
+			     &group_param.batch_progress_limit,
+			     "specify batch progress limit for group"),
 		OPT_END(),
 	};
 
