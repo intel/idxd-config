@@ -1,3 +1,12 @@
+accel-config (3.5.1-1) unstable; urgency=medium
+
+  * Fix a bug in the --help option
+  * Modify incorrect print information
+  * Fix dedicated mode wq size 1 failure
+  * Remove redundant -f 0x0 in iaa_user_test_runner.sh
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Wed, 23 Nov 2022 11:43:32 -0800
+
 accel-config (3.5.0-1) unstable; urgency=medium
 
   * Update debian scripts to install contrib/configs in /etc
