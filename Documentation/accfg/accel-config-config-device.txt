@@ -26,4 +26,9 @@ OPTIONS
 	low bandwidth memory across the entire device. read-buffer-limit should be
 	more than 0.
 
+-e::
+--event-log-size=::
+	Indicates the number of entries in the event log. The valid range is
+	64-65535.
+
 include::../copyright.txt[]

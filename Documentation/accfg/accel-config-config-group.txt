@@ -53,4 +53,18 @@ OPTIONS
 	specify traffic class B for this group, it should be larger
 	than 0 and less than 8.
 
+-d::
+--desc-progress-limit=::
+	Controls the number of work descriptors that can be concurrently
+	processed by an engine in the group. Range of valid values are 0, 1, 2
+	and 3 for max, 1/2, 1/4 and 1/8 respectively that the engine is capable
+	of.
+
+-p::
+--batch-progress-limit=::
+	Controls the number of batch descriptors that can be concurrently
+	processed by an engine in the group. Range of valid values are 0, 1, 2
+	and 3 for max, 1/2, 1/4 and 1/8 respectively that the engine is capable
+	of.
+
 include::../copyright.txt[]
