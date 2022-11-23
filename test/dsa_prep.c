@@ -29,8 +29,8 @@ void dsa_prep_drain(struct task *tsk)
 	if (tsk->opcode == DSA_OPCODE_MEMMOVE)
 		tsk->opcode = DSA_OPCODE_DRAIN;
 
-	acctest_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
-				 (uint64_t)(tsk->src1), 0, tsk->dflags);
+	acctest_prep_desc_common(tsk->desc, tsk->opcode, 0,
+				 0, 0, tsk->dflags);
 	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
 	tsk->comp->status = 0;
 }
