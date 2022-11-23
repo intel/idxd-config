@@ -89,6 +89,10 @@ test_op_batch()
 	local wq_mode_name
 	local xfer_size
 
+    if [ $opcode == "0x2" ];then
+        return 0
+    fi
+
 	for wq_mode_code in 0 1; do
 		wq_mode_name=$(wq_mode2name "$wq_mode_code")
 		echo "Performing $wq_mode_name WQ batched $op_name testing"
@@ -100,6 +104,55 @@ test_op_batch()
 	done
 }
 
+# Test operation with a given opcode
+# $1: opcode (e.g. 0x3 for memmove)
+# $2: flag (optional, default 0x3 for BOF on, 0x2 for BOF off)
+#
+test_dif_op()
+{
+	local opcode="$1"
+	local flag="$2"
+	local op_name
+	op_name=$(opcode2name "$opcode")
+	local wq_mode_code
+	local wq_mode_name
+	local xfer_size
+
+	for wq_mode_code in 0 1; do
+		wq_mode_name=$(wq_mode2name "$wq_mode_code")
+		echo "Performing $wq_mode_name WQ $op_name testing"
+		for xfer_size in $SIZE_512 $SIZE_1K $SIZE_4K; do
+			echo "Testing $xfer_size bytes"
+			"$DSATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
+				-f "$flag" t200 -v
+		done
+	done
+}
+
+# Test operation in batch mode with a given opcode
+# $1: opcode (e.g. 0x3 for memmove)
+# $2: flag (optional, default 0x3 for BOF on, 0x2 for BOF off)
+#
+test_dif_op_batch()
+{
+	local opcode="$1"
+	local flag="$2"
+	local op_name
+	op_name=$(opcode2name "$opcode")
+	local wq_mode_code
+	local wq_mode_name
+	local xfer_size
+
+	for wq_mode_code in 0 1; do
+		wq_mode_name=$(wq_mode2name "$wq_mode_code")
+		echo "Performing $wq_mode_name WQ batched $op_name testing"
+		for xfer_size in $SIZE_512 $SIZE_1K $SIZE_4K; do
+			echo "Testing $xfer_size bytes"
+			"$DSATEST" -w "$wq_mode_code" -l "$xfer_size" -o 0x1 -b "$opcode" \
+				-c 16 -f "$flag" t2000 -v
+		done
+	done
+}
 _cleanup
 start_dsa
 enable_wqs
@@ -108,16 +161,31 @@ rc="$EXIT_FAILURE"
 
 flag="0x1"
 echo "Testing with 'block on fault' flag ON"
-for opcode in "0x3" "0x4" "0x5" "0x6" "0x9"; do
+for opcode in "0x0" "0x2" "0x3" "0x4" "0x5" "0x6" "0x9" "0x10" "0x11" "0x20"; do
 	test_op $opcode $flag
 	test_op_batch $opcode $flag
 done
 
 flag="0x0"
 echo "Testing with 'block on fault' flag OFF"
-for opcode in "0x3" "0x4" "0x5" "0x6" "0x9"; do
+for opcode in "0x0" "0x2" "0x3" "0x4" "0x5" "0x6" "0x9" "0x10" "0x11" "0x20"; do
 	test_op $opcode $flag
 	test_op_batch $opcode $flag
+done
+
+# For DIF
+flag="0x1"
+echo "Testing with 'block on fault' flag ON"
+for opcode in "0x12" "0x13" "0x14" "0x15"; do
+	test_dif_op $opcode $flag
+	test_dif_op_batch $opcode $flag
+done
+
+flag="0x0"
+echo "Testing with 'block on fault' flag OFF"
+for opcode in "0x12" "0x13" "0x14" "0x15"; do
+	test_dif_op $opcode $flag
+	test_dif_op_batch $opcode $flag
 done
 
 disable_wqs

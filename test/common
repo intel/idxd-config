@@ -157,6 +157,12 @@ opcode2name()
 	local opcode="$1"
 	dec_opcode=$((opcode))
 	case $dec_opcode in
+	"0")
+		echo "NOOP"
+		;;
+	"2")
+		echo "DRAIN"
+		;;
 	"3")
 		echo "MEMMOVE"
 		;;
@@ -169,8 +175,35 @@ opcode2name()
 	"6")
 		echo "COMPVAL"
 		;;
+	"7")
+		echo "CR_DELTA"
+		;;
+	"8")
+		echo "AP_DELTA"
+		;;
 	"9")
 		echo "DUALCAST"
+		;;
+	"16")
+		echo "CRCGEN"
+		;;
+	"17")
+		echo "COPY_CRC"
+		;;
+	"18")
+		echo "DIF_CHECK"
+		;;
+	"19")
+		echo "DIF_INS"
+		;;
+	"20")
+		echo "DIF_STRP"
+		;;
+	"21")
+		echo "DIF_UPDT"
+		;;
+	"32")
+		echo "CFLUSH"
 		;;
 	*)
 		echo "UNKNOWN"
