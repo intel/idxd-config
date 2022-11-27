@@ -84,6 +84,7 @@ enum dsa_opcode {
 	DSA_OPCODE_DIF_INS,
 	DSA_OPCODE_DIF_STRP,
 	DSA_OPCODE_DIF_UPDT,
+	DSA_OPCODE_DIX_GEN = 0x17,
 	DSA_OPCODE_CFLUSH = 0x20,
 	DSA_OPCODE_UPDATE_WIN,
 	DSA_OPCODE_RS_IPASID_MEMCOPY = 0x23,
@@ -417,6 +418,14 @@ struct completion_record {
 			uint32_t	dif_upd_dest_ref_tag;
 			uint16_t	dif_upd_dest_app_tag_mask;
 			uint16_t	dif_upd_dest_app_tag;
+		};
+
+		/* DIX generate */
+		struct {
+			uint64_t        dix_gen_res;
+			uint32_t        dix_ref_tag;
+			uint16_t        dix_app_tag_mask;
+			uint16_t        dix_app_tag;
 		};
 
 		/* IAX common */

@@ -139,6 +139,7 @@ static int test_batch(struct acctest_context *ctx, struct evl_desc_list *edl, si
 				break;
 
 			case DSA_OPCODE_DIF_INS:
+			case DSA_OPCODE_DIX_GEN:
 				dsa_prep_batch_dif_insert(btsk_node->btsk);
 				break;
 
@@ -355,6 +356,7 @@ static int test_dif(struct acctest_context *ctx, size_t buf_size,
 			break;
 
 		case DSA_OPCODE_DIF_INS:
+		case DSA_OPCODE_DIX_GEN:
 			rc = dsa_dif_ins_multi_task_nodes(ctx);
 			if (rc != ACCTEST_STATUS_OK)
 				return rc;
@@ -949,6 +951,7 @@ int main(int argc, char *argv[])
 	case DSA_OPCODE_DIF_INS:
 	case DSA_OPCODE_DIF_STRP:
 	case DSA_OPCODE_DIF_UPDT:
+	case DSA_OPCODE_DIX_GEN:
 		rc = test_dif(dsa, buf_size, tflags, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;

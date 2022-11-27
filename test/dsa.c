@@ -502,6 +502,7 @@ int init_task(struct task *tsk, int tflags, int opcode,
 		break;
 
 	case DSA_OPCODE_DIF_INS:
+	case DSA_OPCODE_DIX_GEN:
 		rc = init_dif_ins(tsk, tflags, opcode, xfer_size);
 		break;
 
@@ -1521,6 +1522,10 @@ int task_result_verify(struct task *tsk, int mismatch_expected)
 
 		rc = task_result_verify_dif_tags(tsk, tsk->xfer_size - 8 * tsk->blks);
 		return rc;
+	case DSA_OPCODE_DIX_GEN:
+		rc = task_result_verify_dif(tsk, tsk->xfer_size, mismatch_expected);
+		if (rc != ACCTEST_STATUS_OK)
+			return rc;
 	}
 
 	info("test with op %d passed\n", tsk->opcode);
