@@ -319,6 +319,33 @@ void dsa_prep_batch_dualcast(struct batch_task *btsk)
 	}
 }
 
+void dsa_prep_transl_fetch(struct task *tsk)
+{
+	info("preparing descriptor for transl fetch\n");
+
+	acctest_prep_desc_common(tsk->desc, tsk->opcode, 0,
+				 (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+}
+
+void dsa_prep_batch_transl_fetch(struct batch_task *btsk)
+{
+	int i;
+	struct task *sub_task;
+
+	for (i = 0; i < btsk->task_num; i++) {
+		sub_task = &btsk->sub_tasks[i];
+		acctest_prep_desc_common(sub_task->desc, sub_task->opcode,
+					 0,
+					 (uint64_t)(sub_task->src1),
+					 sub_task->xfer_size,
+					 sub_task->dflags);
+		sub_task->desc->completion_addr = (uint64_t)(sub_task->comp);
+		sub_task->comp->status = 0;
+	}
+}
+
 void dsa_prep_batch_cr_delta(struct batch_task *btsk)
 {
 	int i;

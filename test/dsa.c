@@ -158,6 +158,21 @@ int init_dualcast(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 	return ACCTEST_STATUS_OK;
 }
 
+int init_transl_fetch(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
+{
+	unsigned long force_align = ADDR_ALIGNMENT;
+
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+	tsk->xfer_size = xfer_size;
+
+	tsk->src1 = aligned_alloc(force_align, tsk->xfer_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+
+	return ACCTEST_STATUS_OK;
+}
+
 int init_cr_delta(struct task *tsk, int tflags, int opcode, unsigned long xfer_size)
 {
 	unsigned long force_align = ADDR_ALIGNMENT;
@@ -482,6 +497,10 @@ int init_task(struct task *tsk, int tflags, int opcode,
 
 	case DSA_OPCODE_DUALCAST:
 		rc = init_dualcast(tsk, tflags, opcode, xfer_size);
+		break;
+
+	case DSA_OPCODE_TRANSL_FETCH:
+		rc = init_transl_fetch(tsk, tflags, opcode, xfer_size);
 		break;
 
 	case DSA_OPCODE_AP_DELTA:
@@ -1028,6 +1047,53 @@ int dsa_dualcast_multi_task_nodes(struct acctest_context *ctx)
 	tsk_node = ctx->multi_task_node;
 	while (tsk_node) {
 		ret = dsa_wait_dualcast(ctx, tsk_node->tsk);
+		if (ret != ACCTEST_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+
+	return ret;
+}
+
+int dsa_wait_transl_fetch(struct acctest_context *ctx, struct task *tsk)
+{
+	struct completion_record *comp = tsk->comp;
+	int rc;
+
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
+	if (rc < 0) {
+		err("transl fetch desc timeout\n");
+		return ACCTEST_STATUS_TIMEOUT;
+	}
+
+	return ACCTEST_STATUS_OK;
+}
+
+int dsa_transl_fetch_multi_task_nodes(struct acctest_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = ACCTEST_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR;
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		dsa_prep_transl_fetch(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all transl fetch jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = dsa_wait_transl_fetch(ctx, tsk_node->tsk);
 		if (ret != ACCTEST_STATUS_OK)
 			info("Desc: %p failed with ret: %d\n",
 			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);

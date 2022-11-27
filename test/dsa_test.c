@@ -118,6 +118,10 @@ static int test_batch(struct acctest_context *ctx, struct evl_desc_list *edl, si
 				dsa_prep_batch_dualcast(btsk_node->btsk);
 				break;
 
+			case DSA_OPCODE_TRANSL_FETCH:
+				dsa_prep_batch_transl_fetch(btsk_node->btsk);
+				break;
+
 			case DSA_OPCODE_CR_DELTA:
 				dsa_prep_batch_cr_delta(btsk_node->btsk);
 				break;
@@ -583,6 +587,16 @@ static int test_memory(struct acctest_context *ctx, size_t buf_size,
 			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
+		case DSA_OPCODE_TRANSL_FETCH:
+			rc = dsa_transl_fetch_multi_task_nodes(ctx);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			/* Verification of all the nodes*/
+			rc = task_result_verify_task_nodes(ctx, 0);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+			break;
 		case DSA_OPCODE_CFLUSH:
 			rc = dsa_cflush_multi_task_nodes(ctx);
 			if (rc != ACCTEST_STATUS_OK)
@@ -927,6 +941,7 @@ int main(int argc, char *argv[])
 	case DSA_OPCODE_COMPARE:
 	case DSA_OPCODE_COMPVAL:
 	case DSA_OPCODE_DUALCAST:
+	case DSA_OPCODE_TRANSL_FETCH:
 	case DSA_OPCODE_CFLUSH:
 		rc = test_memory(dsa, buf_size, tflags, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)

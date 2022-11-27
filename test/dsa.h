@@ -65,6 +65,7 @@ int init_memfill(struct task *tsk, int tflags, int opcode, unsigned long xfer_si
 int init_compare(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_compval(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_dualcast(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
+int init_transl_fetch(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_cr_delta(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_crcgen(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
 int init_copy_crc(struct task *tsk, int tflags, int opcode, unsigned long xfer_size);
@@ -96,6 +97,9 @@ int dsa_wait_compval(struct acctest_context *ctx, struct task *tsk);
 
 int dsa_dualcast_multi_task_nodes(struct acctest_context *ctx);
 int dsa_wait_dualcast(struct acctest_context *ctx, struct task *tsk);
+
+int dsa_transl_fetch_multi_task_nodes(struct acctest_context *ctx);
+int dsa_wait_transl_fetch(struct acctest_context *ctx, struct task *tsk);
 
 int dsa_cr_delta_multi_task_nodes(struct acctest_context *ctx);
 int dsa_wait_cr_delta(struct acctest_context *ctx, struct task *tsk);
@@ -131,6 +135,7 @@ void dsa_prep_compval(struct task *tsk);
 void dsa_reprep_compval(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_dualcast(struct task *tsk);
 void dsa_reprep_dualcast(struct acctest_context *ctx, struct task *tsk);
+void dsa_prep_transl_fetch(struct task *tsk);
 void dsa_prep_cr_delta(struct task *tsk);
 void dsa_reprep_cr_delta(struct acctest_context *ctx, struct task *tsk);
 void dsa_prep_ap_delta(struct task *tsk);
@@ -172,6 +177,7 @@ void dsa_prep_batch_memfill(struct batch_task *btsk);
 void dsa_prep_batch_compare(struct batch_task *btsk);
 void dsa_prep_batch_compval(struct batch_task *btsk);
 void dsa_prep_batch_dualcast(struct batch_task *btsk);
+void dsa_prep_batch_transl_fetch(struct batch_task *btsk);
 void dsa_prep_batch_cr_delta(struct batch_task *btsk);
 void dsa_prep_batch_ap_delta(struct batch_task *btsk);
 void dsa_prep_batch_crcgen(struct batch_task *btsk);
