@@ -121,9 +121,6 @@ check_prereq()
 #
 _cleanup()
 {
-	lsmod | grep -q "idxd_mdev" && {
-		rmmod idxd_mdev
-	}
 	lsmod | grep -q "idxd_vdev" && {
 		rmmod idxd_vdev
 	}

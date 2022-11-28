@@ -21,7 +21,6 @@ static const char * const wq_type_str[] = {
 	"none",
 	"kernel",
 	"user",
-	"mdev"
 };
 
 /* adapted from mdadm::human_size_brief() */
@@ -137,12 +136,6 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	uint64_t ulong_val;
 	uint64_t ullong_val;
 	bool new_bool;
-	struct accfg_device_mdev *mdev;
-	struct json_object *json_uuid;
-	struct json_object *json_mtype;
-	char uuid_string[UUID_STR_LEN];
-	int mdev_found = 0;
-	struct json_object *json_mdev;
 
 	if (!jdevice)
 		return NULL;
@@ -333,38 +326,6 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	if (!jobj)
 		goto err;
 	json_object_object_add(jdevice, "clients", jobj);
-
-	jobj = json_object_new_array();
-	accfg_device_mdev_foreach(device, mdev) {
-		uuid_t uuid;
-		const char *mdev_type;
-
-		accfg_mdev_get_uuid(mdev, uuid);
-		uuid_unparse(uuid, uuid_string);
-		json_uuid = json_object_new_string(uuid_string);
-		if (!json_uuid)
-			break;
-		mdev_type = accfg_mdev_basenames[accfg_mdev_get_type(mdev)];
-		json_mtype = json_object_new_string(mdev_type);
-		if (!json_mtype) {
-			json_object_put(json_uuid);
-			break;
-		}
-		json_mdev = json_object_new_object();
-		if (!json_mdev) {
-			json_object_put(json_uuid);
-			json_object_put(json_mtype);
-			break;
-		}
-		json_object_object_add(json_mdev, "uuid", json_uuid);
-		json_object_object_add(json_mdev, "type", json_mtype);
-		json_object_array_add(jobj, json_mdev);
-		mdev_found++;
-	}
-	if (mdev_found)
-		json_object_object_add(jdevice, "mdevs", jobj);
-	else
-		json_object_put(jobj);
 
 	free(error);
 	return jdevice;

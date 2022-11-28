@@ -29,9 +29,7 @@ man1_MANS = \
 	accel-config-disable-device.1 \
 	accel-config-disable-wq.1 \
 	accel-config-enable-wq.1 \
-	accel-config-enable-device.1 \
-	accel-config-remove-mdev.1 \
-	accel-config-create-mdev.1
+	accel-config-enable-device.1
 
 EXTRA_DIST = \
 	$(man1_MANS) \
@@ -46,9 +44,7 @@ EXTRA_DIST = \
 	accel-config-disable-device.txt \
 	accel-config-disable-wq.txt \
 	accel-config-enable-wq.txt \
-	accel-config-enable-device.txt \
-	accel-config-remove-mdev.txt \
-	accel-config-create-mdev.txt
+	accel-config-enable-device.txt
 
 CLEANFILES = $(man1_MANS)
 

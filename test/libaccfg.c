@@ -32,8 +32,6 @@
 
 #define SET_ERR(a, b) {a = a ? a : b; }
 
-static bool mdev_disabled;
-
 static struct dev_parameters device0_param = {
 	.read_buffer_limit = 10,
 };
@@ -347,19 +345,8 @@ static int device_test_reset(struct accfg_ctx *ctx,
 	int rc = 0;
 	struct accfg_wq *wq;
 	enum accfg_wq_state wq_state;
-	uuid_t uuid;
 
 	if (accfg_device_is_active(device)) {
-
-		if (!mdev_disabled) {
-			/* Remove all mdevs */
-			uuid_clear(uuid);
-			rc = accfg_remove_mdev(device, uuid);
-			if (rc && !forced) {
-				fprintf(stderr, "mdev removal failed\n");
-				return rc;
-			}
-		}
 
 		/* make sure each wq is disabled */
 		accfg_wq_foreach(device, wq) {
@@ -767,157 +754,6 @@ static int test_wq_boundary_conditions(struct accfg_ctx *ctx)
 	return 0;
 }
 
-static int mdev_test(struct accfg_ctx *ctx, struct accfg_device *device,
-		char *mdev_type_str, int num_mdevs)
-{
-	enum accfg_mdev_type type;
-	int rc, i;
-	char **m;
-	uuid_t uuid;
-
-	for (m = accfg_mdev_basenames, type = 0; *m; m++, type++)
-		if (!strcmp(*m, mdev_type_str))
-			break;
-
-	if (!*m) {
-		fprintf(stderr, "Invalid mdev type\n");
-		return -EINVAL;
-	}
-
-	printf("creating %d %s mdevs\n", num_mdevs, mdev_type_str);
-	for (i = 0; i < num_mdevs; i++) {
-		rc = accfg_create_mdev(device, type, uuid);
-		if (rc) {
-			fprintf(stderr, "mdev creation failed\n");
-			return rc;
-		}
-	}
-	printf("mdev creation succeeded\n");
-
-	/* Remove all mdevs */
-	printf("removing all mdevs\n");
-	uuid_clear(uuid);
-	rc = accfg_remove_mdev(device, uuid);
-	if (rc) {
-		fprintf(stderr, "mdev removal failed\n");
-		return rc;
-	}
-
-	printf("mdev removal succeeded\n");
-
-	return 0;
-}
-
-static int set_mdev_type(struct accfg_ctx *ctx, struct accfg_wq *wq,
-		struct wq_parameters *wq_param)
-{
-	int rc;
-
-	rc = accfg_wq_set_str_type(wq, "mdev");
-	if (rc)
-		fprintf(stderr, "Error setting mdev type\n");
-
-	rc = accfg_wq_set_str_name(wq, wq_param->name);
-	if (rc)
-		fprintf(stderr, "Error setting name for mdev type wq\n");
-
-	return rc;
-}
-
-static int enable_wq(struct accfg_ctx *ctx, struct accfg_device *device,
-		struct accfg_wq *wq)
-{
-	int rc;
-
-	rc = accfg_device_enable(device);
-	if (rc) {
-		fprintf(stderr, "error enabling device %s\n",
-				accfg_device_get_devname(device));
-		return rc;
-	}
-
-	rc = accfg_wq_enable(wq);
-	if (rc) {
-		fprintf(stderr, "error enabling wq %s\n",
-				accfg_wq_get_devname(wq));
-		return rc;
-	}
-
-	return 0;
-}
-
-/* test 1swq type mdev creation and removal */
-static int test_mdev_1swq(struct accfg_ctx *ctx)
-{
-	int rc = 0;
-
-	if (mdev_disabled)
-		return -EOPNOTSUPP;
-
-	rc = device_test_reset(ctx, test_ctx.device, false);
-	if (rc)
-		return rc;
-
-	rc = set_config(ctx, &test_ctx, NULL);
-	if (rc)
-		return rc;
-
-	rc = set_mdev_type(ctx, test_ctx.wq[2], test_ctx.wq_param[2]);
-	if (rc)
-		return rc;
-
-	rc = enable_wq(ctx, test_ctx.device, test_ctx.wq[2]);
-	if (rc)
-		return rc;
-
-	/* create and remove 5 1swq mdevs */
-	rc = mdev_test(ctx, test_ctx.device, "1swq", 5);
-	if (rc)
-		return rc;
-
-	rc = device_test_reset(ctx, test_ctx.device, false);
-	if (rc)
-		return rc;
-
-	return 0;
-}
-
-/* test 1dwq type mdev creation and removal */
-static int test_mdev_1dwq(struct accfg_ctx *ctx)
-{
-	int rc = 0;
-
-	if (mdev_disabled)
-		return -EOPNOTSUPP;
-
-	rc = device_test_reset(ctx, test_ctx.device, false);
-	if (rc)
-		return rc;
-
-	rc = set_config(ctx, &test_ctx, NULL);
-	if (rc)
-		return rc;
-
-	rc = set_mdev_type(ctx, test_ctx.wq[3], test_ctx.wq_param[3]);
-	if (rc)
-		return rc;
-
-	rc = enable_wq(ctx, test_ctx.device, test_ctx.wq[3]);
-	if (rc)
-		return rc;
-
-	/* create and remove 1 1dwq mdev */
-	rc = mdev_test(ctx, test_ctx.device, "1dwq", 1);
-	if (rc)
-		return rc;
-
-	rc = device_test_reset(ctx, test_ctx.device, false);
-	if (rc)
-		return rc;
-
-	return 0;
-}
-
 typedef int (*do_test_fn)(struct accfg_ctx *ctx);
 struct _test_case {
 	do_test_fn test_fn;
@@ -946,16 +782,6 @@ static struct _test_case test_cases[] = {
 		.desc = "wq boundary conditions",
 		.enabled = true,
 	},
-	{
-		.test_fn = test_mdev_1swq,
-		.desc = "1swq type mdev creation and removal",
-		.enabled = false,
-	},
-	{
-		.test_fn = test_mdev_1dwq,
-		.desc = "1dwq type mdev creation and removal",
-		.enabled = false,
-	},
 };
 
 int test_libaccfg(int loglevel, struct accfg_test *test,
@@ -978,9 +804,6 @@ int test_libaccfg(int loglevel, struct accfg_test *test,
 		fprintf(stderr, "idxd kernel module not loaded\n");
 		return EXIT_SKIP;
 	}
-
-	if (access("/sys/module/idxd_mdev", F_OK))
-		mdev_disabled = true;
 
 	/*
 	 * iterate to check the state of each device, skip entire test if any of

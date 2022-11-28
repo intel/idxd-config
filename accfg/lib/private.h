@@ -29,13 +29,11 @@ struct accfg_device {
 	struct list_node list;
 	int group_init;
 	char *device_path;
-	char *mdev_path;
 	char *device_buf;
 	char *bus_type_str;
 	char *device_type_str;
 	enum accfg_device_type type;
 	size_t buf_len;
-	struct list_head mdev_list;
 
 	/* Device Attributes */
 	struct accfg_error errors;
@@ -56,13 +54,6 @@ struct accfg_device {
 	uint64_t opcap;
 	uint64_t gencap;
 	char *pasid_enabled;
-};
-
-struct accfg_device_mdev {
-	struct accfg_device *device;
-	uuid_t uuid;
-	enum accfg_mdev_type type;
-	struct list_node list;
 };
 
 struct accfg_group {

@@ -30,8 +30,6 @@ int cmd_config_device(int argc, const char **argv, void *ctx);
 int cmd_config_group(int argc, const char **argv, void *ctx);
 int cmd_config_wq(int argc, const char **argv, void *ctx);
 int cmd_config_engine(int argc, const char **argv, void *ctx);
-int cmd_create_mdev(int argc, const char **argv, void *ctx);
-int cmd_remove_mdev(int argc, const char **argv, void *ctx);
 #ifdef ENABLE_TEST
 int cmd_test(int argc, const char **argv, void *ctx);
 #endif
