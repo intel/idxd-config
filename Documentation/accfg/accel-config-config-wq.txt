@@ -56,8 +56,8 @@ OPTIONS
 -y::
 --type::
 	configure the type for the wq. The wq type can be "kernel" for kernel
-	user case to request wq, "mdev" for mediated device driver use case to
-	request wq or "user" for regular character device driver use case to wq.
+	user case to request wq or "user" for regular character device driver
+	use case to wq.
 
 -n::
 --name::

@@ -16,8 +16,7 @@ accel_config_SOURCES = accel-config.c \
 		../util/json.h \
 		enable.c \
 		config_attr.c \
-		config.c \
-		mdev.c
+		config.c
 
 accel_config_LDADD =\
 	lib/libaccel-config.la \

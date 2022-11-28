@@ -2,8 +2,7 @@
 
 The test command is an option to test all the library code of accel-config,
 including set and get libaccfg functions for all components in dsa device, set
-large wq to exceed max total size in dsa, test the create-mdev and remove-mdev
-on shared wq and dedicated wq.
+large wq to exceed max total size in dsa.
 
 Build
 =====

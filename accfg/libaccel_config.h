@@ -63,7 +63,6 @@ enum accfg_wq_type {
 	ACCFG_WQT_NONE = 0,
 	ACCFG_WQT_KERNEL,
 	ACCFG_WQT_USER,
-	ACCFG_WQT_MDEV,
 };
 
 enum accfg_control_flag {
@@ -71,12 +70,6 @@ enum accfg_control_flag {
 	ACCFG_DEVICE_ENABLE,
 	ACCFG_WQ_ENABLE,
 	ACCFG_WQ_DISABLE,
-};
-
-enum accfg_mdev_type {
-	ACCFG_MDEV_TYPE_1_DWQ,
-	ACCFG_MDEV_TYPE_1_SWQ,
-	ACCFG_MDEV_TYPE_UNKNOWN,
 };
 
 /* no need to save device error */
@@ -100,7 +93,6 @@ struct dev_parameters {
 };
 
 extern char *accfg_basenames[];
-extern char *accfg_mdev_basenames[];
 
 struct group_parameters {
 	unsigned int tokens_reserved __attribute((deprecated));
@@ -199,7 +191,6 @@ uint64_t accfg_device_get_gen_cap(struct accfg_device *device);
 int accfg_device_get_iaa_cap(struct accfg_device *device, uint64_t *iaa_cap);
 unsigned int accfg_device_get_configurable(struct accfg_device *device);
 bool accfg_device_get_pasid_enabled(struct accfg_device  *device);
-bool accfg_device_get_mdev_enabled(struct accfg_device *device);
 int accfg_device_get_errors(struct accfg_device *device, struct accfg_error *error);
 enum accfg_device_state accfg_device_get_state(struct accfg_device *device);
 unsigned int accfg_device_get_max_tokens(struct accfg_device *device)
@@ -226,19 +217,6 @@ struct accfg_device *accfg_ctx_get_last_error_device(struct accfg_ctx *ctx);
 struct accfg_wq *accfg_ctx_get_last_error_wq(struct accfg_ctx *ctx);
 struct accfg_group *accfg_ctx_get_last_error_group(struct accfg_ctx *ctx);
 struct accfg_engine *accfg_ctx_get_last_error_engine(struct accfg_ctx *ctx);
-struct accfg_device_mdev;
-struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device);
-struct accfg_device_mdev *accfg_device_next_mdev(struct accfg_device_mdev *mdev);
-void accfg_mdev_get_uuid(struct accfg_device_mdev *mdev, uuid_t uuid);
-enum accfg_mdev_type accfg_mdev_get_type(struct accfg_device_mdev *mdev);
-int accfg_create_mdev(struct accfg_device *device, enum accfg_mdev_type type,
-		uuid_t uuid);
-int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid);
-
-#define accfg_device_mdev_foreach(device, mdev) \
-	for (mdev = accfg_device_first_mdev(device); \
-		mdev != NULL; \
-		mdev = accfg_device_next_mdev(mdev))
 
 /* libaccfg function for group */
 struct accfg_group;

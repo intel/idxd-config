@@ -133,13 +133,9 @@ AC_ARG_WITH([tmpfilesdir],
 
 accfg_confdir=${sysconfdir}/accel-config
 accfg_conf=accel-config.conf
-accfg_mdev_bus=/sys/class/mdev_bus
-accfg_mdev_prefix=/sys/bus/mdev/devices
 
 AC_SUBST([accfg_confdir])
 AC_SUBST([accfg_conf])
-AC_SUBST([accfg_mdev_bus])
-AC_SUBST([accfg_mdev_prefix])
 
 my_CFLAGS="\
 -Wall \

@@ -29,7 +29,6 @@
 #include "private.h"
 #include <accfg/idxd.h>
 
-#define MDEV_POSTFIX "mdev_supported_types"
 #define IDXD_DRIVER_BIND_PATH "/sys/bus/dsa/drivers/idxd"
 #define IDXD_DRIVER(d) ((d)->ctx->compat ? \
 		(d)->bus_type_str : "idxd")
@@ -39,7 +38,6 @@
 char *accfg_wq_device_portals[] = {
 	[ACCFG_WQT_KERNEL] = "dmaengine",
 	[ACCFG_WQT_USER] = "user",
-	[ACCFG_WQT_MDEV] = "mdev",
 	NULL
 };
 
@@ -66,12 +64,6 @@ ACCFG_EXPORT char *accfg_basenames[] = {
 static unsigned int accfg_device_compl_size[] = {
 	[ACCFG_DEVICE_DSA] = 32,
 	[ACCFG_DEVICE_IAX] = 64,
-};
-
-ACCFG_EXPORT char *accfg_mdev_basenames[] = {
-	[ACCFG_MDEV_TYPE_1_DWQ]      = "1dwq",
-	[ACCFG_MDEV_TYPE_1_SWQ]      = "1swq",
-	NULL
 };
 
 enum {
@@ -177,11 +169,6 @@ static void save_last_error(struct accfg_device *device, struct accfg_wq *wq,
 	}
 }
 
-static inline bool is_mdev_registered(struct accfg_device *device)
-{
-	return device->mdev_path && !access(device->mdev_path, F_OK);
-}
-
 static int accfg_set_param(struct accfg_ctx *ctx, int dfd, char *name,
 		const void *buf, int len)
 {
@@ -271,16 +258,6 @@ static char *accfg_get_param_str(struct accfg_ctx *ctx, int dfd, char *name)
 	return strdup(buf);
 }
 
-static void free_mdevs(struct accfg_device *device)
-{
-	struct accfg_device_mdev *mdev, *next;
-
-	list_for_each_safe(&device->mdev_list, mdev, next, list) {
-		list_del_from(&device->mdev_list, &mdev->list);
-		free(mdev);
-	}
-}
-
 static void free_engine(struct accfg_engine *engine)
 {
 	struct accfg_device *device = engine->device;
@@ -328,13 +305,11 @@ static void free_device(struct accfg_device *device, struct list_head *head)
 		free_wq(wq);
 	list_for_each_safe(&device->engines, engine, engine_next, list)
 		free_engine(engine);
-	free_mdevs(device);
 
 	if (head)
 		list_del_from(head, &device->list);
 	free(device->device_path);
 	free(device->device_buf);
-	free(device->mdev_path);
 	free(device);
 }
 
@@ -553,72 +528,6 @@ static int device_parse_type(struct accfg_device *device)
 	return -ENODEV;
 }
 
-static int mdev_str_to_type(char *mdev_type_str)
-{
-	char **b;
-	int i;
-
-	for (b = accfg_mdev_basenames, i = 0; *b != NULL; b++, i++)
-		if (strstr(mdev_type_str, *b))
-			return i;
-
-	return ACCFG_MDEV_TYPE_UNKNOWN;
-}
-
-static int add_device_mdevs(struct accfg_ctx *ctx, struct accfg_device *dev)
-{
-	struct accfg_device_mdev *dev_mdev;
-	uuid_t uu;
-	struct dirent **d;
-	char *f, *mdev_type_str;
-	char p[PATH_MAX];
-	char mdev_path[PATH_MAX];
-	int n, n1, rc = 0;
-
-	n1 = n = scandir(dev->mdev_path, &d, NULL, alphasort);
-	if (n < 0) {
-		err(ctx, "scandir failed\n");
-		return -ENOENT;
-	}
-
-	while (n--) {
-		f = &d[n]->d_name[0];
-		if (*f == '.' || uuid_parse(f, uu))
-			continue;
-		sprintf(p, "%s/%s/mdev_type", dev->mdev_path, f);
-		if (!realpath(p, mdev_path))
-			continue;
-		dev_mdev = calloc(1,
-			sizeof(struct accfg_device_mdev));
-		if (!dev_mdev) {
-			err(ctx, "allocation failed\n");
-			rc = -ENOMEM;
-			goto exit_add_mdev;
-		}
-		uuid_copy(dev_mdev->uuid, uu);
-		mdev_type_str = strrchr(mdev_path, '/') + 1;
-		dev_mdev->device = dev;
-		dev_mdev->type = mdev_str_to_type(mdev_type_str);
-		if (dev_mdev->type == ACCFG_MDEV_TYPE_UNKNOWN) {
-			err(ctx, "mdev type error\n");
-			free(dev_mdev);
-			rc = -EINVAL;
-			goto exit_add_mdev;
-		}
-		list_add_tail(&dev->mdev_list, &dev_mdev->list);
-	}
-
-exit_add_mdev:
-	while (n1--)
-		free(d[n1]);
-	free(d);
-
-	if (rc)
-		free_mdevs(dev);
-
-	return rc;
-}
-
 static void *add_device(void *parent, int id, const char *ctl_base,
 		char *dev_prefix, char *bus_type)
 {
@@ -626,7 +535,6 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 	struct accfg_device *device;
 	int dfd;
 	int rc;
-	char *p;
 
 	dfd = open(ctl_base, O_PATH);
 	if (dfd == -1) {
@@ -652,7 +560,6 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 	list_head_init(&device->groups);
 	list_head_init(&device->wqs);
 	list_head_init(&device->engines);
-	list_head_init(&device->mdev_list);
 
 	device->ctx = ctx;
 	device->id = id;
@@ -686,20 +593,6 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 		goto err_dev_path;
 	}
 
-	device->mdev_path = strdup(device->device_path);
-	if (!device->mdev_path) {
-		err(ctx, "strdup of device_path failed\n");
-		goto err_dev_path;
-	}
-
-	if (asprintf(&p, "%s/%s", MDEV_BUS,
-			basename(dirname(device->mdev_path))) < 0) {
-		err(ctx, "device mdev_path allocation failed\n");
-		goto err_dev_path;
-	}
-	free(device->mdev_path);
-	device->mdev_path = p;
-
 	device->device_buf = calloc(1, strlen(device->device_path) +
 			MAX_BUF_LEN);
 	if (!device->device_buf) {
@@ -715,9 +608,6 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 
 	device->bus_type_str = bus_type;
 
-	if (is_mdev_registered(device) && add_device_mdevs(ctx, device))
-		goto err_dev_path;
-
 	list_add_tail(&ctx->devices, &device->list);
 
 	return device;
@@ -725,7 +615,6 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 err_dev_path:
 err_read:
 	free(device->device_buf);
-	free(device->mdev_path);
 	free(device);
 err_device:
 	return NULL;
@@ -751,8 +640,6 @@ static int wq_parse_type(struct accfg_wq *wq, char *wq_type)
 		wq->type = ACCFG_WQT_KERNEL;
 	else if (strcmp(ptype, "user") == 0)
 		wq->type = ACCFG_WQT_USER;
-	else if (strcmp(ptype, "mdev") == 0)
-		wq->type = ACCFG_WQT_MDEV;
 	else
 		wq->type = ACCFG_WQT_NONE;
 
@@ -1084,144 +971,6 @@ static void engines_init(struct accfg_device *device)
 			add_engine);
 }
 
-ACCFG_EXPORT struct accfg_device_mdev *accfg_device_first_mdev(struct accfg_device *device)
-{
-	return list_top(&device->mdev_list, struct accfg_device_mdev, list);
-}
-
-ACCFG_EXPORT struct accfg_device_mdev *accfg_device_next_mdev(struct accfg_device_mdev *mdev)
-{
-	struct accfg_device *device = mdev->device;
-
-	return list_next(&device->mdev_list, mdev, list);
-}
-
-ACCFG_EXPORT void accfg_mdev_get_uuid(struct accfg_device_mdev *mdev, uuid_t uuid)
-{
-	uuid_copy(uuid, mdev->uuid);
-}
-
-ACCFG_EXPORT enum accfg_mdev_type accfg_mdev_get_type(struct accfg_device_mdev *mdev)
-{
-	return mdev->type;
-}
-
-static void accfg_gen_uuid(struct accfg_device *device, uuid_t uuid)
-{
-	struct accfg_device_mdev *entry, *next;
-
-	uuid_clear(uuid);
-	while (1) {
-		uuid_generate(uuid);
-		if (list_empty(&device->mdev_list))
-			return;
-		list_for_each_safe(&device->mdev_list, entry, next, list) {
-			if (uuid_compare(uuid, entry->uuid) != 0)
-				return;
-		}
-	}
-}
-
-ACCFG_EXPORT int accfg_create_mdev(struct accfg_device *device,
-		enum accfg_mdev_type type, uuid_t uuid)
-{
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
-	struct accfg_device_mdev *mdev;
-	char uuid_str[UUID_STR_LEN];
-	char mdev_path[PATH_MAX];
-	unsigned int version;
-	int rc;
-
-	if (!is_mdev_registered(device))
-		return -ENOENT;
-
-	if (type >= ACCFG_MDEV_TYPE_UNKNOWN || type < 0)
-		return -EINVAL;
-
-	mdev = calloc(1, sizeof(struct accfg_device_mdev));
-	if (!mdev) {
-		err(ctx, "mdev allocation failed\n");
-		return -ENOMEM;
-	}
-	accfg_gen_uuid(device, mdev->uuid);
-	mdev->type = type;
-
-	uuid_unparse(mdev->uuid, uuid_str);
-	version = device->version  >> 8;
-	sprintf(mdev_path, "%s/%s/idxd-%s-%s-v%d/create", device->mdev_path,
-			MDEV_POSTFIX, device->device_type_str,
-			accfg_mdev_basenames[type], version);
-	rc = sysfs_write_attr(ctx, mdev_path, uuid_str);
-	if (rc < 0) {
-		err(ctx, "create mdev failed %d\n", rc);
-		save_last_error(device, NULL, NULL, NULL);
-		goto create_err;
-	}
-
-	list_add_tail(&device->mdev_list, &mdev->list);
-	uuid_copy(uuid, mdev->uuid);
-	return 0;
-
-create_err:
-	free(mdev);
-	return rc;
-}
-
-static int accfg_device_mdev_remove(struct accfg_device *device,
-		struct accfg_device_mdev *mdev)
-{
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
-	char uuid_str[UUID_STR_LEN];
-	char mdev_path[PATH_MAX];
-	int rc;
-
-	uuid_unparse(mdev->uuid, uuid_str);
-	sprintf(mdev_path, "%s/%s/remove", device->mdev_path, uuid_str);
-	rc = sysfs_write_attr(ctx, mdev_path, "1");
-	if (rc < 0) {
-		save_last_error(device, NULL, NULL, NULL);
-		return rc;
-	}
-
-	list_del(&mdev->list);
-	free(mdev);
-
-	return 0;
-}
-
-ACCFG_EXPORT int accfg_remove_mdev(struct accfg_device *device, uuid_t uuid)
-{
-	struct accfg_ctx *ctx = accfg_device_get_ctx(device);
-	struct accfg_device_mdev *entry, *next;
-	int rc, all;
-
-	if (!is_mdev_registered(device))
-		return -ENOENT;
-
-	/* remove all mdevs if null uuid is passed */
-	all = uuid_is_null(uuid);
-	list_for_each_safe(&device->mdev_list, entry, next, list) {
-		if (all || !uuid_compare(entry->uuid, uuid)) {
-			rc = accfg_device_mdev_remove(device, entry);
-			if (rc < 0)
-				goto remove_err;
-			if (!all)
-				return 0;
-		}
-	}
-
-	if (!all) {
-		err(ctx, "mdev uuid not found\n");
-		return -EINVAL;
-	}
-
-	return 0;
-
-remove_err:
-	err(ctx, "remove mdev failed %d\n", rc);
-	return rc;
-}
-
 /**
  * accfg_device_get_first - retrieve first device in the system
  * @ctx: context established by accfg_new
@@ -1409,12 +1158,6 @@ ACCFG_EXPORT bool accfg_device_get_pasid_enabled(
 		struct accfg_device *device)
 {
 	return device->pasid_enabled;
-}
-
-ACCFG_EXPORT bool accfg_device_get_mdev_enabled(
-		struct accfg_device *device)
-{
-	return is_mdev_registered(device);
 }
 
 ACCFG_EXPORT int accfg_device_get_errors(struct accfg_device *device,
