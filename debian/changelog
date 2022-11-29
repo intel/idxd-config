@@ -1,3 +1,11 @@
+accel-config (3.5.2-1) unstable; urgency=medium
+
+  * Add tests of other dsa opcodes in dsa user test runner
+  * Fix drain descriptor readback address assignment
+  * Remove mdev implementation
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Mon, 28 Nov 2022 16:08:41 -0800
+
 accel-config (3.5.1-1) unstable; urgency=medium
 
   * Fix a bug in the --help option
