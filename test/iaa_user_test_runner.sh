@@ -9,8 +9,12 @@ rc="$EXIT_SKIP"
 IAA=iax1
 WQ0=wq1.4
 WQ1=wq1.1
+DBDF=`ls -l /sys/bus/dsa/devices/iax3 | awk -F '/' '{print $(NF - 1)}'`
+VENDOR_ID=`lspci -n -s ${DBDF} | awk -F ' ' '{print $NF}' | awk -F ':' '{print $1}'`
+DEVICE_ID=`lspci -n -s ${DBDF} | awk -F ' ' '{print $NF}' | awk -F ':' '{print $2}'`
+VFIO_BINDED=0
 
-trap 'err $LINENO' ERR
+trap err_exit ERR
 
 [ ! -f "$IAATEST" ] && echo "fail: $LINENO" && exit 1
 
@@ -48,6 +52,32 @@ disable_wqs()
 {
 	"$ACCFG" disable-wq "$IAA"/"$WQ0"
 	"$ACCFG" disable-wq "$IAA"/"$WQ1"
+}
+
+bind_vfio()
+{
+	echo "PCI dev info: ${DBDF} ${VENDOR_ID} ${DEVICE_ID}"
+	echo ${DBDF} > /sys/bus/pci/drivers/idxd/unbind
+	echo ${VENDOR_ID} ${DEVICE_ID} > /sys/bus/pci/drivers/vfio-pci/new_id
+	VFIO_BINDED=1
+}
+
+unbind_vfio()
+{
+	echo ${VENDOR_ID} ${DEVICE_ID} > /sys/bus/pci/drivers/vfio-pci/remove_id
+	echo ${DBDF} > /sys/bus/pci/drivers/vfio-pci/unbind
+	echo 1 > /sys/bus/pci/devices/${DBDF}/reset
+	echo ${DBDF} > /sys/bus/pci/drivers/idxd/bind
+}
+
+err_exit()
+{
+	err_code=$?
+	if [ "$VFIO_BINDED" == "1" ]
+	then
+		unbind_vfio
+	fi
+	exit "$err_code"
 }
 
 # Test operation with a given opcode
@@ -231,6 +261,29 @@ test_op_crypto()
 	done
 }
 
+test_op_transl_fetch()
+{
+	local opcode="$1"
+	local flag="$2"
+	local op_name
+	op_name=$(opcode2name "$opcode")
+	local wq_mode_code
+	local wq_mode_name
+
+	for wq_mode_code in 0 1; do
+		wq_mode_name=$(wq_mode2name "$wq_mode_code")
+		echo "Performing $wq_mode_name WQ $op_name testing"
+		for xfer_size in $SIZE_1 $SIZE_4K $SIZE_64K $SIZE_1M $SIZE_2M; do
+			echo "Testing $xfer_size bytes"
+
+			"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
+				-f "$flag" -m 0 -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
+				-f "$flag" -m 1 -t 5000 -v
+		done
+	done
+}
+
 _cleanup
 start_iaa
 enable_wqs
@@ -296,6 +349,22 @@ echo "Testing with 'block on fault' flag OFF"
 for opcode in "0x41" "0x40"; do
 	test_op_crypto $opcode $flag $aecs_flag
 done
+
+bind_vfio
+
+flag="0x1"
+echo "Testing with 'block on fault' flag ON"
+for opcode in "0x0a"; do
+	test_op_transl_fetch $opcode $flag
+done
+
+flag="0x0"
+echo "Testing with 'block on fault' flag OFF"
+for opcode in "0x0a"; do
+	test_op_transl_fetch $opcode $flag
+done
+
+unbind_vfio
 
 disable_wqs
 stop_iaa

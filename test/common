@@ -136,9 +136,13 @@ _cleanup()
 	lsmod | grep -q "idxd" && {
 		rmmod idxd
 	}
+	lsmod | grep -q "vfio_pci" && {
+		rmmod vfio_pci
+	}
 	sleep 1
 	modprobe idxd
 	sleep 1
+	modprobe vfio_pci
 }
 
 # json2var
