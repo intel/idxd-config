@@ -33,6 +33,14 @@ static inline void cpuid(unsigned int *eax, unsigned int *ebx,
 		: "memory");
 }
 
+int get_random_value(void)
+{
+	static int extra_seed;
+
+	srand(time(NULL) + (extra_seed++));
+	return rand();
+}
+
 struct acctest_context *acctest_init(int tflags)
 {
 	struct acctest_context *dctx;

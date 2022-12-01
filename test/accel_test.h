@@ -251,6 +251,7 @@ static inline void resolve_page_fault(uint64_t addr, uint8_t status)
 		*addr_u8 = ~(*addr_u8);
 }
 
+int get_random_value(void);
 struct acctest_context *acctest_init(int tflags);
 int acctest_alloc(struct acctest_context *ctx, int shared, int dev_id, int wq_id);
 int acctest_alloc_multiple_tasks(struct acctest_context *ctx, int num_itr);
