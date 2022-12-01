@@ -77,6 +77,7 @@ struct task {
 		uint16_t iaa_compr_flags;
 		uint16_t iaa_decompr_flags;
 		uint16_t iaa_crc64_flags;
+		uint16_t iaa_cipher_flags;
 	};
 	uint32_t iaa_max_dst_size;
 	uint32_t iaa_src2_xfer_size;
@@ -87,6 +88,10 @@ struct task {
 		};
 		uint64_t iaa_crc64_poly;
 	};
+	struct {
+		uint8_t algorithm;
+		uint8_t flags;
+	} crypto_aecs;
 };
 
 struct task_node {
@@ -235,6 +240,18 @@ static inline void dump_compl_rec(struct completion_record *compl, int compl_siz
 	/* To be compatible with IAX, completion record was allocated 64 bytes*/
 	for (i = 0; i < num_qword; i++)
 		dbg("compl[%d]: 0x%016lx\n", i, rcompl->field[i]);
+}
+
+/* Dump src2 to log */
+static inline void dump_src2(void *src2, int src2_size)
+{
+	int i;
+	uint32_t *raw = (uint32_t *)src2;
+
+	dbg("src2 addr: %p\n", src2);
+
+	for (i = 0; i < (src2_size / 4); i++)
+		dbg("src2[0x%X]: 0x%08x\n", i * 4, raw[i]);
 }
 
 static inline void resolve_page_fault(uint64_t addr, uint8_t status)

@@ -66,6 +66,8 @@ enum idxd_scmd_stat {
 #define IDXD_DECOMPRESS_FLAG_FLUSH_OUTPUT 0x0002
 #define IDXD_DECOMPRESS_FLAG_EN_DECOMPRESS 0x0001
 
+#define IDXD_CRYPTO_CIPHER_FLAG_FLUSH_OUTPUT 0x0002
+
 /* Opcode */
 enum dsa_opcode {
 	DSA_OPCODE_NOOP = 0,
@@ -104,6 +106,7 @@ enum iax_opcode {
 	IAX_OPCODE_NOOP = 0,
 	IAX_OPCODE_DRAIN = 2,
 	IAX_OPCODE_MEMMOVE,
+	IAX_OPCODE_ENCRYPT = 0x41,
 	IAX_OPCODE_DECOMPRESS = 0x42,
 	IAX_OPCODE_COMPRESS,
 	IAX_OPCODE_CRC64 = 0x44,
@@ -218,6 +221,7 @@ struct hw_desc {
 		uint16_t        iax_compr_flags;
 		uint16_t        iax_decompr_flags;
 		uint16_t        iax_crc64_flags;
+		uint16_t        iax_cipher_flags;
 	};
 	union {
 		uint8_t		expected_res;
