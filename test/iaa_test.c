@@ -171,6 +171,16 @@ static int test_zcompress(struct acctest_context *ctx, size_t buf_size,
 		}
 
 		switch (opcode) {
+		case IAX_OPCODE_ZCOMPRESS8:
+			rc = iaa_zcompress8_multi_task_nodes(ctx);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			/* Verification of all the nodes*/
+			rc = iaa_task_result_verify_task_nodes(ctx, 0);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+			break;
 		case IAX_OPCODE_ZCOMPRESS16:
 			rc = iaa_zcompress16_multi_task_nodes(ctx);
 			if (rc != ACCTEST_STATUS_OK)
@@ -505,6 +515,7 @@ int main(int argc, char *argv[])
 			goto error;
 		break;
 
+	case IAX_OPCODE_ZCOMPRESS8:
 	case IAX_OPCODE_ZCOMPRESS16:
 	case IAX_OPCODE_ZDECOMPRESS16:
 	case IAX_OPCODE_ZCOMPRESS32:
