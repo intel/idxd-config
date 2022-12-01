@@ -480,6 +480,16 @@ static int test_crypto(struct acctest_context *ctx, size_t buf_size, int tflags,
 			if (rc != ACCTEST_STATUS_OK)
 				return rc;
 			break;
+		case IAX_OPCODE_DECRYPT:
+			rc = iaa_decrypto_multi_task_nodes(ctx);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			/* Verification of all the nodes*/
+			rc = iaa_task_result_verify_task_nodes(ctx, 0);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+			break;
 		default:
 			err("Unsupported op %#x\n", opcode);
 			return -EINVAL;
@@ -620,6 +630,7 @@ int main(int argc, char *argv[])
 			goto error;
 		break;
 	case IAX_OPCODE_ENCRYPT:
+	case IAX_OPCODE_DECRYPT:
 		rc = test_crypto(iaa, buf_size, tflags, aecs, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;

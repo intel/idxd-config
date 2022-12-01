@@ -622,6 +622,91 @@ static int init_encrypto(struct task *tsk, int tflags, int opcode, unsigned long
 	return ACCTEST_STATUS_OK;
 }
 
+static int init_decrypto(struct task *tsk, int tflags, int opcode, unsigned long input_size)
+{
+	int i, key_size;
+	struct iaa_crypto_aecs_t *iaa_crypto_aecs;
+
+	if (tsk->crypto_aecs.algorithm != IAA_AES_CFB) {
+		err("Unsupported crypto mode %d\n", tsk->crypto_aecs.algorithm);
+		return -EPERM;
+	}
+
+	tsk->pattern = 0x98765432abcdef01;
+	tsk->opcode = opcode;
+	tsk->test_flags = tflags;
+
+	tsk->input = aligned_alloc(ADDR_ALIGNMENT, input_size);
+	if (!tsk->input)
+		return -ENOMEM;
+	memset_pattern(tsk->input, tsk->pattern, input_size);
+
+	tsk->src1 = aligned_alloc(ADDR_ALIGNMENT, input_size);
+	if (!tsk->src1)
+		return -ENOMEM;
+	memset_pattern(tsk->src1, 0, input_size);
+
+	tsk->src2 = aligned_alloc(ADDR_ALIGNMENT, IAA_CRYPTO_SRC2_SIZE);
+	if (!tsk->src2)
+		return -ENOMEM;
+	memset_pattern(tsk->src2, 0, IAA_CRYPTO_SRC2_SIZE);
+	tsk->iaa_src2_xfer_size = IAA_CRYPTO_AECS_SIZE;
+	iaa_crypto_aecs = (struct iaa_crypto_aecs_t *)tsk->src2;
+	iaa_crypto_aecs->crypto_algorithm = tsk->crypto_aecs.algorithm;
+	iaa_crypto_aecs->crypto_flags = tsk->crypto_aecs.flags;
+
+	if (iaa_crypto_aecs->crypto_flags & IAA_CRYPTO_MASK_KEY_SIZE)
+		key_size = 256;
+	else
+		key_size = 128;
+
+	iaa_crypto_aecs->crypto_flags |= IAA_CRYPTO_MASK_FLUSH_CRYPTO_IN_ACCUM;
+
+	switch (iaa_crypto_aecs->crypto_algorithm) {
+	case IAA_AES_CFB:
+		if (key_size == 256) {
+			for (i = 0; i < 4; i++)
+				iaa_crypto_aecs->aes_key_low[i] = (uint32_t)get_random_value();
+			for (i = 0; i < 4; i++)
+				iaa_crypto_aecs->aes_key_high[i] = (uint32_t)get_random_value();
+			for (i = 0; i < 4; i++)
+				iaa_crypto_aecs->counter_iv[i] = (uint32_t)get_random_value();
+		} else {
+			for (i = 0; i < 4; i++)
+				iaa_crypto_aecs->aes_key_low[i] = (uint32_t)get_random_value();
+			for (i = 0; i < 4; i++)
+				iaa_crypto_aecs->counter_iv[i] = (uint32_t)get_random_value();
+		}
+		break;
+	}
+
+	iaa_crypto_aecs->complement[8] = 1;
+	tsk->xfer_size = iaa_do_crypto(tsk->src1, tsk->input, input_size,
+				       (uint8_t *)iaa_crypto_aecs->aes_key_low,
+				       (uint8_t *)iaa_crypto_aecs->counter_iv,
+				       key_size, iaa_crypto_aecs->crypto_algorithm, 1);
+
+	if (tsk->xfer_size != input_size) {
+		err("Pre encrypted size %d is not equal to input size %d\n",
+		    tsk->xfer_size, input_size);
+		return -ENOMEM;
+	}
+
+	tsk->dst1 = aligned_alloc(ADDR_ALIGNMENT, input_size);
+	if (!tsk->dst1)
+		return -ENOMEM;
+	memset_pattern(tsk->dst1, 0, input_size);
+
+	tsk->output = aligned_alloc(ADDR_ALIGNMENT, input_size);
+	if (!tsk->output)
+		return -ENOMEM;
+	memset_pattern(tsk->output, 0, input_size);
+
+	tsk->iaa_max_dst_size = input_size;
+
+	return ACCTEST_STATUS_OK;
+}
+
 int init_task(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_size)
 {
 	int rc = 0;
@@ -680,6 +765,9 @@ int init_task(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_
 		break;
 	case IAX_OPCODE_ENCRYPT:
 		rc = init_encrypto(tsk, tflags, opcode, src1_xfer_size);
+		break;
+	case IAX_OPCODE_DECRYPT:
+		rc = init_decrypto(tsk, tflags, opcode, src1_xfer_size);
 		break;
 	}
 
@@ -1624,6 +1712,56 @@ int iaa_encrypto_multi_task_nodes(struct acctest_context *ctx)
 	return ret;
 }
 
+static int iaa_wait_decrypto(struct acctest_context *ctx, struct task *tsk)
+{
+	struct completion_record *comp = tsk->comp;
+	int rc;
+
+	rc = acctest_wait_on_desc_timeout(comp, ctx, ms_timeout);
+	if (rc < 0) {
+		err("decrypto desc timeout\n");
+		return ACCTEST_STATUS_TIMEOUT;
+	}
+
+	return ACCTEST_STATUS_OK;
+}
+
+int iaa_decrypto_multi_task_nodes(struct acctest_context *ctx)
+{
+	struct task_node *tsk_node = ctx->multi_task_node;
+	int ret = ACCTEST_STATUS_OK;
+
+	while (tsk_node) {
+		tsk_node->tsk->dflags |= (IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR);
+		if ((tsk_node->tsk->test_flags & TEST_FLAGS_BOF) && ctx->bof)
+			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
+
+		tsk_node->tsk->dflags |= IDXD_OP_FLAG_RD_SRC2_AECS;
+
+		iaa_prep_decrypto(tsk_node->tsk);
+		tsk_node = tsk_node->next;
+	}
+
+	info("Submitted all decrypto jobs\n");
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		acctest_desc_submit(ctx, tsk_node->tsk->desc);
+		dump_src2(tsk_node->tsk->src2, IAA_CRYPTO_AECS_SIZE);
+		tsk_node = tsk_node->next;
+	}
+
+	tsk_node = ctx->multi_task_node;
+	while (tsk_node) {
+		ret = iaa_wait_decrypto(ctx, tsk_node->tsk);
+		if (ret != ACCTEST_STATUS_OK)
+			info("Desc: %p failed with ret: %d\n",
+			     tsk_node->tsk->desc, tsk_node->tsk->comp->status);
+		tsk_node = tsk_node->next;
+	}
+
+	return ret;
+}
+
 /* mismatch_expected: expect mismatched buffer with success status 0x1 */
 int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 {
@@ -1682,6 +1820,9 @@ int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 		break;
 	case IAX_OPCODE_ENCRYPT:
 		ret = task_result_verify_encrypto(tsk, mismatch_expected);
+		break;
+	case IAX_OPCODE_DECRYPT:
+		ret = task_result_verify_decrypto(tsk, mismatch_expected);
 		break;
 	}
 
@@ -2398,6 +2539,54 @@ int task_result_verify_encrypto(struct task *tsk, int mismatch_expected)
 		}
 		if (rc) {
 			err("encrypto mismatch, memcmp rc %d\n", rc);
+			for (i = 0; i < (expected_len); i++) {
+				printf("Exp[%d]=0x%02X, Act[%d]=0x%02X\n",
+				       i, ((uint8_t *)tsk->output)[i],
+				       i, ((uint8_t *)tsk->dst1)[i]);
+			}
+
+			return -ENXIO;
+		}
+		return ACCTEST_STATUS_OK;
+	}
+
+	/* mismatch_expected */
+	if (rc) {
+		info("expected mismatch\n");
+		return ACCTEST_STATUS_OK;
+	}
+
+	return -ENXIO;
+}
+
+int task_result_verify_decrypto(struct task *tsk, int mismatch_expected)
+{
+	int rc, i, key_size, expected_len;
+	struct iaa_crypto_aecs_t *iaa_crypto_aecs = (struct iaa_crypto_aecs_t *)tsk->src2;
+
+	if (mismatch_expected)
+		warn("invalid arg mismatch_expected for %d\n", tsk->opcode);
+
+	if (iaa_crypto_aecs->crypto_flags & IAA_CRYPTO_MASK_KEY_SIZE)
+		key_size = 256;
+	else
+		key_size = 128;
+
+	expected_len = iaa_do_crypto(tsk->output, tsk->src1, tsk->xfer_size,
+				     (uint8_t *)iaa_crypto_aecs->aes_key_low,
+				     (uint8_t *)iaa_crypto_aecs->counter_iv,
+				     key_size, iaa_crypto_aecs->crypto_algorithm, 0);
+	rc = memcmp(tsk->dst1, tsk->output, expected_len);
+
+	if (!mismatch_expected) {
+		if (expected_len - tsk->comp->iax_output_size) {
+			err("decrypto mismatch, exp len %d, act len %d\n",
+			    expected_len, tsk->comp->iax_output_size);
+
+			return -ENXIO;
+		}
+		if (rc) {
+			err("decrypto mismatch, memcmp rc %d\n", rc);
 			for (i = 0; i < (expected_len); i++) {
 				printf("Exp[%d]=0x%02X, Act[%d]=0x%02X\n",
 				       i, ((uint8_t *)tsk->output)[i],

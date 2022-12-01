@@ -244,3 +244,16 @@ void iaa_prep_encrypto(struct task *tsk)
 	tsk->desc->iax_cipher_flags = tsk->iaa_cipher_flags;
 	tsk->comp->status = 0;
 }
+
+void iaa_prep_decrypto(struct task *tsk)
+{
+	info("preparing descriptor for decrypto\n");
+
+	acctest_prep_desc_common(tsk->desc, tsk->opcode, (uint64_t)(tsk->dst1),
+				 (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->desc->iax_src2_addr = (uint64_t)(tsk->src2);
+	tsk->desc->iax_src2_xfer_size = tsk->iaa_src2_xfer_size;
+	tsk->desc->iax_max_dst_size = tsk->iaa_max_dst_size;
+	tsk->comp->status = 0;
+}
