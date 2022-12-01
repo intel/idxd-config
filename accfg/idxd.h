@@ -106,6 +106,7 @@ enum iax_opcode {
 	IAX_OPCODE_NOOP = 0,
 	IAX_OPCODE_DRAIN = 2,
 	IAX_OPCODE_MEMMOVE,
+	IAX_OPCODE_TRANSL_FETCH = 0x0a,
 	IAX_OPCODE_DECRYPT = 0x40,
 	IAX_OPCODE_ENCRYPT = 0x41,
 	IAX_OPCODE_DECOMPRESS = 0x42,
@@ -202,7 +203,7 @@ struct hw_desc {
 		uint64_t	pattern;
 		uint64_t	desc_list_addr;
 		uint64_t	win_base_addr;
-		uint64_t        transl_fetch_addr;
+		uint64_t	transl_fetch_addr;
 	};
 	union {
 		uint64_t	dst_addr;
@@ -287,6 +288,13 @@ struct hw_desc {
 			uint64_t        iax_crc64_rsvd;
 			uint64_t        iax_crc64_rsvd2;
 			uint64_t        iax_crc64_poly;
+		};
+		/* translation fetch */
+		struct {
+			uint64_t        transl_fetch_rsvd;
+			uint32_t        transl_fetch_region_stride;
+			uint32_t        transl_fetch_rsvd2;
+			uint64_t        transl_fetch_rsvd3;
 		};
 
 		/* restricted ops with interpasid */
