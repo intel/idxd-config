@@ -176,6 +176,46 @@ int iaa_do_zcompress32(void *dst, void *src, int src_len)
 	return dst_len;
 }
 
+int iaa_do_zdecompress8(void *dst, void *src, int src_len)
+{
+	int i, j, dst_len = 0;
+	uint64_t tags[2];
+	int remainder_len = src_len;
+	uint8_t *src_ptr = (uint8_t *)src;
+	uint8_t *dst_ptr = (uint8_t *)dst;
+
+	for (i = 0; i < (src_len); i++) {
+		tags[0] = (((uint64_t)src_ptr[7]) << 56) | (((uint64_t)src_ptr[6]) << 48) |
+			  (((uint64_t)src_ptr[5]) << 40) | (((uint64_t)src_ptr[4]) << 32) |
+			  (((uint64_t)src_ptr[3]) << 24) | (((uint64_t)src_ptr[2]) << 16) |
+			  (((uint64_t)src_ptr[1]) << 8) | ((uint64_t)src_ptr[0]);
+		tags[1] = (((uint64_t)src_ptr[15]) << 56) | (((uint64_t)src_ptr[14]) << 48) |
+			  (((uint64_t)src_ptr[13]) << 40) | (((uint64_t)src_ptr[12]) << 32) |
+			  (((uint64_t)src_ptr[11]) << 24) | (((uint64_t)src_ptr[10]) << 16) |
+			  (((uint64_t)src_ptr[9]) << 8) | ((uint64_t)src_ptr[8]);
+		src_ptr += 16;
+		remainder_len -= 16;
+
+		for (j = 0; j < 128; j++) {
+			if (tags[j / 64] & ((uint64_t)1 << (j % 64))) {
+				if (remainder_len <= 0)
+					break;
+				*dst_ptr++ = *src_ptr++;
+				remainder_len -= 1;
+			} else {
+				*dst_ptr++ = 0;
+			}
+
+			dst_len += 1;
+		}
+
+		if (remainder_len <= 0)
+			break;
+	}
+
+	return dst_len;
+}
+
 int iaa_do_zdecompress16(void *dst, void *src, int src_len)
 {
 	int i, j, dst_len = 0;
