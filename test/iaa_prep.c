@@ -231,6 +231,16 @@ void iaa_prep_expand(struct task *tsk)
 	tsk->comp->status = 0;
 }
 
+void iaa_prep_transl_fetch(struct task *tsk)
+{
+	info("preparing descriptor for transl_fetch\n");
+
+	acctest_prep_desc_common(tsk->desc, tsk->opcode, 0,
+				 (uint64_t)(tsk->src1), tsk->xfer_size, tsk->dflags);
+	tsk->desc->completion_addr = (uint64_t)(tsk->comp);
+	tsk->comp->status = 0;
+}
+
 void iaa_prep_encrypto(struct task *tsk)
 {
 	info("preparing descriptor for encrypto\n");

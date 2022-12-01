@@ -432,6 +432,70 @@ static int test_filter(struct acctest_context *ctx, size_t buf_size, int tflags,
 	return rc;
 }
 
+static int test_transl_fetch(struct acctest_context *ctx, size_t buf_size,
+			     int tflags, uint32_t opcode, int num_desc, int do_map)
+{
+	struct task_node *tsk_node;
+	int rc = ACCTEST_STATUS_OK;
+	int itr = num_desc, i = 0, range = 0;
+
+	info("test transl-fetch: opcode %d len %#lx tflags %#x num_desc %ld do_map %d\n",
+	     opcode, buf_size, tflags, num_desc, do_map);
+
+	ctx->is_batch = 0;
+
+	if (ctx->dedicated == ACCFG_WQ_SHARED)
+		range = ctx->threshold;
+	else
+		range = ctx->wq_size;
+
+	while (itr > 0 && rc == ACCTEST_STATUS_OK) {
+		i = (itr < range) ? itr : range;
+		/* Allocate memory to all the task nodes, desc, completion record*/
+		rc = acctest_alloc_multiple_tasks(ctx, i);
+		if (rc != ACCTEST_STATUS_OK)
+			return rc;
+
+		/* allocate memory to src and dest buffers and fill in the desc for all the nodes*/
+		tsk_node = ctx->multi_task_node;
+		while (tsk_node) {
+			rc = init_task(tsk_node->tsk, tflags, opcode, buf_size);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			tsk_node = tsk_node->next;
+		}
+
+		switch (opcode) {
+		case IAX_OPCODE_TRANSL_FETCH:
+			rc = iaa_transl_fetch_multi_task_nodes(ctx, do_map);
+			if ((tflags & TEST_FLAGS_BOF) ||
+			    ((!(tflags & TEST_FLAGS_BOF)) && do_map)) {
+				if (rc != ACCTEST_STATUS_OK)
+					return rc;
+			}
+
+			/* Verification of all the nodes*/
+			if ((tflags & TEST_FLAGS_BOF) ||
+			    ((!(tflags & TEST_FLAGS_BOF)) && do_map))
+				rc = iaa_task_result_verify_task_nodes(ctx, 0);
+			else
+				rc = iaa_task_result_verify_task_nodes(ctx, 1);
+			if (rc != ACCTEST_STATUS_OK)
+				return rc;
+
+			break;
+		default:
+			err("Unsupported op %#x\n", opcode);
+			return -EINVAL;
+		}
+
+		acctest_free_task(ctx);
+		itr = itr - range;
+	}
+
+	return rc;
+}
 
 static int test_crypto(struct acctest_context *ctx, size_t buf_size, int tflags,
 		       int crypto_aecs, uint32_t opcode, int num_desc)
@@ -512,6 +576,7 @@ int main(int argc, char *argv[])
 	int extra_flags_1 = 0;
 	int extra_flags_2 = 0;
 	int extra_flags_3 = 0;
+	int do_map = 0;
 	int aecs = 0;
 	int opcode = IAX_OPCODE_NOOP;
 	int opt;
@@ -521,7 +586,7 @@ int main(int argc, char *argv[])
 	int dev_wq_id = ACCTEST_DEVICE_ID_NO_INPUT;
 	unsigned int num_desc = 1;
 
-	while ((opt = getopt(argc, argv, "w:l:f:1:2:3:a:o:b:c:d:n:t:p:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "w:l:f:1:2:3:a:m:o:b:c:d:n:t:p:vh")) != -1) {
 		switch (opt) {
 		case 'w':
 			wq_type = atoi(optarg);
@@ -543,6 +608,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'a':
 			aecs = strtoul(optarg, NULL, 0);
+			break;
+		case 'm':
+			do_map = strtoul(optarg, NULL, 0);
 			break;
 		case 'o':
 			opcode = strtoul(optarg, NULL, 0);
@@ -626,6 +694,11 @@ int main(int argc, char *argv[])
 	case IAX_OPCODE_EXPAND:
 		rc = test_filter(iaa, buf_size, tflags, extra_flags_2,
 				 extra_flags_3, opcode, num_desc);
+		if (rc != ACCTEST_STATUS_OK)
+			goto error;
+		break;
+	case IAX_OPCODE_TRANSL_FETCH:
+		rc = test_transl_fetch(iaa, buf_size, tflags, opcode, num_desc, do_map);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;

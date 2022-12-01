@@ -92,6 +92,10 @@ struct task {
 		uint8_t algorithm;
 		uint8_t flags;
 	} crypto_aecs;
+
+	/* Translation Fetch */
+	int container;
+	int group;
 };
 
 struct task_node {

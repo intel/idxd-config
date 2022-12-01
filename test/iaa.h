@@ -26,6 +26,7 @@ int iaa_select_multi_task_nodes(struct acctest_context *ctx);
 int iaa_rle_burst_multi_task_nodes(struct acctest_context *ctx);
 int iaa_find_unique_multi_task_nodes(struct acctest_context *ctx);
 int iaa_expand_multi_task_nodes(struct acctest_context *ctx);
+int iaa_transl_fetch_multi_task_nodes(struct acctest_context *ctx, int do_mmap);
 int iaa_encrypto_multi_task_nodes(struct acctest_context *ctx);
 int iaa_decrypto_multi_task_nodes(struct acctest_context *ctx);
 
@@ -46,6 +47,7 @@ void iaa_prep_select(struct task *tsk);
 void iaa_prep_rle_burst(struct task *tsk);
 void iaa_prep_find_unique(struct task *tsk);
 void iaa_prep_expand(struct task *tsk);
+void iaa_prep_transl_fetch(struct task *tsk);
 void iaa_prep_encrypto(struct task *tsk);
 void iaa_prep_decrypto(struct task *tsk);
 
@@ -67,6 +69,7 @@ int task_result_verify_select(struct task *tsk, int mismatch_expected);
 int task_result_verify_rle_burst(struct task *tsk, int mismatch_expected);
 int task_result_verify_find_unique(struct task *tsk, int mismatch_expected);
 int task_result_verify_expand(struct task *tsk, int mismatch_expected);
+int task_result_verify_transl_fetch(struct task *tsk, int mismatch_expected);
 int task_result_verify_encrypto(struct task *tsk, int mismatch_expected);
 int task_result_verify_decrypto(struct task *tsk, int mismatch_expected);
 
