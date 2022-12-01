@@ -286,14 +286,14 @@ test_op_filter $flag
 flag="0x1"
 aecs_flag="0x0101"
 echo "Testing with 'block on fault' flag ON"
-for opcode in "0x41"; do
+for opcode in "0x41" "0x40"; do
 	test_op_crypto $opcode $flag $aecs_flag
 done
 
 flag="0x0"
 aecs_flag="0x0301"
 echo "Testing with 'block on fault' flag OFF"
-for opcode in "0x41"; do
+for opcode in "0x41" "0x40"; do
 	test_op_crypto $opcode $flag $aecs_flag
 done
 
