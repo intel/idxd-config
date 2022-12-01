@@ -12,7 +12,7 @@ export SIZE_1M=1048576
 export SIZE_2M=2097152
 export EXIT_FAILURE=1
 export EXIT_SKIP=77
-TESTDIR=/usr/share/accel-config/test
+TESTDIR=/usr/lib/accel-config/test
 BINDIR=/usr/bin
 
 # ACCFG
@@ -54,8 +54,8 @@ fi
 #
 if [ -f "./configs/2g2q_user_1.conf" ]; then
 	export CONFIG1=./configs/2g2q_user_1.conf
-elif [ -f "/usr/share/accel-config/test/configs/2g2q_user_1.conf" ]; then
-	export CONFIG1=/usr/share/accel-config/test/configs/2g2q_user_1.conf
+elif [ -f "$TESTDIR/configs/2g2q_user_1.conf" ]; then
+	export CONFIG1="$TESTDIR"/configs/2g2q_user_1.conf
 else
 	echo "Can't find config 1 file"
 	exit "$EXIT_FAILURE"
@@ -65,8 +65,8 @@ fi
 #
 if [ -f "./configs/2g2q_user_2.conf" ]; then
     export CONFIG2=./configs/2g2q_user_2.conf
-elif [ -f "/usr/share/accel-config/test/configs/2g2q_user_2.conf" ]; then
-    export CONFIG2=/usr/share/accel-config/test/configs/2g2q_user_2.conf
+elif [ -f "$TESTDIR/configs/2g2q_user_2.conf" ]; then
+    export CONFIG2="$TESTDIR"/configs/2g2q_user_2.conf
 else
     echo "Can't find config 2 file"
     exit "$EXIT_FAILURE"
