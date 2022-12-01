@@ -31,6 +31,58 @@ void iaa_zcompress16_randomize_input(void *dst, uint64_t pattern, int len)
 	}
 }
 
+int iaa_do_zcompress8(void *dst, void *src, int src_len)
+{
+	int i, j, dst_len = 0;
+	uint8_t *tags;
+	int num_blocks = src_len / IAA_ZCOMPRESS_BLOCK_SIZE;
+	int remainder_bytes = src_len % IAA_ZCOMPRESS_BLOCK_SIZE;
+	uint8_t *src_ptr = (uint8_t *)src;
+	uint8_t *dst_ptr = (uint8_t *)dst;
+
+	for (i = 0; i < num_blocks; i++) {
+		tags = dst_ptr;
+		dst_ptr += 16;
+		dst_len += 16;
+		for (j = 0; j < (IAA_ZCOMPRESS_BLOCK_SIZE); j++) {
+			if (*src_ptr != 0) {
+				tags[j / 8] |= ((uint8_t)1 << (j % 8));
+				*dst_ptr++ = *src_ptr;
+				dst_len += 1;
+			}
+
+			src_ptr++;
+		}
+	}
+
+	if (remainder_bytes) {
+		tags = dst_ptr;
+		tags[0] = 0xFF;
+		tags[1] = 0xFF;
+		tags[2] = 0xFF;
+		tags[3] = 0xFF;
+		tags[4] = 0xFF;
+		tags[5] = 0xFF;
+		tags[6] = 0xFF;
+		tags[7] = 0xFF;
+		dst_ptr += 16;
+		dst_len += 16;
+
+		for (i = 0; i < (remainder_bytes); i++) {
+			if (*src_ptr == 0) {
+				tags[i / 8] &= ~((uint8_t)1 << (i % 8));
+			} else {
+				*dst_ptr++ = *src_ptr;
+				dst_len += 1;
+			}
+
+			src_ptr++;
+		}
+	}
+
+	return dst_len;
+}
+
 int iaa_do_zcompress16(void *dst, void *src, int src_len)
 {
 	int i, j, dst_len = 0;
