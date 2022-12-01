@@ -209,6 +209,28 @@ test_op_filter()
 	done
 }
 
+test_op_crypto()
+{
+	local opcode="$1"
+	local flag="$2"
+	local aecs_flag="$3"
+	local op_name
+	op_name=$(opcode2name "$opcode")
+	local wq_mode_code
+	local wq_mode_name
+
+	for wq_mode_code in 0 1; do
+		wq_mode_name=$(wq_mode2name "$wq_mode_code")
+		echo "Performing $wq_mode_name WQ $op_name testing"
+		for xfer_size in $SIZE_4K $SIZE_64K $SIZE_1M $SIZE_2M; do
+			echo "Testing $xfer_size bytes"
+
+			"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
+				-f "$flag" -a "$aecs_flag" -t 5000 -v
+		done
+	done
+}
+
 _cleanup
 start_iaa
 enable_wqs
@@ -260,6 +282,20 @@ test_op_filter $flag
 
 flag="0x0"
 test_op_filter $flag
+
+flag="0x1"
+aecs_flag="0x0101"
+echo "Testing with 'block on fault' flag ON"
+for opcode in "0x41"; do
+	test_op_crypto $opcode $flag $aecs_flag
+done
+
+flag="0x0"
+aecs_flag="0x0301"
+echo "Testing with 'block on fault' flag OFF"
+for opcode in "0x41"; do
+	test_op_crypto $opcode $flag $aecs_flag
+done
 
 disable_wqs
 stop_iaa
