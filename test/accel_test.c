@@ -473,7 +473,7 @@ void __clean_task(struct task *tsk)
 		return;
 
 	free(tsk->desc);
-	munmap(tsk->comp, PAGE_SIZE);
+	free(tsk->comp);
 	mprotect(tsk->src1, PAGE_SIZE, PROT_READ | PROT_WRITE);
 	if (tsk->opcode != IAX_OPCODE_TRANSL_FETCH) {
 		free(tsk->src1);
