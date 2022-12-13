@@ -62,17 +62,17 @@ static int init_zcompress8(struct task *tsk, int tflags, int opcode, unsigned lo
 		return -ENOMEM;
 	iaa_zcompress16_randomize_input(tsk->src1, tsk->pattern, src1_xfer_size);
 
-	tsk->dst1 = aligned_alloc(ADDR_ALIGNMENT, src1_xfer_size * 2);
+	tsk->dst1 = aligned_alloc(ADDR_ALIGNMENT, IAA_ZCOMPRESS_MAX_DEST_SIZE);
 	if (!tsk->dst1)
 		return -ENOMEM;
-	memset_pattern(tsk->dst1, 0, src1_xfer_size * 2);
+	memset_pattern(tsk->dst1, 0, IAA_ZCOMPRESS_MAX_DEST_SIZE);
 
-	tsk->output = aligned_alloc(ADDR_ALIGNMENT, src1_xfer_size * 2);
+	tsk->output = aligned_alloc(ADDR_ALIGNMENT, IAA_ZCOMPRESS_MAX_DEST_SIZE);
 	if (!tsk->output)
 		return -ENOMEM;
-	memset_pattern(tsk->output, 0, src1_xfer_size * 2);
+	memset_pattern(tsk->output, 0, IAA_ZCOMPRESS_MAX_DEST_SIZE);
 
-	tsk->iaa_max_dst_size = src1_xfer_size * 2;
+	tsk->iaa_max_dst_size = IAA_ZCOMPRESS_MAX_DEST_SIZE;
 
 	return ACCTEST_STATUS_OK;
 }
@@ -88,23 +88,23 @@ static int init_zdecompress8(struct task *tsk, int tflags, int opcode, unsigned 
 		return -ENOMEM;
 	iaa_zcompress16_randomize_input(tsk->input, tsk->pattern, input_size);
 
-	tsk->src1 = aligned_alloc(ADDR_ALIGNMENT, input_size * 2);
+	tsk->src1 = aligned_alloc(ADDR_ALIGNMENT, IAA_ZDECOMPRESS_MAX_DEST_SIZE);
 	if (!tsk->src1)
 		return -ENOMEM;
-	memset_pattern(tsk->src1, 0, input_size * 2);
+	memset_pattern(tsk->src1, 0, IAA_ZDECOMPRESS_MAX_DEST_SIZE);
 	tsk->xfer_size = iaa_do_zcompress8(tsk->src1, tsk->input, input_size);
 
-	tsk->dst1 = aligned_alloc(ADDR_ALIGNMENT, input_size);
+	tsk->dst1 = aligned_alloc(ADDR_ALIGNMENT, IAA_ZDECOMPRESS_MAX_DEST_SIZE);
 	if (!tsk->dst1)
 		return -ENOMEM;
-	memset_pattern(tsk->dst1, 0, input_size);
+	memset_pattern(tsk->dst1, 0, IAA_ZDECOMPRESS_MAX_DEST_SIZE);
 
-	tsk->output = aligned_alloc(ADDR_ALIGNMENT, input_size);
+	tsk->output = aligned_alloc(ADDR_ALIGNMENT, IAA_ZDECOMPRESS_MAX_DEST_SIZE);
 	if (!tsk->output)
 		return -ENOMEM;
-	memset_pattern(tsk->output, 0, input_size);
+	memset_pattern(tsk->output, 0, IAA_ZDECOMPRESS_MAX_DEST_SIZE);
 
-	tsk->iaa_max_dst_size = input_size;
+	tsk->iaa_max_dst_size = IAA_ZDECOMPRESS_MAX_DEST_SIZE;
 
 	return ACCTEST_STATUS_OK;
 }

@@ -57,14 +57,8 @@ int iaa_do_zcompress8(void *dst, void *src, int src_len)
 
 	if (remainder_bytes) {
 		tags = dst_ptr;
-		tags[0] = 0xFF;
-		tags[1] = 0xFF;
-		tags[2] = 0xFF;
-		tags[3] = 0xFF;
-		tags[4] = 0xFF;
-		tags[5] = 0xFF;
-		tags[6] = 0xFF;
-		tags[7] = 0xFF;
+		for (i = 0; i < 16; i++)
+			tags[i] = 0xFF;
 		dst_ptr += 16;
 		dst_len += 16;
 
