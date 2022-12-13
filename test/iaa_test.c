@@ -21,6 +21,8 @@ static void usage(void)
 	"-1 <extra_flags_1> ; specified by each opcpde\n"
 	"-2 <extra_flags_2> ; specified by each opcpde\n"
 	"-3 <extra_flags_3> ; specified by each opcpde\n"
+	"-a <aecs> ; specifies AECS\n"
+	"-m <map or unmap> ; specified by Translation Fetch\n"
 	"-o <opcode>     ; opcode, same value as in IAA spec\n"
 	"-d              ; wq device such as iax1/wq1.0\n"
 	"-n <number of descriptors> ;descriptor count to submit\n"
