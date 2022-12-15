@@ -40,16 +40,12 @@ static struct group_parameters group00_param = {
 	.read_buffers_reserved = 1,
 	.read_buffers_allowed = 8,
 	.use_read_buffer_limit = 1,
-	.traffic_class_a = 2,
-	.traffic_class_b = 3
 };
 
 static struct group_parameters group01_param = {
 	.read_buffers_reserved = 1,
 	.read_buffers_allowed = 8,
 	.use_read_buffer_limit = 0,
-	.traffic_class_a = 4,
-	.traffic_class_b = 5
 };
 
 static struct group_parameters *group_params[] = {
@@ -191,11 +187,6 @@ static int config_group(struct accfg_ctx *ctx, struct accfg_device *device,
 	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2)
 		return rc;
 
-	SET_ERR(rc, accfg_group_set_traffic_class_a(group,
-				group_param->traffic_class_a));
-	SET_ERR(rc, accfg_group_set_traffic_class_b(group,
-				group_param->traffic_class_b));
-
 	return rc;
 }
 
@@ -224,18 +215,6 @@ static int check_group(struct accfg_ctx *ctx, struct accfg_device *device,
 
 	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2)
 		return 0;
-
-	if (group_param->traffic_class_a !=
-			accfg_group_get_traffic_class_a(group)) {
-		fprintf(stderr, "%s failed on traffic_class_a\n", __func__);
-		return -EINVAL;
-	}
-
-	if (group_param->traffic_class_b !=
-			accfg_group_get_traffic_class_b(group)) {
-		fprintf(stderr, "%s failed on traffic_class_b\n", __func__);
-		return -EINVAL;
-	}
 
 	return 0;
 }
