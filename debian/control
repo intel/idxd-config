@@ -2,24 +2,26 @@ Source: accel-config
 Maintainer: Ramesh Thomas <ramesh.thomas@intel.com>
 Section: libs
 Priority: optional
-Standards-Version: 4.4.1
+Standards-Version: 4.6.1.0
 Homepage: https://github.com/intel/idxd-config
 Vcs-Browser: https://salsa.debian.org/debian/idxd-config
 Vcs-Git: https://salsa.debian.org/debian/idxd-config.git
 Rules-Requires-Root: no
-Build-Depends: asciidoctor,
-               debhelper-compat (= 12),
+Build-Depends: asciidoc,
+               debhelper-compat (= 13),
                libjson-c-dev,
                libkeyutils-dev,
                pkg-config,
-               uuid-dev
+               uuid-dev,
+               xmlto,
+               zlib1g-dev
 
 Package: accel-config
 Section: misc
 Architecture: i386 amd64
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
-Description: Utility for configuring the DSA subsystem
+Description: utility for configuring the DSA subsystem
  Intel Accelerator Utilities (accel-config) provides a user interface to the
  Intel Data Streaming Accelerator (DSA). DSA is a high-performance data copy
  and transformation accelerator integrated into Intel Xeon processors.
@@ -29,20 +31,23 @@ Description: Utility for configuring the DSA subsystem
 
 Package: libaccel-config1
 Architecture: i386 amd64
+Multi-Arch: same
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Utility library wrapping the Intel DSA sysfs ABI. It provides
- access to work queues by using the mmap portal from the character device and
- send work to the accelerator. It also provides interfaces to manage virtual DSA
- devices exposed by the driver to the guest via VFIO mediated device framework.
+Description: utility library wrapping the Intel DSA sysfs ABI
+ This provides access to work queues by using the mmap portal from the
+ character device and send work to the accelerator. It also provides
+ interfaces to manage virtual DSA devices exposed by the driver to the
+ guest via VFIO mediated device framework.
  .
- This package contains a utility library for managing the DSA (Data Stream
- Accelerator) subsystem in the Linux kernel.
+ This package contains a utility library for managing the DSA (Data
+ Stream Accelerator) subsystem in the Linux kernel.
 
 Package: libaccel-config-dev
 Section: libdevel
 Architecture: i386 amd64
+Multi-Arch: same
 Depends: libaccel-config1 (= ${binary:Version}), ${misc:Depends}
-Description: Development files for libaccel-config
+Description: development files for libaccel-config
  Header files and development library for compiling C programs to link with the
  libaccel-config library and manage the DSA subsystem in the Linux kernel.
 
@@ -51,7 +56,7 @@ Section: misc
 Architecture: i386 amd64
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
-Description: Utility to test the DSA subsystem
+Description: utility to test the DSA subsystem
  This utility has test cases that exercise the DSA subsysem. It uses
  libaccel-config API to configure workqueues and issues ENQCMD and MOVDIR64
  instructions to move memory.
