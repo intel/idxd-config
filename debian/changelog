@@ -17,6 +17,8 @@ accel-config (3.5.1-1) unstable; urgency=medium
 
 accel-config (3.5.0-1) unstable; urgency=medium
 
+  [ Ramesh Thomas ]
+  * Initial upload of accel-config (Closes: #1024089)
   * Update debian scripts to install contrib/configs in /etc
   * Update rpm scripts to install contrib/configs in /etc
   * Install contrib/configs folder in /etc
@@ -37,6 +39,26 @@ accel-config (3.5.0-1) unstable; urgency=medium
   * debian/copyright: clean up lintian copyright warnings
   * debian/copyright: clean up globbing order lintian warnings
   * debian/rules: add execute bit to script
+
+  [ Dimitri John Ledkov ]
+  * Correct multi-arch config:
+    - do not use conflicting /usr/lib libdir, use debhelper's default
+    multiarch libdir
+    - this results in correct multi-arch pkgconfig placement, note
+    previous override was doubly incorrect as it was creating subdir
+    /libaccel-config.pc/libaccel-config.pc
+    - update install files
+    - mark libaccel* packages Multi-Arch:same
+    - ensure that .1. soname abi is mentioned in libaccel-config1.install
+    to avoid accidental packaging of any future soname (e.g. 2) in the
+    libaccel-config1 package.
+  * Add proper libaccel-config1.symbols file to enforce abi stability
+  * Bump standards version to current
+  * change descriptions to start with lower case and without training '.'
+  * Move test binaries to libexec, as per RHEL and Debian packaging
+    guidelines
+  * Change 'common' from data to scripts, as it was chmoded to +x later
+    anyway
 
  -- Ramesh Thomas <ramesh.thomas@intel.com>  Fri, 14 Oct 2022 17:25:50 -0700
 
