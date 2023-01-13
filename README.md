@@ -19,11 +19,6 @@ apt install uuid-dev libjson-c-dev libkeyutils-dev libz-dev
 apt install debhelper devscripts debmake quilt fakeroot lintian asciidoctor
 apt install file gnupg patch patchutils
 ```
-### DSA Kernel headers
-Run following in kernel source folder
-```bash
-sudo make headers_install INSTALL_HDR_PATH=/usr
-````
 
 ## Build
 
