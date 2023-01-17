@@ -865,7 +865,7 @@ int iaa_compress_multi_task_nodes(struct acctest_context *ctx)
 
 		tsk_node->tsk->iaa_compr_flags = (IDXD_COMPRESS_FLAG_EOB_BFINAL |
 						  IDXD_COMPRESS_FLAG_FLUSH_OUTPUT);
-		tsk_node->tsk->iaa_max_dst_size = ctx->wq_max_xfer_size;
+		tsk_node->tsk->iaa_max_dst_size = IAA_COMPRESS_MAX_DEST_SIZE;
 
 		iaa_prep_compress(tsk_node->tsk);
 		tsk_node = tsk_node->next;
@@ -923,7 +923,7 @@ int iaa_decompress_multi_task_nodes(struct acctest_context *ctx)
 
 		tsk_node->tsk->iaa_compr_flags = (IDXD_COMPRESS_FLAG_EOB_BFINAL |
 						  IDXD_COMPRESS_FLAG_FLUSH_OUTPUT);
-		tsk_node->tsk->iaa_max_dst_size = ctx->wq_max_xfer_size;
+		tsk_node->tsk->iaa_max_dst_size = IAA_DECOMPRESS_MAX_DEST_SIZE;
 
 		iaa_prep_compress(tsk_node->tsk);
 		tsk_node = tsk_node->next;
@@ -974,7 +974,7 @@ int iaa_decompress_multi_task_nodes(struct acctest_context *ctx)
 						    IDXD_DECOMPRESS_FLAG_STOP_ON_EOB |
 						    IDXD_DECOMPRESS_FLAG_FLUSH_OUTPUT |
 						    IDXD_DECOMPRESS_FLAG_EN_DECOMPRESS);
-		tsk_node->tsk->iaa_max_dst_size = ctx->wq_max_xfer_size;
+		tsk_node->tsk->iaa_max_dst_size = IAA_DECOMPRESS_MAX_DEST_SIZE;
 
 		iaa_prep_decompress(tsk_node->tsk);
 		tsk_node = tsk_node->next;
