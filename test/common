@@ -12,7 +12,7 @@ export SIZE_1M=1048576
 export SIZE_2M=2097152
 export EXIT_FAILURE=1
 export EXIT_SKIP=77
-TESTDIR=/usr/lib/accel-config/test
+TESTDIR=/usr/libexec/accel-config/test
 BINDIR=/usr/bin
 
 # ACCFG
