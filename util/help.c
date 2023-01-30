@@ -39,13 +39,17 @@ static void exec_man_konqueror(const char *path, const char *page)
 		struct strbuf man_page = STRBUF_INIT;
 		const char *filename = "kfmclient";
 		char sbuf[STRERR_BUFSIZE];
+		char *new = NULL;
 
 		/* It's simpler to launch konqueror using kfmclient. */
 		if (path) {
 			const char *file = strrchr(path, '/');
+
 			if (file && !strcmp(file + 1, "konqueror")) {
-				char *new = strdup(path);
-				char *dest = strrchr(new, '/');
+				char *dest;
+
+				new = strdup(path);
+				dest = strrchr(new, '/');
 
 				/* strlen("konqueror") == strlen("kfmclient") */
 				strcpy(dest + 1, "kfmclient");
@@ -59,6 +63,7 @@ static void exec_man_konqueror(const char *path, const char *page)
 		execlp(path, filename, "newTab", man_page.buf, NULL);
 		warning("failed to exec '%s': %s", path,
 			strerror_r(errno, sbuf, sizeof(sbuf)));
+		free(new);
 	}
 }
 
