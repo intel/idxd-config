@@ -1623,7 +1623,7 @@ int task_result_verify_compress(struct task *tsk, int mismatch_expected)
 {
 	int i = 0;
 	int rc;
-	int expected_len;
+	int expected_len = 0;
 
 	if (mismatch_expected)
 		warn("invalid arg mismatch_expected for %d\n", tsk->opcode);
