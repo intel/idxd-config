@@ -13,10 +13,10 @@ check_PROGRAMS =\
 	iaa_test
 
 if ENABLE_TEST
-testprogdir = $(prefix)/lib/accel-config/test/
-testprog_DATA = common README.event_log
-testprog_SCRIPTS = dsa_user_test_runner.sh iaa_user_test_runner.sh itp-setup.sh
-testprog_PROGRAMS = dsa_test iaa_test inter_pasid_test
+testprogdir = $(prefix)/libexec/accel-config/test/
+testprog_DATA = common
+testprog_SCRIPTS = dsa_user_test_runner.sh iaa_user_test_runner.sh
+testprog_PROGRAMS = dsa_test iaa_test
 
 testconfdir = $(testprogdir)/configs/
 testconf_DATA = configs/2g2q_user_1.conf configs/2g2q_user_2.conf
