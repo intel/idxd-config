@@ -1,3 +1,28 @@
+accel-config (3.5.3-1) unstable; urgency=medium
+
+  [ Colin Ian King ]
+  * pull in various debian changes
+  * sync changelog entry with debian uploaded version
+  * free allocated path if execlp fails
+
+  [ Li Zhang ]
+  * Fix bug of setting max destination size
+
+  [ Ramesh Thomas ]
+  * Remove some leftover references to mdev
+  * Remove text about installing kernel headers
+  * Install tests in /usr/libexec
+  * Update RPM scripts to install tests in /usr/libexec
+  * Remove uninitialized local variable warning
+  * Modify script to include author in changelog
+
+  [ Tony Zhu ]
+  * Update user test script with path /usr/lib
+  * Update user test script with path /usr/libexec
+  * Remove read_buffers 0 settings from configs
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Thu, 23 Feb 2023 20:42:57 -0800
+
 accel-config (3.5.2-1) unstable; urgency=medium
 
   * Add tests of other dsa opcodes in dsa user test runner
