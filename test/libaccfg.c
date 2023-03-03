@@ -806,7 +806,11 @@ static int op_config_test(struct accfg_ctx *ctx, struct accfg_wq *wq)
 /* test setting of valid op_config bitmask */
 static int test_op_config(struct accfg_ctx *ctx)
 {
+	struct accfg_op_config op_config;
 	int rc = 0;
+
+	if (accfg_wq_get_op_config(test_ctx.wq[1], &op_config))
+		return -EOPNOTSUPP;
 
 	rc = device_test_reset(ctx, test_ctx.device, false);
 	if (rc)
