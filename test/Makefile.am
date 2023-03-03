@@ -3,7 +3,8 @@ include $(top_srcdir)/Makefile.am.in
 TESTS =\
 	libaccfg \
 	dsa_user_test_runner.sh \
-	iaa_user_test_runner.sh
+	iaa_user_test_runner.sh \
+	dsa_config_test_runner.sh
 
 EXTRA_DIST += $(TESTS)
 
@@ -15,7 +16,7 @@ check_PROGRAMS =\
 if ENABLE_TEST
 testprogdir = $(prefix)/libexec/accel-config/test/
 testprog_DATA = common
-testprog_SCRIPTS = dsa_user_test_runner.sh iaa_user_test_runner.sh
+testprog_SCRIPTS = dsa_user_test_runner.sh iaa_user_test_runner.sh dsa_config_test_runner.sh
 testprog_PROGRAMS = dsa_test iaa_test
 
 testconfdir = $(testprogdir)/configs/
