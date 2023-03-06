@@ -28,6 +28,8 @@ if [ "$pasid_en" -ne 1 ]; then
 	exit "$EXIT_SKIP"
 fi
 
+IDXD_VERSION=$(cat /sys/bus/dsa/devices/$IAA/version)
+
 start_iaa()
 {
 	configurable=$(cat /sys/bus/dsa/devices/$IAA/configurable)
@@ -320,15 +322,29 @@ unset SIZE_1
 
 flag="0x1"
 echo "Testing with 'block on fault' flag ON"
-for opcode in "0x4e" "0x4a" "0x4d" "0x49" "0x4c" "0x48" "0x43" "0x42"; do
+for opcode in "0x4d" "0x49" "0x4c" "0x48" "0x43" "0x42"; do
 	test_op $opcode $flag
 done
 
 flag="0x0"
 echo "Testing with 'block on fault' flag OFF"
-for opcode in "0x4e" "0x4a" "0x4d" "0x49" "0x4c" "0x48" "0x43" "0x42"; do
+for opcode in "0x4d" "0x49" "0x4c" "0x48" "0x43" "0x42"; do
 	test_op $opcode $flag
 done
+
+if [ "$IDXD_VERSION" != "0x100" ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	for opcode in "0x4e" "0x4a"; do
+		test_op $opcode $flag
+	done
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	for opcode in "0x4e" "0x4a"; do
+		test_op $opcode $flag
+	done
+fi
 
 flag="0x1"
 test_op_filter $flag
@@ -336,35 +352,37 @@ test_op_filter $flag
 flag="0x0"
 test_op_filter $flag
 
-flag="0x1"
-aecs_flag="0x0101"
-echo "Testing with 'block on fault' flag ON"
-for opcode in "0x41" "0x40"; do
-	test_op_crypto $opcode $flag $aecs_flag
-done
+if [ "$IDXD_VERSION" != "0x100" ]; then
+	flag="0x1"
+	aecs_flag="0x0101"
+	echo "Testing with 'block on fault' flag ON"
+	for opcode in "0x41" "0x40"; do
+		test_op_crypto $opcode $flag $aecs_flag
+	done
 
-flag="0x0"
-aecs_flag="0x0301"
-echo "Testing with 'block on fault' flag OFF"
-for opcode in "0x41" "0x40"; do
-	test_op_crypto $opcode $flag $aecs_flag
-done
+	flag="0x0"
+	aecs_flag="0x0301"
+	echo "Testing with 'block on fault' flag OFF"
+	for opcode in "0x41" "0x40"; do
+		test_op_crypto $opcode $flag $aecs_flag
+	done
 
-bind_vfio
+	bind_vfio
 
-flag="0x1"
-echo "Testing with 'block on fault' flag ON"
-for opcode in "0x0a"; do
-	test_op_transl_fetch $opcode $flag
-done
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	for opcode in "0x0a"; do
+		test_op_transl_fetch $opcode $flag
+	done
 
-flag="0x0"
-echo "Testing with 'block on fault' flag OFF"
-for opcode in "0x0a"; do
-	test_op_transl_fetch $opcode $flag
-done
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	for opcode in "0x0a"; do
+		test_op_transl_fetch $opcode $flag
+	done
 
-unbind_vfio
+	unbind_vfio
+fi
 
 disable_wqs
 stop_iaa
