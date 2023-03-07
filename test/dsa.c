@@ -1714,7 +1714,7 @@ int task_result_verify_dualcast(struct task *tsk, int mismatch_expected)
 int task_result_verify_ap_delta(struct task *tsk, int mismatch_expected)
 {
 	int rc;
-	int data_size = (tsk->comp->status == DSA_COMP_SUCCESS) ?
+	unsigned int data_size = (tsk->comp->status == DSA_COMP_SUCCESS) ?
 			 tsk->desc->xfer_size : tsk->comp->bytes_completed;
 
 	rc = memcmp((unsigned char *)tsk->desc->dst_addr,
@@ -1792,7 +1792,7 @@ int task_result_verify_crcgen(struct task *tsk, int mismatch_expected)
 {
 	unsigned int expected_crc = 0x0;
 	unsigned int seed = 0;
-	int data_size = (tsk->comp->status == DSA_COMP_SUCCESS) ?
+	unsigned int data_size = (tsk->comp->status == DSA_COMP_SUCCESS) ?
 			 tsk->desc->xfer_size : tsk->comp->bytes_completed;
 
 	if (tsk->dflags & READ_CRC_SEED)
@@ -1829,7 +1829,7 @@ int task_result_verify_crc_copy(struct task *tsk, int mismatch_expected)
 	int rc;
 	unsigned int seed = 0;
 	unsigned int expected_crc = 0x0;
-	int data_size = (tsk->comp->status == DSA_COMP_SUCCESS) ?
+	unsigned int data_size = (tsk->comp->status == DSA_COMP_SUCCESS) ?
 			 tsk->desc->xfer_size : tsk->comp->bytes_completed;
 
 	if (tsk->dflags & READ_CRC_SEED)
