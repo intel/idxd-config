@@ -1,7 +1,8 @@
 # accel-config
 
-Utility library for controlling and configuring DSA (Data-Streaming Accelerator)
-sub-system in the Linux kernel
+Utility library for controlling and configuring DSA (Intel® Data Streaming
+Accelerator Architecture) and IAA (Intel® Analytics Accelerator Architecture)
+sub-systems in the Linux kernel
 
 ## Resolve dependencies
 
