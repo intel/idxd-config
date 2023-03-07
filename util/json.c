@@ -332,12 +332,10 @@ struct json_object *util_device_to_json(struct accfg_device *device,
 	}
 
 	new_bool = accfg_device_get_pasid_enabled(device);
-	if (new_bool) {
-		jobj = json_object_new_int(new_bool);
-		if (!jobj)
-			goto err;
-		json_object_object_add(jdevice, "pasid_enabled", jobj);
-	}
+	jobj = json_object_new_int(new_bool);
+	if (!jobj)
+		goto err;
+	json_object_object_add(jdevice, "pasid_enabled", jobj);
 
 	jobj = json_object_new_int(accfg_device_get_cdev_major(device));
 	if (!jobj)

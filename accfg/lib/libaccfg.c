@@ -579,8 +579,7 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 	device->gencap = accfg_get_param_unsigned_llong(ctx, dfd, "gen_cap");
 	device->configurable = accfg_get_param_unsigned_llong(ctx, dfd,
 			"configurable");
-	device->pasid_enabled = accfg_get_param_str(ctx, dfd,
-			"pasid_enabled");
+	device->pasid_enabled = accfg_get_param_long(ctx, dfd, "pasid_enabled");
 	device->max_read_buffers = accfg_get_param_long(ctx, dfd, "max_read_buffers");
 	device->read_buffer_limit = accfg_get_param_long(ctx, dfd, "read_buffer_limit");
 	device->event_log_size = accfg_get_param_long(ctx, dfd, "event_log_size");

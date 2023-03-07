@@ -54,7 +54,7 @@ struct accfg_device {
 	uint64_t max_transfer_size;
 	uint64_t opcap;
 	uint64_t gencap;
-	char *pasid_enabled;
+	int pasid_enabled;
 };
 
 struct accfg_group {
