@@ -1,3 +1,70 @@
+accel-config (4.0-1) unstable; urgency=medium
+
+  [ Colin Ian King ]
+  * use buildflags.mk, remove hardcoded CFLAGS
+  * debian/accel-config-test.install fix path on copy
+
+  [ Dave Jiang ]
+  * convert all magic number for 1<<12 to PAGE_SIZE
+  * fix madvise() call to unmap pages
+  * add updated idxd.h definition from kernel source
+
+  [ Li Zhang ]
+  * Remove redundant -f 0x0 in iaa_user_test_runner.sh
+  * Fix dedicated mode wq size 1 failure
+  * Modify incorrect print information
+  * Modify block_on_fault in 2g2q_user_2.conf
+  * Move get_random_value() to accel_test.c
+  * Add algorithm to do Zcompress8
+  * Add test code of operation Zcompress8
+  * Modify script for executing Zcompress8 test
+  * Add algorithm to do Zdecompress8
+  * Add test code of operation Zdecompress8
+  * Modify script for executing Zdecompress8 test
+  * Add algorithm to do both Encrypt and Decrypt
+  * Add test code of operation Encrypt
+  * Modify script for executing Encrypt test
+  * Add test code of operation Decrypt
+  * Modify script for executing Decrypt test
+  * Modify struct in idxd.h for IAA Translation Fetch
+  * Add test code of IAA Translation Fetch
+  * Modify script for executing IAA Translation Fetch test
+  * Add helping information for new parameters
+  * Add openssl package installation details
+  * Fix bug of Zcompress8 about input size less 128
+  * Remove ats_disable config for iax tests
+  * Add identification for IAA1.0/2.0 platform
+
+  [ Nikhil Rao ]
+  * add per-wq prs disable tests
+
+  [ Ramesh Thomas ]
+  * Update format bitmask attrs to match driver
+  * Add new API to set and get wq op_config
+  * Add option to config-wq to set op_config
+  * Change json listing format of bitmasks
+  * Add load, save and list config support for op_config
+  * Update config-wq doc with op_config details
+  * Add unit test for op_config configuration
+  * Fix segmentation fault during list cmd in SPR
+  * Add API to retrieve iaa_cap when available
+  * Add group->desc_progress_limit support
+  * Add group->batch_progress_limit support
+  * Add wq->prs_disable support
+  * Add device->event_log_size support
+  * Do not set traffic class in tests
+  * Skip op_config test if feature not present
+  * Include IAA support in README
+  * Fix bug in return value of pasid enabled check
+
+  [ Tony Zhu ]
+  * add DIX Generate operation support
+  * add translation fetch operation support
+  * Remove traffic config for iax tests
+  * Fix dsa_test segmentation fault when do 2G tests
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Tue, 07 Mar 2023 22:51:22 -0500
+
 accel-config (3.5.3-1) unstable; urgency=medium
 
   [ Colin Ian King ]
