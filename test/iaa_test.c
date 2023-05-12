@@ -644,6 +644,7 @@ int main(int argc, char *argv[])
 	}
 
 	iaa = acctest_init(tflags);
+	iaa->dev_type = ACCFG_DEVICE_IAX;
 
 	if (!iaa)
 		return -ENOMEM;
