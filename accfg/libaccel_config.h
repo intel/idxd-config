@@ -16,6 +16,10 @@
 extern "C" {
 #endif
 
+#define ACCFG_VERSION_MAJOR 4
+#define ACCFG_VERSION_MINOR 0
+#define ACCFG_VERSION_PATCH 0
+
 #ifndef UUID_STR_LEN
 #define UUID_STR_LEN 37
 #endif
