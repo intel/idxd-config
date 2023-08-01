@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: GPL-2.0
+
+accel-config-config-user-default(1)
+===================================
+
+NAME
+----
+accel-config-config-user-default - load a pre-defined user default configuration
+
+SYNOPSIS
+--------
+[verse]
+'accel-config config-user-default' [<options>]
+
+Without an option, config-user-default loads a pre-defined user default
+configuration.
+
+There is a config file template at contrib/configs/user_default_profile.conf.
+Run "accel-config config-user-default -c user_default_profile.conf" to
+configure all available devices with the template values. Any modifications to
+the template file should retain the json format.
+
+EXAMPLE
+-------
+# accel-config config-user-default
+
+The command will load the pre-defined user default config to all available
+WQs and engines on all available DSA and IAX devices with the following
+attributes:
+	All WQs and all engines are in group 0
+
+	WQ attributes:
+	priority: 1
+	group_id: 0
+	block_on_fault: 1
+	ats_disable: 0
+	prs_disable: 1
+	mode: "shared"
+	type: "user"
+	name: "user_default_wq"
+	driver_name: "user"
+	size: max WQ size / max WQs
+	threshold: size
+	max_transfer_size: default value
+	max_batch_size: default value on DSA. N/A on IAX
+	op_config: default value
+
+	Attributes of all devices and groups are default values.
+
+# accel-config config-user-default -c /etc/accel-config/contrib/configs/user_default_profile.conf
+
+The command will load the specified user default config file. The config
+file is a template that specifies attributes and devices. User can edit
+the config file per requirements.
+
+# accel-config config-user-default -d -n <wq_name>
+The command will disable all WQs named <wq_name> (default name is
+"user_default_wq").
+
+OPTIONS
+-------
+-c::
+--config-file::
+	to specify the location of the customized user default config file
+
+-n::
+--name::
+	to specify WQ name which will be used to disable enabled WQs
+-d::
+--disable::
+	to disable the configured devices and wqs
+
+-v::
+--verbose::
+	verbose
