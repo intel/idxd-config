@@ -39,6 +39,7 @@ static struct config {
 	bool engines;
 	bool wqs;
 	const char *config_file;
+	const char *user_default_wq_name;
 	char *buf;
 } config;
 
@@ -1579,11 +1580,16 @@ void config_default_disable(void *ctx)
 	char *user_default_wq_name;
 	struct accfg_device *dev;
 
-	user_default_wq_name = strdup(CONFIG_DEFAULT_WQ_NAME);
+	if (config.user_default_wq_name)
+		user_default_wq_name = strdup(config.user_default_wq_name);
+	else
+		user_default_wq_name = strdup(CONFIG_DEFAULT_WQ_NAME);
 	if (!user_default_wq_name) {
 		fprintf(stderr, "strdup user default wq name failed\n");
 		return;
 	}
+
+	printf("disable WQs named as %s\n", user_default_wq_name);
 
 	accfg_device_foreach(ctx, dev) {
 		enum accfg_device_state dev_state;
@@ -1633,6 +1639,8 @@ int cmd_config_default(int argc, const char **argv, void *ctx)
 			     "override the default config"),
 		OPT_BOOLEAN('d', "disable", &disable,
 			    "disable configured default devices and wqs"),
+		OPT_STRING('n', "name", &config.user_default_wq_name, "user default wq name",
+			   "specify user default wq name. Default \"user_default_wq\""),
 		OPT_BOOLEAN('v', "verbose", &verbose,
 			    "emit extra debug messages to stderr"),
 		OPT_END(),
