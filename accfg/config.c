@@ -158,6 +158,8 @@ static struct conf_def_wq_param {
 	bool configured;
 } conf_def_wq_param[ACCFG_DEVICE_MAX];
 
+static bool config_default_file;
+
 /* Return WQ parameter for dev type. */
 static struct wq_parameters *get_conf_def_wq_param(enum accfg_device_type type)
 {
@@ -637,6 +639,39 @@ static int activate_devices(void)
 	return 0;
 }
 
+static void config_default_json(struct accfg_wq *wq,
+				json_object *jobj, char *key)
+{
+	enum accfg_device_type dev_type;
+	struct accfg_device *dev;
+	struct wq_parameters *p;
+	char *dev_type_str;
+
+	dev = accfg_wq_get_device(wq);
+	dev_type = accfg_device_get_type(dev);
+	dev_type_str = accfg_device_get_type_str(dev);
+	p = get_conf_def_wq_param(dev_type);
+	if (!p) {
+		fprintf(stderr, "parsing dev type %s failed\n", dev_type_str);
+
+		return;
+	}
+
+	printf("dev type = %s, key = %s\n", dev_type_str, key);
+	if (!strcmp(key, "name"))
+		p->name = strdup(json_object_get_string(jobj));
+	else if (!strcmp(key, "priority"))
+		p->priority = json_object_get_int(jobj);
+	else if (!strcmp(key, "group_id"))
+		p->group_id = json_object_get_int(jobj);
+	else if (!strcmp(key, "block_on_fault"))
+		p->block_on_fault = json_object_get_int(jobj);
+	else if (!strcmp(key, "ats_disable"))
+		p->ats_disable = json_object_get_int(jobj);
+	else if (!strcmp(key, "prs_disable"))
+		p->prs_disable = json_object_get_int(jobj);
+}
+
 /*
  * Configuring the value corresponding to integer and strings
  */
@@ -777,6 +812,12 @@ static int configure_json_value(struct accfg_ctx *ctx,
 	if (warn_once && strstr(key, "token")) {
 		fprintf(stderr, "Warning: \"token\" attributes are deprecated\n");
 		warn_once = false;
+	}
+
+	if (wq && config_default_file) {
+		config_default_json(wq, jobj, key);
+
+		return 0;
 	}
 
 	if (dev && dev_state != ACCFG_DEVICE_ENABLED) {
@@ -1430,6 +1471,37 @@ static void config_default_activate_devices(void *ctx)
 #define CONFIG_DEFAULT_WQ_MODE			"shared"
 #define CONFIG_DEFAULT_WQ_DRV_NAME		"user"
 
+/* Set fixed WQ parameters: mode, type, driver_name */
+static int config_default_wq_set_fixed(void)
+{
+	struct wq_parameters *p;
+	int i;
+
+	for (i = 0; i < ACCFG_DEVICE_MAX; i++) {
+		p = &conf_def_wq_param[i].param;
+
+		p->mode = strdup(CONFIG_DEFAULT_WQ_MODE);
+		if (!p->mode) {
+			fprintf(stderr, "strdup WQ mode failed\n");
+			return -ENOMEM;
+		}
+
+		p->type = strdup(CONFIG_DEFAULT_WQ_TYPE);
+		if (!p->type) {
+			fprintf(stderr, "strdup WQ type failed\n");
+			return -ENOMEM;
+		}
+
+		p->driver_name = strdup(CONFIG_DEFAULT_WQ_DRV_NAME);
+		if (!p->driver_name) {
+			fprintf(stderr, "strdup WQ driver_name failed\n");
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
 static void config_default(void *ctx)
 {
 	struct wq_parameters *p;
@@ -1476,9 +1548,37 @@ static void config_default_param_free(void)
 	}
 }
 
+static int config_default_from_file(void *ctx)
+{
+	int rc;
+
+	rc = read_config_file(ctx, &config, &util_param);
+	if (rc < 0) {
+		fprintf(stderr, "Reading config file failed: %d\n", rc);
+			return rc;
+	}
+
+	config_default_file = true;
+	rc = parse_config(ctx, &config);
+	if (rc < 0) {
+		fprintf(stderr, "Parse json and set device fail: %d\n", rc);
+		return rc;
+	}
+
+	config_default_wq_set_fixed();
+	if (conf_def_wq_param[ACCFG_DEVICE_DSA].param.name)
+		conf_def_wq_param[ACCFG_DEVICE_DSA].configured = true;
+	if (conf_def_wq_param[ACCFG_DEVICE_IAX].param.name)
+		conf_def_wq_param[ACCFG_DEVICE_IAX].configured = true;
+
+	return 0;
+}
+
 int cmd_config_default(int argc, const char **argv, void *ctx)
 {
 	const struct option options[] = {
+		OPT_FILENAME('c', "config-file", &config.config_file, "config-file",
+			     "override the default config"),
 		OPT_BOOLEAN('v', "verbose", &verbose,
 			    "emit extra debug messages to stderr"),
 		OPT_END(),
@@ -1486,8 +1586,14 @@ int cmd_config_default(int argc, const char **argv, void *ctx)
 	const char *const u[] = {
 		"accfg config-default [<options>]", NULL
 	};
+	struct util_filter_ctx fctx = {
+		0
+	};
+	struct list_filter_arg cfa = {
+		0
+	};
 	const char *prefix = "./";
-	int i;
+	int i, rc = 0;
 
 	argc = parse_options_prefix(argc, argv, prefix, options, u, 0);
 	for (i = 0; i < argc; i++)
@@ -1495,8 +1601,33 @@ int cmd_config_default(int argc, const char **argv, void *ctx)
 	if (argc)
 		usage_with_options(u, options);
 
-	config_default(ctx);
-	config_default_activate_devices(ctx);
+	cfa.jdevices = json_object_new_array();
+	if (!cfa.jdevices)
+		return -ENOMEM;
+	list_head_init(&cfa.jdev_list);
+
+	fctx.filter_device = filter_device;
+	fctx.filter_group = filter_group;
+	fctx.filter_wq = filter_wq;
+	fctx.filter_engine = filter_engine;
+	fctx.list = &cfa;
+	cfa.flags = config_opts_to_flags();
+
+	rc = util_filter_walk(ctx, &fctx, &util_param);
+	if (rc)
+		return rc;
+
+	free_containers(&cfa);
+
+	if (config.config_file) {
+		/* Parse the default config file and set configs. */
+		rc = config_default_from_file(ctx);
+	} else {
+		config_default(ctx);
+	}
+
+	if (!rc)
+		config_default_activate_devices(ctx);
 
 	config_default_param_free();
 
