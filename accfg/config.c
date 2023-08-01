@@ -1574,11 +1574,65 @@ static int config_default_from_file(void *ctx)
 	return 0;
 }
 
+void config_default_disable(void *ctx)
+{
+	char *user_default_wq_name;
+	struct accfg_device *dev;
+
+	user_default_wq_name = strdup(CONFIG_DEFAULT_WQ_NAME);
+	if (!user_default_wq_name) {
+		fprintf(stderr, "strdup user default wq name failed\n");
+		return;
+	}
+
+	accfg_device_foreach(ctx, dev) {
+		enum accfg_device_state dev_state;
+		enum accfg_wq_state wq_state;
+		bool non_default_wq_enabled;
+		struct accfg_wq *wq;
+		const char *wq_name;
+
+		non_default_wq_enabled = false;
+		/* Disable enabled default WQs */
+		accfg_wq_foreach(dev, wq) {
+			wq_name = accfg_wq_get_type_name(wq);
+			wq_state = accfg_wq_get_state(wq);
+			if (wq_state == ACCFG_WQ_DISABLED)
+				continue;
+
+			if (!strcmp(wq_name, user_default_wq_name)) {
+				if (verbose) {
+					printf("disable %s\n",
+					       accfg_wq_get_devname(wq));
+				}
+				accfg_wq_disable(wq, true);
+			} else {
+				non_default_wq_enabled = true;
+			}
+		}
+
+		/* Disable enabled device only when all WQs are disabled. */
+		dev_state = accfg_device_get_state(dev);
+		if (dev_state == ACCFG_DEVICE_ENABLED &&
+		    !non_default_wq_enabled) {
+			if (verbose) {
+				printf("enable %s\n",
+				       accfg_device_get_devname(dev));
+			}
+			accfg_device_disable(dev, true);
+		}
+	}
+	free(user_default_wq_name);
+}
+
 int cmd_config_default(int argc, const char **argv, void *ctx)
 {
+	bool disable = false;
 	const struct option options[] = {
 		OPT_FILENAME('c', "config-file", &config.config_file, "config-file",
 			     "override the default config"),
+		OPT_BOOLEAN('d', "disable", &disable,
+			    "disable configured default devices and wqs"),
 		OPT_BOOLEAN('v', "verbose", &verbose,
 			    "emit extra debug messages to stderr"),
 		OPT_END(),
@@ -1618,6 +1672,12 @@ int cmd_config_default(int argc, const char **argv, void *ctx)
 		return rc;
 
 	free_containers(&cfa);
+
+	if (disable) {
+		config_default_disable(ctx);
+
+		return 0;
+	}
 
 	if (config.config_file) {
 		/* Parse the default config file and set configs. */
