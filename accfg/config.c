@@ -119,6 +119,87 @@ static bool is_wq_threshold_writable(struct accfg_wq *wq, int val);
 static bool is_wq_prs_disable_writable(struct accfg_wq *wq, int val);
 static bool is_wq_ats_disable_writable(struct accfg_wq *wq, int val);
 
+static int get_wq_size(struct accfg_device *dev)
+{
+	int max_wq_size, max_wqs;
+
+	max_wq_size = accfg_device_get_max_work_queues_size(dev);
+	max_wqs = accfg_device_get_max_work_queues(dev);
+
+	return max_wq_size / max_wqs;
+}
+
+static int config_default_wq_set_prs_disable(struct accfg_wq *wq, int val)
+{
+	if (!is_wq_prs_disable_writable(wq, val))
+		return -EPERM;
+
+	return accfg_wq_set_prs_disable(wq, val);
+}
+
+static int config_default_wq_set_ats_disable(struct accfg_wq *wq, int val)
+{
+	if (!is_wq_ats_disable_writable(wq, val))
+		return -EPERM;
+
+	return accfg_wq_set_ats_disable(wq, val);
+}
+
+static int config_default_wq_set_threshold(struct accfg_wq *wq, int val)
+{
+	if (!is_wq_threshold_writable(wq, val))
+		return -EPERM;
+
+	return accfg_wq_set_threshold(wq, val);
+}
+
+static struct conf_def_wq_param {
+	struct wq_parameters param;
+	bool configured;
+} conf_def_wq_param[ACCFG_DEVICE_MAX];
+
+/* Return WQ parameter for dev type. */
+static struct wq_parameters *get_conf_def_wq_param(enum accfg_device_type type)
+{
+	if (type == ACCFG_DEVICE_DSA)
+		return &conf_def_wq_param[ACCFG_DEVICE_DSA].param;
+	else if (type == ACCFG_DEVICE_IAX)
+		return &conf_def_wq_param[ACCFG_DEVICE_IAX].param;
+
+	return NULL;
+}
+
+/* Check if dev is configured. */
+static bool conf_def_dev_configured(struct accfg_device *dev)
+{
+	if (accfg_device_get_type(dev) == ACCFG_DEVICE_DSA)
+		return conf_def_wq_param[ACCFG_DEVICE_DSA].configured;
+	else if (accfg_device_get_type(dev) == ACCFG_DEVICE_IAX)
+		return conf_def_wq_param[ACCFG_DEVICE_IAX].configured;
+
+	return false;
+}
+
+/* Set WQ parameters based on device cap: size and threshold. */
+static int config_default_wq_set_on_dev(struct accfg_device *dev)
+{
+	enum accfg_device_type dev_type;
+	struct wq_parameters *p;
+
+	dev_type = accfg_device_get_type(dev);
+	p = get_conf_def_wq_param(dev_type);
+	if (!p)
+		return -EINVAL;
+
+	p->wq_size = get_wq_size(dev);
+	if (p->wq_size <= 0)
+		return -ENOSPC;
+
+	p->threshold = p->wq_size;
+
+	return 0;
+}
+
 static const struct wq_set_table wq_table[] = {
 	{ "size", accfg_wq_set_size, NULL, NULL, NULL },
 	{ "priority", accfg_wq_set_priority, NULL, NULL, NULL },
@@ -1233,4 +1314,191 @@ int cmd_config(int argc, const char **argv, void *ctx)
 		rc = activate_devices();
 
 	return rc;
+}
+
+static int config_default_wq(struct accfg_wq *wq)
+{
+	struct accfg_device *dev = accfg_wq_get_device(wq);
+	enum accfg_device_type dev_type;
+	struct wq_parameters *p;
+
+	if (!conf_def_dev_configured(dev))
+		return 0;
+
+	dev_type = accfg_device_get_type(dev);
+	p = get_conf_def_wq_param(dev_type);
+	if (!p)
+		return -EINVAL;
+
+	accfg_wq_set_priority(wq, p->priority);
+	accfg_wq_set_group_id(wq, p->group_id);
+	accfg_wq_set_block_on_fault(wq, p->block_on_fault);
+	accfg_wq_set_str_mode(wq, p->mode);
+	accfg_wq_set_str_type(wq, p->type);
+	accfg_wq_set_str_name(wq, p->name);
+	accfg_wq_set_str_driver_name(wq, p->driver_name);
+
+	accfg_wq_set_size(wq, p->wq_size);
+	config_default_wq_set_threshold(wq, p->threshold);
+	config_default_wq_set_prs_disable(wq, p->prs_disable);
+	config_default_wq_set_ats_disable(wq, p->ats_disable);
+
+	return 0;
+}
+
+static int config_default_engine(struct accfg_engine *engine,
+				 struct accfg_device *dev)
+{
+	enum accfg_device_type dev_type;
+	struct wq_parameters *p;
+
+	/* Engine's group_id is same as WQ's. */
+	dev_type = accfg_device_get_type(dev);
+	p = get_conf_def_wq_param(dev_type);
+	if (!p)
+		return -EINVAL;
+
+	return accfg_engine_set_group_id(engine, p->group_id);
+}
+
+static void config_default_activate_devices(void *ctx)
+{
+	enum accfg_device_state dev_state;
+	const char *dev_name, *wq_name;
+	struct accfg_engine *engine;
+	struct accfg_device *dev;
+	struct accfg_wq *wq;
+	int rc = 0;
+
+	accfg_device_foreach(ctx, dev) {
+		/* Skip device that is not configured. */
+		if (!conf_def_dev_configured(dev))
+			continue;
+
+		/* Don't enable WQs/engines on partially enabled devices. */
+		dev_state = accfg_device_get_state(dev);
+		if (dev_state == ACCFG_DEVICE_ENABLED)
+			continue;
+
+		/* Set WQ parameters calculated based on dev. */
+		config_default_wq_set_on_dev(dev);
+
+		/* Config WQs */
+		accfg_wq_foreach(dev, wq) {
+			if (verbose)
+				printf("config %s\n", accfg_wq_get_devname(wq));
+
+			config_default_wq(wq);
+		}
+
+		/* Config engines */
+		accfg_engine_foreach(dev, engine)
+			config_default_engine(engine, dev);
+
+		/* Enable device */
+		dev_name = accfg_device_get_devname(dev);
+		if (verbose)
+			printf("enable %s\n", dev_name);
+		rc = accfg_device_enable(dev);
+		if (rc) {
+			fprintf(stderr, "Error enabling %s\n", dev_name);
+			continue;
+		}
+
+		/* Enable WQs */
+		accfg_wq_foreach(dev, wq) {
+			wq_name = accfg_wq_get_devname(wq);
+			if (verbose)
+				printf("enable %s\n", wq_name);
+
+			rc = accfg_wq_enable(wq);
+			if (rc) {
+				fprintf(stderr, "Error enabling %s\n", wq_name);
+				continue;
+			}
+		}
+	}
+}
+
+#define CONFIG_DEFAULT_WQ_PRIORITY		10
+#define CONFIG_DEFAULT_WQ_GROUP_ID		0
+#define CONFIG_DEFAULT_WQ_BLOCK_ON_FAULT	1
+#define CONFIG_DEFAULT_WQ_PRS_DISABLE		1
+#define CONFIG_DEFAULT_WQ_ATS_DISABLE		0
+#define CONFIG_DEFAULT_WQ_NAME			"user_default_wq"
+#define CONFIG_DEFAULT_WQ_TYPE			"user"
+#define CONFIG_DEFAULT_WQ_MODE			"shared"
+#define CONFIG_DEFAULT_WQ_DRV_NAME		"user"
+
+static void config_default(void *ctx)
+{
+	struct wq_parameters *p;
+	int i;
+
+	/*
+	 * Configure WQ parameters except:
+	 * 1. size and threshold will be configured when enabling WQs.
+	 * 2. max_buffer_size, max_batch_size, op_config will be default values
+	 *    which have been initialized by driver.
+	 */
+	for (i = 0; i < ACCFG_DEVICE_MAX; i++) {
+		p = &conf_def_wq_param[i].param;
+
+		p->priority = CONFIG_DEFAULT_WQ_PRIORITY;
+		p->group_id = CONFIG_DEFAULT_WQ_GROUP_ID;
+		p->block_on_fault = CONFIG_DEFAULT_WQ_BLOCK_ON_FAULT;
+		p->mode = strdup(CONFIG_DEFAULT_WQ_MODE);
+		p->type = strdup(CONFIG_DEFAULT_WQ_TYPE);
+		p->name = strdup(CONFIG_DEFAULT_WQ_NAME);
+		p->driver_name = strdup(CONFIG_DEFAULT_WQ_DRV_NAME);
+		p->prs_disable = CONFIG_DEFAULT_WQ_PRS_DISABLE;
+		p->ats_disable = CONFIG_DEFAULT_WQ_ATS_DISABLE;
+
+		conf_def_wq_param[i].configured = true;
+	}
+}
+
+static void config_default_param_free(void)
+{
+	struct wq_parameters *p;
+	int i;
+
+	for (i = 0; i < ACCFG_DEVICE_MAX; i++) {
+		if (!conf_def_wq_param[i].configured)
+			continue;
+
+		p = &conf_def_wq_param[i].param;
+
+		free((char *)p->name);
+		free((char *)p->type);
+		free((char *)p->mode);
+		free((char *)p->driver_name);
+	}
+}
+
+int cmd_config_default(int argc, const char **argv, void *ctx)
+{
+	const struct option options[] = {
+		OPT_BOOLEAN('v', "verbose", &verbose,
+			    "emit extra debug messages to stderr"),
+		OPT_END(),
+	};
+	const char *const u[] = {
+		"accfg config-default [<options>]", NULL
+	};
+	const char *prefix = "./";
+	int i;
+
+	argc = parse_options_prefix(argc, argv, prefix, options, u, 0);
+	for (i = 0; i < argc; i++)
+		error("unknown parameter \"%s\"\n", argv[i]);
+	if (argc)
+		usage_with_options(u, options);
+
+	config_default(ctx);
+	config_default_activate_devices(ctx);
+
+	config_default_param_free();
+
+	return 0;
 }
