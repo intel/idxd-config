@@ -1872,7 +1872,7 @@ int iaa_transl_fetch_multi_task_nodes(struct acctest_context *ctx, int do_mmap)
 			return -errno;
 		}
 
-		__builtin_ia32_mfence();
+		__asm__ __volatile__ ("mfence" ::: "memory");
 
 		tsk_node = tsk_node->next;
 	}
