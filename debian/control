@@ -2,7 +2,7 @@ Source: accel-config
 Maintainer: Ramesh Thomas <ramesh.thomas@intel.com>
 Section: libs
 Priority: optional
-Standards-Version: 4.6.1.0
+Standards-Version: 4.6.2
 Homepage: https://github.com/intel/idxd-config
 Vcs-Browser: https://salsa.debian.org/debian/idxd-config
 Vcs-Git: https://salsa.debian.org/debian/idxd-config.git
