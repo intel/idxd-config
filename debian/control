@@ -14,7 +14,8 @@ Build-Depends: asciidoc,
                pkg-config,
                uuid-dev,
                xmlto,
-               zlib1g-dev
+               zlib1g-dev,
+               libssl-dev
 
 Package: accel-config
 Section: misc

@@ -34,3 +34,31 @@ profile descriptions.
               for throughput ops
             - targeting SPDK-like uses
 	    - DWQ threshold default 0
+
+5. user_default_profile.conf
+    Recommended dsa and iax accel profile template
+    - The template specifies one DSA device and one IAX device
+    - The attributes are applied to all WQs and engines on DSA and IAX
+    - Run "accel-config config-user-default -c user_default_profile.conf"
+      to load the config to all WQs and engines on all available DSA and
+      IAX devices
+    - The attributes can be edited. Two devices can be tailored to one device.
+    - 1 group with all available WQs/all engs per group
+            - Attributes that can be changed:
+              "group_id":0
+              "priority":10
+              "block_on_fault":1
+              "ats_disable":0
+              "prs_disable":1
+              "name":"user_default_wq"
+            - Calcuated attributes:
+              "size": max WQ size / max WQs
+              "threshold": WQ size
+            - Fixed attributes:
+              "type": "user"
+              "mode":"shared"
+              "driver_name":"user",
+            - Attributes with default values set by driver:
+              "max_batch_size": default value
+              "max_transfer_size": default value
+              "op_config": default value

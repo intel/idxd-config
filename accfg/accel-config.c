@@ -67,6 +67,7 @@ static struct cmd_struct commands[] = {
 	{"config-group", cmd_config_group},
 	{"config-wq", cmd_config_wq},
 	{"config-engine", cmd_config_engine},
+	{"config-user-default", cmd_config_default},
 #ifdef ENABLE_TEST
 	{"test", cmd_test},
 #endif

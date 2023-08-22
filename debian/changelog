@@ -1,3 +1,24 @@
+accel-config (4.1-1) unstable; urgency=medium
+
+  [ Colin Ian King ]
+  * add missing libssl-dev dependency
+  * debian/accel-config-test.install fix path on copy
+
+  [ Fenghua Yu ]
+  * Skip configuring ats_disable if the attribute is not present
+  * Add config-user-default command
+  * Add option "-c <config_file>" to load default configurations from
+    the file
+  * Disable default configured WQs and devices
+  * Add "-n <wq_name>" to specify WQ name for disabling WQs
+  * Add user_default_profile.conf
+  * Add doumentation for new command "config-user-default"
+
+  [ Jerry Snitselaar ]
+  * Update spec file templates to use SPDX identifiers
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Mon, 21 Aug 2023 18:08:39 -0700
+
 accel-config (4.0-1) unstable; urgency=medium
 
   [ Colin Ian King ]
