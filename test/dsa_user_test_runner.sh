@@ -6,7 +6,16 @@
 
 rc="$EXIT_SKIP"
 
+input1=$1
+if [ "$input1" == "--skip-config" ]; then
+DEV=`ls /dev/dsa/ | sed -ne 's|wq\([^.]\+\)\(.*\)|dsa\1/wq\1\2|p'`
+DSA=`echo $DEV | cut -f1 -d/`
+echo "$DEV"
+echo "$DSA"
+else
 DSA=dsa0
+echo "$DSA"
+fi
 WQ0=wq0.0
 WQ1=wq0.1
 
@@ -69,8 +78,13 @@ test_op()
 		echo "Performing $wq_mode_name WQ $op_name testing"
 		for xfer_size in $SIZE_1 $SIZE_4K $SIZE_64K $SIZE_1M $SIZE_2M; do
 			echo "Testing $xfer_size bytes"
+			if [ "$input1" == "--skip-config" ]; then
+			"$DSATEST" -l "$xfer_size" -o "$opcode" \
+				-f "$flag" t200 -v -d "$DEV"
+			else
 			"$DSATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
 				-f "$flag" t200 -v
+			fi
 		done
 	done
 }
@@ -98,8 +112,13 @@ test_op_batch()
 		echo "Performing $wq_mode_name WQ batched $op_name testing"
 		for xfer_size in $SIZE_1 $SIZE_4K $SIZE_64K $SIZE_1M $SIZE_2M; do
 			echo "Testing $xfer_size bytes"
+			if [ "$input1" == "--skip-config" ]; then
+			"$DSATEST" -l "$xfer_size" -o 0x1 -b "$opcode" \
+				-c 16 -f "$flag" t2000 -v -d "$DEV"
+			else
 			"$DSATEST" -w "$wq_mode_code" -l "$xfer_size" -o 0x1 -b "$opcode" \
 				-c 16 -f "$flag" t2000 -v
+			fi
 		done
 	done
 }
@@ -123,8 +142,13 @@ test_dif_op()
 		echo "Performing $wq_mode_name WQ $op_name testing"
 		for xfer_size in $SIZE_512 $SIZE_1K $SIZE_4K; do
 			echo "Testing $xfer_size bytes"
+			if [ "$input1" == "--skip-config" ]; then
+			"$DSATEST" -l "$xfer_size" -o "$opcode" \
+				-f "$flag" t200 -v -d "$DEV"
+			else
 			"$DSATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
 				-f "$flag" t200 -v
+			fi
 		done
 	done
 }
@@ -148,14 +172,21 @@ test_dif_op_batch()
 		echo "Performing $wq_mode_name WQ batched $op_name testing"
 		for xfer_size in $SIZE_512 $SIZE_1K $SIZE_4K; do
 			echo "Testing $xfer_size bytes"
+			if [ "$input1" == "--skip-config" ]; then
+			"$DSATEST" -l "$xfer_size" -o 0x1 -b "$opcode" \
+				-c 16 -f "$flag" t2000 -v -d "$DEV"
+			else
 			"$DSATEST" -w "$wq_mode_code" -l "$xfer_size" -o 0x1 -b "$opcode" \
 				-c 16 -f "$flag" t2000 -v
+			fi
 		done
 	done
 }
+if [ "$input1" != "--skip-config" ]; then
 _cleanup
 start_dsa
 enable_wqs
+fi
 # shellcheck disable=SC2034
 rc="$EXIT_FAILURE"
 
@@ -188,7 +219,9 @@ for opcode in "0x12" "0x13" "0x14" "0x15"; do
 	test_dif_op_batch $opcode $flag
 done
 
+if [ "$input1" != "--skip-config" ]; then
 disable_wqs
 stop_dsa
 _cleanup
 exit 0
+fi
