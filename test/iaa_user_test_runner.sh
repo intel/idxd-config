@@ -75,8 +75,6 @@ if [ "$pasid_en" -ne 1 ]; then
 	exit "$EXIT_SKIP"
 fi
 
-IDXD_VERSION=$(cat /sys/bus/dsa/devices/$IAA/version)
-
 start_iaa()
 {
 	configurable=$(cat /sys/bus/dsa/devices/$IAA/configurable)
@@ -169,122 +167,136 @@ test_op_filter()
 	for wq_mode_code in 0 1; do
 		wq_mode_name=$(wq_mode2name "$wq_mode_code")
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c -3 128 \
-			-o 0x50 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c -3 256 \
-			-o 0x50 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c -3 1024 \
-			-o 0x50 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c -3 16384 \
-			-o 0x50 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c -3 262144 \
-			-o 0x50 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c -3 524288 \
-			-o 0x50 -t 5000 -v
+		if [ $((IAA_OPCODE_MASK_SCAN & OP_CAP2)) -ne 0 ]; then
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
+				-3 128 -o $IAA_OPCODE_SCAN -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
+				-3 256 -o $IAA_OPCODE_SCAN -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c \
+				-3 1024 -o $IAA_OPCODE_SCAN -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c \
+				-3 16384 -o $IAA_OPCODE_SCAN -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c \
+				-3 262144 -o $IAA_OPCODE_SCAN -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c \
+				-3 524288 -o $IAA_OPCODE_SCAN -t 5000 -v
+		fi
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x38 -3 256 \
-			-o 0x51 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x38 -3 512 \
-			-o 0x51 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x38 -3 2048 \
-			-o 0x51 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x38 -3 32768 \
-			-o 0x51 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x38 -3 524288 \
-			-o 0x51 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x38 -3 1048576 \
-			-o 0x51 -t 5000 -v
+		if [ $((IAA_OPCODE_MASK_SET_MEMBERSHIP & OP_CAP2)) -ne 0 ]; then
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x38 \
+				-3 256 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x38 \
+				-3 512 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x38 \
+				-3 2048 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x38 \
+				-3 32768 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x38 \
+				-3 524288 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x38 \
+				-3 1048576 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v
+		fi
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c -3 128 \
-			-o 0x52 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c -3 256 \
-			-o 0x52 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c -3 1024 \
-			-o 0x52 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c -3 16384 \
-			-o 0x52 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c -3 262144 \
-			-o 0x52 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c -3 524288 \
-			-o 0x52 -t 5000 -v
+		if [ $((IAA_OPCODE_MASK_EXTRACT & OP_CAP2)) -ne 0 ]; then
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
+				-3 128 -o $IAA_OPCODE_EXTRACT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
+				-3 256 -o $IAA_OPCODE_EXTRACT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c \
+				-3 1024 -o $IAA_OPCODE_EXTRACT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c \
+				-3 16384 -o $IAA_OPCODE_EXTRACT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c \
+				-3 262144 -o $IAA_OPCODE_EXTRACT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c \
+				-3 524288 -o $IAA_OPCODE_EXTRACT -t 5000 -v
+		fi
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c -3 128 \
-			-o 0x53 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c -3 256 \
-			-o 0x53 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c -3 1024 \
-			-o 0x53 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c -3 16384 \
-			-o 0x53 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c -3 262144 \
-			-o 0x53 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c -3 524288 \
-			-o 0x53 -t 5000 -v
+		if [ $((IAA_OPCODE_MASK_SELECT & OP_CAP2)) -ne 0 ]; then
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
+				-3 128 -o $IAA_OPCODE_SELECT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
+				-3 256 -o $IAA_OPCODE_SELECT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c \
+				-3 1024 -o $IAA_OPCODE_SELECT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c \
+				-3 16384 -o $IAA_OPCODE_SELECT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c \
+				-3 262144 -o $IAA_OPCODE_SELECT -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c \
+				-3 524288 -o $IAA_OPCODE_SELECT -t 5000 -v
+		fi
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x1c -3 512 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x1c -3 1024 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x1c -3 4096 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 32768 -2 0x1c -3 32768 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x1c -3 65536 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 131072 -2 0x1c -3 131072 \
-			-o 0x54 -t 5000 -v
+		if [ $((IAA_OPCODE_MASK_RLE_BURST & OP_CAP2)) -ne 0 ]; then
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x1c \
+				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x1c \
+				-3 1024 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x1c \
+				-3 4096 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 32768 -2 0x1c \
+				-3 32768 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x1c \
+				-3 65536 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 131072 -2 0x1c \
+				-3 131072 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 32 -2 0x3c -3 16 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 64 -2 0x3c -3 32 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 128 -2 0x3c -3 64 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 256 -2 0x3c -3 128 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x3c -3 256 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x3c -3 512 \
-			-o 0x54 -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 32 -2 0x3c \
+				-3 16 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 64 -2 0x3c \
+				-3 32 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 128 -2 0x3c \
+				-3 64 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 256 -2 0x3c \
+				-3 128 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x3c \
+				-3 256 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x3c \
+				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 64 -2 0x7c -3 16 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 128 -2 0x7c -3 32 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 256 -2 0x7c -3 64 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c -3 128 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c -3 256 \
-			-o 0x54 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2048 -2 0x7c -3 512 \
-			-o 0x54 -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 64 -2 0x7c \
+				-3 16 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 128 -2 0x7c \
+				-3 32 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 256 -2 0x7c \
+				-3 64 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
+				-3 128 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
+				-3 256 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2048 -2 0x7c \
+				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 -v
+		fi
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x38 -3 256 \
-			-o 0x55 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x38 -3 512 \
-			-o 0x55 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x38 -3 2048 \
-			-o 0x55 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x38 -3 32768 \
-			-o 0x55 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x38 -3 524288 \
-			-o 0x55 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x38 -3 1048576 \
-			-o 0x55 -t 5000 -v
+		if [ $((IAA_OPCODE_MASK_FIND_UNIQUE & OP_CAP2)) -ne 0 ]; then
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x38 \
+				-3 256 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x38 \
+				-3 512 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x38 \
+				-3 2048 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x38 \
+				-3 32768 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x38 \
+				-3 524288 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x38 \
+				-3 1048576 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v
+		fi
 
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c -3 128 \
-			-o 0x56 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c -3 256 \
-			-o 0x56 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c -3 1024 \
-			-o 0x56 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c -3 16384 \
-			-o 0x56 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c -3 262144 \
-			-o 0x56 -t 5000 -v
-		./iaa_test -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c -3 524288 \
-			-o 0x56 -t 5000 -v
+		if [ $((IAA_OPCODE_MASK_EXPAND & OP_CAP2)) -ne 0 ]; then
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
+				-3 128 -o $IAA_OPCODE_EXPAND -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
+				-3 256 -o $IAA_OPCODE_EXPAND -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c \
+				-3 1024 -o $IAA_OPCODE_EXPAND -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c \
+				-3 16384 -o $IAA_OPCODE_EXPAND -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c \
+				-3 262144 -o $IAA_OPCODE_EXPAND -t 5000 -v
+			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c \
+				-3 524288 -o $IAA_OPCODE_EXPAND -t 5000 -v
+		fi
 	done
 }
 
@@ -339,58 +351,108 @@ enable_wqs
 # shellcheck disable=SC2034
 rc="$EXIT_FAILURE"
 
-flag="0x1"
-echo "Testing with 'block on fault' flag ON"
-for opcode in "0x0"; do
-	test_op $opcode $flag
-done
-
-flag="0x0"
-echo "Testing with 'block on fault' flag OFF"
-for opcode in "0x0"; do
-	test_op $opcode $flag
-done
-
-flag="0x1"
-extra_flag="0x8000"
-echo "Testing with 'block on fault' flag ON"
-for opcode in "0x44"; do
-	test_op $opcode $flag $extra_flag
-done
-
-flag="0x0"
-extra_flag="0x4000"
-echo "Testing with 'block on fault' flag OFF"
-for opcode in "0x44"; do
-	test_op $opcode $flag $extra_flag
-done
-
-unset SIZE_1
-
-flag="0x1"
-echo "Testing with 'block on fault' flag ON"
-for opcode in "0x4d" "0x49" "0x4c" "0x48" "0x43" "0x42"; do
-	test_op $opcode $flag
-done
-
-flag="0x0"
-echo "Testing with 'block on fault' flag OFF"
-for opcode in "0x4d" "0x49" "0x4c" "0x48" "0x43" "0x42"; do
-	test_op $opcode $flag
-done
-
-if [ "$IDXD_VERSION" != "0x100" ]; then
+if [ $((IAA_OPCODE_MASK_NOOP & OP_CAP0)) -ne 0 ]; then
 	flag="0x1"
 	echo "Testing with 'block on fault' flag ON"
-	for opcode in "0x4e" "0x4a"; do
-		test_op $opcode $flag
-	done
+	test_op $IAA_OPCODE_NOOP $flag
 
 	flag="0x0"
 	echo "Testing with 'block on fault' flag OFF"
-	for opcode in "0x4e" "0x4a"; do
-		test_op $opcode $flag
-	done
+	test_op $IAA_OPCODE_NOOP $flag
+fi
+
+if [ $((IAA_OPCODE_MASK_CRC64 & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	extra_flag="0x8000"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_CRC64 $flag $extra_flag
+
+	flag="0x0"
+	extra_flag="0x4000"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_CRC64 $flag $extra_flag
+fi
+
+unset SIZE_1
+
+if [ $((IAA_OPCODE_MASK_ZCOMPRESS16 & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_ZCOMPRESS16 $flag
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_ZCOMPRESS16 $flag
+fi
+
+if [ $((IAA_OPCODE_MASK_ZDECOMPRESS16 & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_ZDECOMPRESS16 $flag
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_ZDECOMPRESS16 $flag
+fi
+
+if [ $((IAA_OPCODE_MASK_ZCOMPRESS32 & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_ZCOMPRESS32 $flag
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_ZCOMPRESS32 $flag
+fi
+
+if [ $((IAA_OPCODE_MASK_ZDECOMPRESS32 & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_ZDECOMPRESS32 $flag
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_ZDECOMPRESS32 $flag
+fi
+
+if [ $((IAA_OPCODE_MASK_COMPRESS & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_COMPRESS $flag
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_COMPRESS $flag
+fi
+
+if [ $((IAA_OPCODE_MASK_DECOMPRESS & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_DECOMPRESS $flag
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_DECOMPRESS $flag
+fi
+
+if [ $((IAA_OPCODE_MASK_ZCOMPRESS8 & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_ZCOMPRESS8 $flag
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_ZCOMPRESS8 $flag
+fi
+
+if [ $((IAA_OPCODE_MASK_ZDECOMPRESS8 & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	echo "Testing with 'block on fault' flag ON"
+	test_op $IAA_OPCODE_ZDECOMPRESS8 $flag
+
+	flag="0x0"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op $IAA_OPCODE_ZDECOMPRESS8 $flag
 fi
 
 flag="0x1"
@@ -399,34 +461,40 @@ test_op_filter $flag
 flag="0x0"
 test_op_filter $flag
 
-if [ "$IDXD_VERSION" != "0x100" ]; then
+if [ $((IAA_OPCODE_MASK_ENCRYPT & OP_CAP2)) -ne 0 ]; then
 	flag="0x1"
 	aecs_flag="0x0101"
 	echo "Testing with 'block on fault' flag ON"
-	for opcode in "0x41" "0x40"; do
-		test_op_crypto $opcode $flag $aecs_flag
-	done
+	test_op_crypto $IAA_OPCODE_ENCRYPT $flag $aecs_flag
 
 	flag="0x0"
 	aecs_flag="0x0301"
 	echo "Testing with 'block on fault' flag OFF"
-	for opcode in "0x41" "0x40"; do
-		test_op_crypto $opcode $flag $aecs_flag
-	done
+	test_op_crypto $IAA_OPCODE_ENCRYPT $flag $aecs_flag
+fi
 
+if [ $((IAA_OPCODE_MASK_DECRYPT & OP_CAP2)) -ne 0 ]; then
+	flag="0x1"
+	aecs_flag="0x0101"
+	echo "Testing with 'block on fault' flag ON"
+	test_op_crypto $IAA_OPCODE_DECRYPT $flag $aecs_flag
+
+	flag="0x0"
+	aecs_flag="0x0301"
+	echo "Testing with 'block on fault' flag OFF"
+	test_op_crypto $IAA_OPCODE_DECRYPT $flag $aecs_flag
+fi
+
+if [ $((IAA_OPCODE_MASK_TRANSL_FETCH & OP_CAP0)) -ne 0 ]; then
 	bind_vfio
 
 	flag="0x1"
 	echo "Testing with 'block on fault' flag ON"
-	for opcode in "0x0a"; do
-		test_op_transl_fetch $opcode $flag
-	done
+	test_op_transl_fetch $IAA_OPCODE_TRANSL_FETCH $flag
 
 	flag="0x0"
 	echo "Testing with 'block on fault' flag OFF"
-	for opcode in "0x0a"; do
-		test_op_transl_fetch $opcode $flag
-	done
+	test_op_transl_fetch $IAA_OPCODE_TRANSL_FETCH $flag
 
 	unbind_vfio
 fi
