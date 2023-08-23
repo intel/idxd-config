@@ -223,7 +223,7 @@ int init_crcgen(struct task *tsk, int tflags, int opcode, unsigned long xfer_siz
 	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
 	tsk->crc_seed = 0x12345678;
 	if (tsk->test_flags & (unsigned int)(READ_CRC_SEED)) {
-		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(tsk->crc_seed));
+		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(*tsk->crc_seed_addr));
 		*tsk->crc_seed_addr = tsk->crc_seed;
 		tsk->crc_seed = 0x0;
 	}
@@ -253,7 +253,7 @@ int init_copy_crc(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 
 	tsk->crc_seed = 0x12345678;
 	if (tsk->test_flags & (unsigned int)(READ_CRC_SEED)) {
-		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(tsk->crc_seed));
+		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(*tsk->crc_seed_addr));
 		*tsk->crc_seed_addr = tsk->crc_seed;
 		tsk->crc_seed = 0x0;
 	}

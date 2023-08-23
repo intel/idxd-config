@@ -66,10 +66,8 @@ static unsigned int accfg_device_compl_size[] = {
 	[ACCFG_DEVICE_IAX] = 64,
 };
 
-enum {
-	ACCFG_CMD_STATUS_MAX = 0x45,
-	ACCFG_CMD_STATUS_ERROR = 0x80010000,
-};
+#define ACCFG_CMD_STATUS_MAX	0x45
+#define ACCFG_CMD_STATUS_ERROR	0x80010000
 
 #define SCMD_STAT(x) (((x) & ~IDXD_SCMD_SOFTERR_MASK) >> \
 		IDXD_SCMD_SOFTERR_SHIFT)
@@ -1764,13 +1762,13 @@ ACCFG_EXPORT int accfg_group_get_##field( \
 	return group->field; \
 }
 
-accfg_group_get_field(group, read_buffers_reserved);
-accfg_group_get_field(group, read_buffers_allowed);
-accfg_group_get_field(group, use_read_buffer_limit);
-accfg_group_get_field(group, traffic_class_a);
-accfg_group_get_field(group, traffic_class_b);
-accfg_group_get_field(group, desc_progress_limit);
-accfg_group_get_field(group, batch_progress_limit);
+accfg_group_get_field(group, read_buffers_reserved)
+accfg_group_get_field(group, read_buffers_allowed)
+accfg_group_get_field(group, use_read_buffer_limit)
+accfg_group_get_field(group, traffic_class_a)
+accfg_group_get_field(group, traffic_class_b)
+accfg_group_get_field(group, desc_progress_limit)
+accfg_group_get_field(group, batch_progress_limit)
 
 static void wqs_init(struct accfg_device *device)
 {

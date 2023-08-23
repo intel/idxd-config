@@ -13,6 +13,7 @@
 #include "dsa.h"
 
 #define DSA_TEST_SIZE 20000
+#pragma GCC diagnostic ignored "-Wformat"
 
 static void usage(void)
 {

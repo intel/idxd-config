@@ -6,6 +6,8 @@
 #include <accfg/idxd.h>
 #include "accfg_test.h"
 
+#pragma GCC diagnostic ignored "-Wpedantic"
+
 #define SHARED 1
 #define DEDICATED 0
 

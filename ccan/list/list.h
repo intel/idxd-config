@@ -8,6 +8,9 @@
 #include <ccan/container_of/container_of.h>
 #include <ccan/check_type/check_type.h>
 
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Wformat"
+
 /**
  * struct list_node - an entry in a doubly-linked list
  * @next: next entry (self if empty)
