@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-accel-config-disable-wq(1)
+accel-config disable-wq(1)
 ==========================
 
 NAME
@@ -26,4 +26,4 @@ OPTIONS
 
 SEE ALSO
 --------
-linkaccel-config:accel-config-enable-wq[1]
+accel-config enable-wq(1)

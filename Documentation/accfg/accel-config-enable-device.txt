@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-accel-config-enable-device(1)
+accel-config enable-device(1)
 =============================
 
 NAME
@@ -20,4 +20,4 @@ include::../copyright.txt[]
 
 SEE ALSO
 --------
-linkaccel-config:accel-config-disable-device[1]
+accel-config disable-device(1)
