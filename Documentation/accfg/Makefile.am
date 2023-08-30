@@ -1,5 +1,5 @@
 #SPDX-License-Identifier: GPL-2.0
-#Copyright(c) 2015-2019 Intel Corporation. All rights reserved
+#Copyright(c) 2023-2026 Intel Corporation. All rights reserved
 
 if USE_ASCIIDOCTOR
 
