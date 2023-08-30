@@ -15,50 +15,16 @@
 #include <util/util.h>
 #include <util/main.h>
 
-const char accfg_usage_string[] = "accel-config [--version] [--help] COMMAND [ARGS]";
-const char accfg_more_info_string[] =
-    "See 'accel-config help COMMAND' for more information on a specific command.\n"
-    " accel-config --list-cmds to see all available commands";
-
-static int cmd_version(int argc, const char **argv, void *ctx)
-{
-	printf("%s\n", VERSION);
-	return 0;
-}
-
-static int cmd_help(int argc, const char **argv, void *ctx)
-{
-	const char *const builtin_help_subcommands[] = {
-		"enable-workqueue", "disable-workqueue",
-		"enable-group", "disable-group", NULL
-	};
-	struct option builtin_help_options[] = {
-		OPT_END(),
-	};
-	const char *builtin_help_usage[] = {
-		"accel-config help [command]",
-		NULL
-	};
-
-	parse_options_subcommand(argc, argv, builtin_help_options,
-					builtin_help_subcommands,
-					builtin_help_usage, 0);
-
-	if (!argv[0]) {
-		printf("\n usage: %s\n\n", accfg_usage_string);
-		printf("\n %s\n\n", accfg_more_info_string);
-		return 0;
-	}
-
-	return help_show_man_page(argv[0], "accel-config", "ACCFG_MAN_VIEWER");
-}
+const char accfg_usage_string[] =
+	"accel-config [--list-cmds] [-h | --help] [-v | --version] COMMAND [ARGS]\n\n"
+	" 'accel-config --help COMMAND' for information on a specific command\n"
+	" 'accel-config --list-cmds' for a list of available commands\n"
+	" 'accel-config --version' for version info";
 
 static struct cmd_struct commands[] = {
-	{"version", cmd_version},
 	{"list", cmd_list},
 	{"load-config", cmd_config},
 	{"save-config",  cmd_save},
-	{"help", cmd_help},
 	{"disable-device", cmd_disable_device},
 	{"enable-device", cmd_enable_device},
 	{"disable-wq", cmd_disable_wq},
@@ -80,20 +46,8 @@ int main(int argc, const char **argv)
 	int rc;
 
 	/* Look for flags.. */
-	argv++;
-	argc--;
-	main_handle_options(&argv, &argc, accfg_usage_string, commands,
+	main_handle_options(argv, argc, accfg_usage_string, commands,
 			    ARRAY_SIZE(commands));
-
-	if (argc > 0) {
-		if (!prefixcmp(argv[0], "--"))
-			argv[0] += 2;
-	} else {
-		/* The user didn't specify a command; give them help */
-		printf("\n usage: %s\n\n", accfg_usage_string);
-		printf("\n %s\n\n", accfg_more_info_string);
-		return -EINVAL;
-	}
 
 	if (access("/sys/module/idxd", F_OK)) {
 		fprintf(stderr, "idxd kernel module not loaded\n");
@@ -104,6 +58,8 @@ int main(int argc, const char **argv)
 	if (rc)
 		goto error_exit;
 
+	argv++;
+	argc--;
 	rc = main_handle_internal_command(argc, argv, ctx, commands,
 				     ARRAY_SIZE(commands));
 

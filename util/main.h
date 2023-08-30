@@ -17,7 +17,7 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 struct cmd_struct;
-int main_handle_options(const char ***argv, int *argc, const char *usage_msg,
+void main_handle_options(const char **argv, int argc, const char *usage_msg,
 		struct cmd_struct *cmds, int num_cmds);
 int main_handle_internal_command(int argc, const char **argv, void *ctx,
 		struct cmd_struct *cmds, int num_cmds);

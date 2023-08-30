@@ -25,77 +25,65 @@
 
 #include <util/strbuf.h>
 #include <util/util.h>
+#include <util/main.h>
 
-int main_handle_options(const char ***argv, int *argc, const char *usage_msg,
+void main_handle_options(const char **argv, int argc, const char *usage_msg,
 		struct cmd_struct *cmds, int num_cmds)
 {
-	int handled = 0;
+	int i;
 
-	while (*argc > 0) {
-		const char *cmd = (*argv)[0];
-		if (cmd[0] != '-')
-			break;
-
-		if (!strcmp(cmd, "--version") || !strcmp(cmd, "--help"))
-			break;
-
-		/*
-		 * Shortcut for '-h' and '-v' options to invoke help
-		 * and version command.
-		 */
-		if (!strcmp(cmd, "-h")) {
-			(*argv)[0] = "--help";
-			break;
-		}
-
-		if (!strcmp(cmd, "-v")) {
-			(*argv)[0] = "--version";
-			break;
-		}
-
-		if (!strcmp(cmd, "--list-cmds")) {
-			int i;
-
-			for (i = 0; i < num_cmds; i++) {
-				struct cmd_struct *p = cmds+i;
-
-				/* filter out commands from auto-complete */
-				if (strcmp(p->cmd, "create-nfit") == 0)
-					continue;
-				if (strcmp(p->cmd, "test") == 0)
-					continue;
-				if (strcmp(p->cmd, "bat") == 0)
-					continue;
-				printf("%s\n", p->cmd);
-			}
-			exit(0);
-		} else {
-			fprintf(stderr, "Unknown option: %s\n", cmd);
-			usage(usage_msg);
-		}
-
-		(*argv)++;
-		(*argc)--;
-		handled++;
+	if (argc < 2) {
+		help_show_man_page(NULL, argv[0], "ACCFG_MAN_VIEWER");
+		goto exit_app;
 	}
-	return handled;
+
+	if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v")) {
+		printf("%s\n", VERSION);
+		exit(0);
+	}
+
+	if (argv[1][0] != '-') {
+		for (i = 0; i < num_cmds; i++)
+			if (!strcmp(argv[1], cmds[i].cmd)) {
+				if (argc > 2 &&
+						(!strcmp(argv[2], "--help") ||
+						 !strcmp(argv[2], "-h"))) {
+					help_show_man_page(argv[1], argv[0],
+							"ACCFG_MAN_VIEWER");
+					goto exit_app;
+				} else
+					return;
+			}
+		fprintf(stderr, "Unknown command: '%s'\n", argv[1]);
+		goto exit_app;
+	}
+
+	if (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")) {
+		if (argc > 2)
+			help_show_man_page(argv[2], argv[0], "ACCFG_MAN_VIEWER");
+		else
+			help_show_man_page(NULL, argv[0], "ACCFG_MAN_VIEWER");
+	}
+
+	if (!strcmp(argv[1], "--list-cmds")) {
+		for (i = 0; i < num_cmds; i++)
+			printf("%s %s\n", argv[0], cmds[i].cmd);
+		exit(0);
+	}
+
+exit_app:
+	/* Exits app if not already */
+	usage(usage_msg);
 }
 
 int main_handle_internal_command(int argc, const char **argv, void *ctx,
 		struct cmd_struct *cmds, int num_cmds)
 {
-	const char *cmd = argv[0];
 	int i;
-
-	/* Turn "<binary> cmd --help" into "<binary> help cmd" */
-	if (argc > 1 && !strcmp(argv[1], "--help")) {
-		argv[1] = argv[0];
-		argv[0] = cmd = "help";
-	}
 
 	for (i = 0; i < num_cmds; i++) {
 		struct cmd_struct *p = cmds+i;
-		if (strcmp(p->cmd, cmd))
+		if (strcmp(p->cmd, argv[0]))
 			continue;
 		return p->fn(argc, argv, ctx);
 	}
