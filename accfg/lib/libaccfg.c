@@ -248,10 +248,8 @@ static char *accfg_get_param_str(struct accfg_ctx *ctx, int dfd, char *name)
 	if (n <= 0)
 		return NULL;
 
-	if (buf[n - 1] == '\n')
-		buf[n - 1] = '\0';
-	else
-		buf[n] = '\0';
+	buf[n] = '\0';
+	*strchrnul(buf, '\n') = '\0';
 
 	return strdup(buf);
 }
@@ -2079,7 +2077,8 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 
 	if (flag == ACCFG_WQ_ENABLE) {
 		rc = get_driver_bind_path(device->bus_type_str,
-				wq->driver_name ? wq->driver_name :
+				wq->driver_name && strlen(wq->driver_name) ?
+				wq->driver_name :
 				IDXD_WQ_DEVICE_PORTAL(device, wq), &path);
 		if (rc < 0)
 			return rc;
