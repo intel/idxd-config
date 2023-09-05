@@ -66,10 +66,8 @@ static unsigned int accfg_device_compl_size[] = {
 	[ACCFG_DEVICE_IAX] = 64,
 };
 
-enum {
-	ACCFG_CMD_STATUS_MAX = 0x45,
-	ACCFG_CMD_STATUS_ERROR = 0x80010000,
-};
+#define ACCFG_CMD_STATUS_MAX	0x45
+#define ACCFG_CMD_STATUS_ERROR	0x80010000
 
 #define SCMD_STAT(x) (((x) & ~IDXD_SCMD_SOFTERR_MASK) >> \
 		IDXD_SCMD_SOFTERR_SHIFT)
@@ -250,10 +248,8 @@ static char *accfg_get_param_str(struct accfg_ctx *ctx, int dfd, char *name)
 	if (n <= 0)
 		return NULL;
 
-	if (buf[n - 1] == '\n')
-		buf[n - 1] = '\0';
-	else
-		buf[n] = '\0';
+	buf[n] = '\0';
+	*strchrnul(buf, '\n') = '\0';
 
 	return strdup(buf);
 }
@@ -1764,13 +1760,13 @@ ACCFG_EXPORT int accfg_group_get_##field( \
 	return group->field; \
 }
 
-accfg_group_get_field(group, read_buffers_reserved);
-accfg_group_get_field(group, read_buffers_allowed);
-accfg_group_get_field(group, use_read_buffer_limit);
-accfg_group_get_field(group, traffic_class_a);
-accfg_group_get_field(group, traffic_class_b);
-accfg_group_get_field(group, desc_progress_limit);
-accfg_group_get_field(group, batch_progress_limit);
+accfg_group_get_field(group, read_buffers_reserved)
+accfg_group_get_field(group, read_buffers_allowed)
+accfg_group_get_field(group, use_read_buffer_limit)
+accfg_group_get_field(group, traffic_class_a)
+accfg_group_get_field(group, traffic_class_b)
+accfg_group_get_field(group, desc_progress_limit)
+accfg_group_get_field(group, batch_progress_limit)
 
 static void wqs_init(struct accfg_device *device)
 {
@@ -2081,7 +2077,8 @@ static int accfg_wq_control(struct accfg_wq *wq, enum accfg_control_flag flag,
 
 	if (flag == ACCFG_WQ_ENABLE) {
 		rc = get_driver_bind_path(device->bus_type_str,
-				wq->driver_name ? wq->driver_name :
+				wq->driver_name && strlen(wq->driver_name) ?
+				wq->driver_name :
 				IDXD_WQ_DEVICE_PORTAL(device, wq), &path);
 		if (rc < 0)
 			return rc;

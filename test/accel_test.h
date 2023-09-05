@@ -6,6 +6,8 @@
 #include <accfg/idxd.h>
 #include "accfg_test.h"
 
+#pragma GCC diagnostic ignored "-Wpedantic"
+
 #define SHARED 1
 #define DEDICATED 0
 
@@ -160,6 +162,7 @@ struct acctest_context {
 	unsigned int wq_max_batch_size;
 	unsigned long wq_max_xfer_size;
 	int ats_disable;
+	enum accfg_device_type dev_type;
 
 	int is_batch;
 	int is_evl_test;

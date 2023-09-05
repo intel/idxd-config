@@ -10,7 +10,7 @@ accel-config - configure and control DSA(data streaminng accelerator) subsystem 
 SYNOPSIS
 --------
 [verse]
-'accel-config' [--version] [--help] [OPTIONS] COMMAND [ARGS]
+'accel-config' [--list-cmds] [--version] [--help] [OPTIONS] COMMAND [ARGS]
 
 OPTIONS
 -------
@@ -20,7 +20,10 @@ OPTIONS
 
 -h::
 --help::
-  Run accel-config help command.
+  Displays help information on commands.
+
+--list-cmds::
+  List available accel-config commands.
 
 DESCRIPTION
 -----------
@@ -32,14 +35,15 @@ include::../copyright.txt[]
 
 SEE ALSO
 --------
-linkaccel-config:accel-config-enable-wq[1],
-linkaccel-config:accel-config-disable-wq[1],
-linkaccel-config:accel-config-enable-device[1],
-linkaccel-config:accel-config-disable-device[1],
-linkaccel-config:accel-config-load-config[1],
-linkaccel-config:accel-config-save-config[1],
-linkaccel-config:accel-config-list[1],
-linkaccel-config:accel-config-config-device[1],
-linkaccel-config:accel-config-config-group[1],
-linkaccel-config:accel-config-config-wq[1],
-linkaccel-config:accel-config-config-engine[1],
+accel-config enable-wq(1),
+accel-config disable-wq(1),
+accel-config enable-device(1),
+accel-config disable-device(1),
+accel-config load-config(1),
+accel-config save-config(1),
+accel-config list(1),
+accel-config config-device(1),
+accel-config config-group(1),
+accel-config config-wq(1),
+accel-config config-engine(1),
+accel-config config-user-default(1),

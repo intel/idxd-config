@@ -13,7 +13,6 @@
 #ifndef _ACCFG_BUILTIN_H_
 #define _ACCFG_BUILTIN_H_
 extern const char accfg_usage_string[];
-extern const char accfg_more_info_string[];
 
 struct cmd_struct {
 	const char *cmd;

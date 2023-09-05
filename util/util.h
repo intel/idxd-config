@@ -21,6 +21,7 @@
 #include <string.h>
 
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#pragma GCC diagnostic ignored "-Wpedantic"
 
 #ifdef __GNUC__
 #define NORETURN __attribute__((__noreturn__))

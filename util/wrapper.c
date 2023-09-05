@@ -36,14 +36,13 @@ char *xstrdup(const char *str)
 void *xrealloc(void *ptr, size_t size)
 {
 	void *ret = realloc(ptr, size);
-	if (!ret && !size)
-		ret = realloc(ptr, 1);
+
 	if (!ret) {
-		ret = realloc(ptr, size);
-		if (!ret && !size)
-			ret = realloc(ptr, 1);
-		if (!ret)
-			die("Out of memory, realloc failed");
+		/* realloc() would free ptr if size == 0 */
+		if (size)
+			free(ptr);
+
+		die("Out of memory, realloc failed");
 	}
 	return ret;
 }

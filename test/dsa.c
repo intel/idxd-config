@@ -223,7 +223,7 @@ int init_crcgen(struct task *tsk, int tflags, int opcode, unsigned long xfer_siz
 	memset_pattern(tsk->src1, tsk->pattern, xfer_size);
 	tsk->crc_seed = 0x12345678;
 	if (tsk->test_flags & (unsigned int)(READ_CRC_SEED)) {
-		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(tsk->crc_seed));
+		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(*tsk->crc_seed_addr));
 		*tsk->crc_seed_addr = tsk->crc_seed;
 		tsk->crc_seed = 0x0;
 	}
@@ -253,7 +253,7 @@ int init_copy_crc(struct task *tsk, int tflags, int opcode, unsigned long xfer_s
 
 	tsk->crc_seed = 0x12345678;
 	if (tsk->test_flags & (unsigned int)(READ_CRC_SEED)) {
-		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(tsk->crc_seed));
+		tsk->crc_seed_addr = aligned_alloc(ADDR_ALIGNMENT, sizeof(*tsk->crc_seed_addr));
 		*tsk->crc_seed_addr = tsk->crc_seed;
 		tsk->crc_seed = 0x0;
 	}
@@ -2199,15 +2199,21 @@ int batch_result_verify(struct batch_task *btsk, int bof, int cpfault)
 		bdi = &edl->bdi;
 		printf("res 0x%x core_stat 0x%x nr_desc %d\n",
 		       res, core_stat, nr_desc);
-		if (res != bdi->result)
+		if (res != bdi->result) {
 			err("core result (0x%x) expected (0x%x)\n",
 			    res, bdi->result);
-		if (core_stat != bdi->status)
+			return ACCTEST_STATUS_FAIL;
+		}
+		if (core_stat != bdi->status) {
 			err("core status (0x%x) expected (0x%x)\n",
 			    core_stat, bdi->status);
-		if (res && bdi->desc_completed != nr_desc)
+			return ACCTEST_STATUS_FAIL;
+		}
+		if (res && bdi->desc_completed != nr_desc) {
 			err("core descs completed (0x%x) expected (0x%x)\n",
 			    nr_desc, bdi->desc_completed);
+			return ACCTEST_STATUS_FAIL;
+		}
 	} else {
 		if (core_stat == DSA_COMP_SUCCESS) {
 			info("core task success, chekcing sub-tasks\n");

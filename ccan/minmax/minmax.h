@@ -4,6 +4,8 @@
 
 #include "config.h"
 
+#pragma GCC diagnostic ignored "-Wpedantic"
+
 #include <ccan/build_assert/build_assert.h>
 
 #if !HAVE_STATEMENT_EXPR || !HAVE_TYPEOF

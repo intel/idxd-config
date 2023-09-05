@@ -125,6 +125,10 @@ static struct accfg_wq *acctest_get_wq(struct acctest_context *ctx,
 			enum accfg_wq_mode mode;
 			enum accfg_wq_type type;
 
+			/* Make sure iaa_test will not use dsa wq, vice versa*/
+			if (accfg_device_get_type(device) != ctx->dev_type)
+				continue;
+
 			/* Get a workqueue that's enabled */
 			wstate = accfg_wq_get_state(wq);
 			if (wstate != ACCFG_WQ_ENABLED)

@@ -9,6 +9,7 @@
 #include "iaa.h"
 
 #define IAA_TEST_SIZE 20000
+#pragma GCC diagnostic ignored "-Wformat"
 
 static void usage(void)
 {
@@ -643,6 +644,7 @@ int main(int argc, char *argv[])
 	}
 
 	iaa = acctest_init(tflags);
+	iaa->dev_type = ACCFG_DEVICE_IAX;
 
 	if (!iaa)
 		return -ENOMEM;

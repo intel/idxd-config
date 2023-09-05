@@ -1,3 +1,25 @@
+accel-config (4.1.1-1) unstable; urgency=medium
+
+  * [ Colin Ian King ]
+  * update Standards-Version to 4.6.2 in control file
+  * Use asm volatile for compilers that don't support
+    __builtin_ia32_mfence
+  * [ Ramesh Thomas ]
+  * Fixes for pedantic compiler warnings
+  * Update copyright years in man pages
+  * Fix some syntax errors and cleanup in man pages
+  * Fix --help and other options
+  * Fix a bug with empty wq driver name
+  * [ Rex Zhang ]
+  * Fix bug about finding a mismatched wq
+  * Add op mask to check if an op is available
+  * Decide whether to do the operation or not
+  * [ Tony Zhu ]
+  * Fix batch event log core check output issues
+  * Provide --skip-config to run dsa tests without device reset
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Tue, 05 Sep 2023 15:20:54 -0700
+
 accel-config (4.1-1) unstable; urgency=medium
 
   [ Colin Ian King ]

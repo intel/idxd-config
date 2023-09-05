@@ -13,6 +13,7 @@
 #include "dsa.h"
 
 #define DSA_TEST_SIZE 20000
+#pragma GCC diagnostic ignored "-Wformat"
 
 static void usage(void)
 {
@@ -897,6 +898,7 @@ int main(int argc, char *argv[])
 	}
 
 	dsa = acctest_init(tflags);
+	dsa->dev_type = ACCFG_DEVICE_DSA;
 
 	if (!dsa)
 		return -ENOMEM;
