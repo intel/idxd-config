@@ -95,6 +95,8 @@ int __sysfs_device_parse(struct log_ctx *ctx, const char *base_path,
 
 		de = d[i];
 		if (sscanf(de->d_name, "%*[a-z]%d", &id) < 0) {
+			while(n--)
+				free(d[n]);
 			free(d);
 			return -EINVAL;
 		}
@@ -113,6 +115,8 @@ int __sysfs_device_parse(struct log_ctx *ctx, const char *base_path,
 		} else
 			log_dbg(ctx, "%d: processed\n", id);
 	}
+	while(n--)
+		free(d[n]);
 	free(d);
 
 	return add_errors;
