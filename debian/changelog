@@ -1,3 +1,10 @@
+accel-config (4.1.2-1) unstable; urgency=medium
+
+  * [ Hentabli, Abdelrahim ]
+  * Fix a memory leak bug
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Tue, 24 Oct 2023 14:24:55 -0400
+
 accel-config (4.1.1-1) unstable; urgency=medium
 
   * [ Colin Ian King ]
