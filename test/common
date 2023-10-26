@@ -121,22 +121,22 @@ check_prereq()
 #
 _cleanup()
 {
-	lsmod | grep -q "idxd_vdev" && {
+	lsmod | grep -wq idxd_vdev && {
 		rmmod idxd_vdev
 	}
-	lsmod | grep -q "idxd_uacce" && {
+	lsmod | grep -wq idxd_uacce && {
 		rmmod idxd_uacce
 	}
-	lsmod | grep -q "iaa_crypto" && {
+	lsmod | grep -wq iaa_crypto && {
 		rmmod iaa_crypto
 	}
-	lsmod | grep -q "iax_crypto" && {
+	lsmod | grep -wq iax_crypto && {
 		rmmod iax_crypto
 	}
-	lsmod | grep -q "idxd" && {
+	lsmod | grep -wq idxd && {
 		rmmod idxd
 	}
-	lsmod | grep -q "vfio_pci" && {
+	lsmod | grep -wq vfio_pci && {
 		rmmod vfio_pci
 	}
 	sleep 1
