@@ -45,7 +45,7 @@ group_config_test()
 		if [ "$read_ret" -ne 28 ]; then
 			echo "config group read_buffers_allowed failed" && exit "$EXIT_FAILURE"
 		fi
-		"$ACCFG" config-group $DSA/$GRP0 --read-buffers-allowed 0 || exit 1
+		"$ACCFG" config-group $DSA/$GRP0 --read-buffers-allowed 8 || exit 1
 
 		"$ACCFG" config-device -l 11 $DSA
 		"$ACCFG" config-group $DSA/$GRP0 -l 1 || exit 1
