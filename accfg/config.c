@@ -383,7 +383,10 @@ static int device_json_set_val(struct accfg_device *dev, json_object *jobj,
 	for (i = 0; i < (int)ARRAY_SIZE(device_table); i++) {
 		if (strcmp(key, device_table[i].name) == 0) {
 			if (device_table[i].set_int_func) {
-				int val = json_object_get_int(jobj);
+				int val;
+
+				errno = 0;
+				val = json_object_get_int(jobj);
 
 				if (val == 0 && errno == EINVAL)
 					return -EINVAL;
@@ -425,7 +428,10 @@ static int wq_json_set_val(struct accfg_wq *wq, json_object *jobj, char *key)
 	for (i = 0; i < (int)ARRAY_SIZE(wq_table); i++) {
 		if (strcmp(key, wq_table[i].name) == 0) {
 			if (wq_table[i].set_int_func) {
-				int val = json_object_get_int(jobj);
+				int val;
+
+				errno = 0;
+				val = json_object_get_int(jobj);
 
 				if ((val == 0) && (errno == EINVAL))
 					return -errno;
@@ -440,7 +446,10 @@ static int wq_json_set_val(struct accfg_wq *wq, json_object *jobj, char *key)
 
 				return 0;
 			} else if (wq_table[i].set_long_func) {
-				uint64_t val = json_object_get_int64(jobj);
+				uint64_t val;
+
+				errno = 0;
+				val = json_object_get_int64(jobj);
 
 				if ((val == 0) && (errno == EINVAL))
 					return -errno;
@@ -491,7 +500,10 @@ static int group_json_set_val(struct accfg_group *group,
 	for (i = 0; i < (int)ARRAY_SIZE(group_table); i++) {
 		if (strcmp(key, group_table[i].name) == 0) {
 			if (group_table[i].set_int_func) {
-				int val = json_object_get_int(jobj);
+				int val;
+
+				errno = 0;
+				val = json_object_get_int(jobj);
 				if (((val == 0) && (errno == EINVAL))
 						|| (val < 0))
 					return -EINVAL;
@@ -556,7 +568,10 @@ static int engine_json_set_val(struct accfg_engine *engine,
 
 		if (strcmp(key, engine_table[i].name) == 0) {
 			if (engine_table[i].set_int_func) {
-				int val = json_object_get_int(jobj);
+				int val;
+
+				errno = 0;
+				val = json_object_get_int(jobj);
 
 				if ((val == 0) && (errno == EINVAL))
 					return -EINVAL;
