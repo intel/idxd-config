@@ -69,6 +69,8 @@ static unsigned int accfg_device_compl_size[] = {
 #define ACCFG_CMD_STATUS_MAX	0x45
 #define ACCFG_CMD_STATUS_ERROR	0x80010000
 
+static long init_cmd_status;
+
 #define SCMD_STAT(x) (((x) & ~IDXD_SCMD_SOFTERR_MASK) >> \
 		IDXD_SCMD_SOFTERR_SHIFT)
 
@@ -538,13 +540,13 @@ static void *add_device(void *parent, int id, const char *ctl_base,
 		return NULL;
 	}
 
-	rc = accfg_set_param(ctx, dfd, "cmd_status", "1", 1);
-	/* older drivers don't support writing to cmd_status */
-	if (rc && rc != -EACCES) {
-		err(ctx, "Failed resetting cmd status %d\n", rc);
-		close(dfd);
-		goto err_device;
-	}
+	accfg_set_param(ctx, dfd, "cmd_status", "1", 1);
+	/*
+	 * Clearing could have failed due to RO file system. When checking
+	 * cmd_status, validate initial value = 0 or is different from new
+	 * value.
+	 */
+	init_cmd_status = accfg_get_param_long(ctx, dfd, "cmd_status");
 
 	device = calloc(1, sizeof(*device));
 	if (!device) {
@@ -1427,6 +1429,13 @@ ACCFG_EXPORT unsigned int accfg_device_get_cmd_status(struct accfg_device *devic
 
 	status = strtol(buf, &end_ptr, 0);
 	if (errno == ERANGE || end_ptr == buf)
+		return ACCFG_CMD_STATUS_ERROR;
+
+	/*
+	 * If cmd_status initialization had failed, return error if new
+	 * cmd_status is same as initial cmd_status
+	 */
+	if (init_cmd_status != 0 && init_cmd_status == status)
 		return ACCFG_CMD_STATUS_ERROR;
 
 	return (unsigned int)status;
