@@ -86,19 +86,6 @@ static struct json_object *group_to_json(struct accfg_group *group,
 		json_object_object_add(jgroup, "read_buffers_allowed", jobj);
 	}
 
-	jobj = json_object_new_int(accfg_group_get_traffic_class_a(
-				group));
-	if (!jobj)
-		goto err;
-
-	json_object_object_add(jgroup, "traffic_class_a", jobj);
-	jobj = json_object_new_int(accfg_group_get_traffic_class_b(
-				group));
-	if (!jobj)
-		goto err;
-
-	json_object_object_add(jgroup, "traffic_class_b", jobj);
-
 	dpl = accfg_group_get_desc_progress_limit(group);
 	if (dpl >= 0) {
 		jobj = json_object_new_int(dpl);
