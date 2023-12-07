@@ -262,7 +262,7 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 
 	rc = accfg_wq_set_ats_disable(wq, wq_param->ats_disable);
 	/* Don't fail test if per wq ats disable is not supported */
-	if (rc == -EOPNOTSUPP)
+	if (rc == -ENOENT)
 		rc = 0;
 
 	return rc;
@@ -271,6 +271,7 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 static int check_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 		struct accfg_wq *wq, struct wq_parameters *wq_param)
 {
+	int ats_disable;
 
 	if (wq_param->wq_size != accfg_wq_get_size(wq)) {
 		fprintf(stderr, "%s failed on wq_size\n", __func__);
@@ -310,7 +311,8 @@ static int check_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 		fprintf(stderr, "%s failed on wq name\n", __func__);
 		return -EINVAL;
 	}
-	if (wq_param->ats_disable != accfg_wq_get_ats_disable(wq)) {
+	ats_disable = accfg_wq_get_ats_disable(wq);
+	if (ats_disable >= 0 && wq_param->ats_disable != ats_disable) {
 		fprintf(stderr, "%s failed on ats_disable\n", __func__);
 		return -EINVAL;
 	}
