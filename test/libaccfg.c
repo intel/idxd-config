@@ -30,8 +30,6 @@
 #include <util/log.h>
 #include "accfg_test.h"
 
-#define SET_ERR(a, b) {a = a ? a : b; }
-
 static struct dev_parameters device0_param = {
 	.read_buffer_limit = 10,
 };
@@ -177,15 +175,16 @@ static int config_group(struct accfg_ctx *ctx, struct accfg_device *device,
 {
 	int rc = 0;
 
-	SET_ERR(rc, accfg_group_set_read_buffers_reserved(group,
-				group_param->read_buffers_reserved));
-	SET_ERR(rc, accfg_group_set_read_buffers_allowed(group,
-				group_param->read_buffers_allowed));
-	SET_ERR(rc, accfg_group_set_use_read_buffer_limit(group,
-				group_param->use_read_buffer_limit));
-
-	if (accfg_device_get_version(device) < ACCFG_DEVICE_VERSION_2)
+	rc = accfg_group_set_read_buffers_reserved(group,
+				group_param->read_buffers_reserved);
+	if (rc)
 		return rc;
+	rc = accfg_group_set_read_buffers_allowed(group,
+				group_param->read_buffers_allowed);
+	if (rc)
+		return rc;
+	rc = accfg_group_set_use_read_buffer_limit(group,
+				group_param->use_read_buffer_limit);
 
 	return rc;
 }
@@ -227,22 +226,43 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 	rc = accfg_wq_set_str_mode(wq, wq_param->mode);
 	if (rc)
 		return rc;
-	SET_ERR(rc, accfg_wq_set_str_type(wq, wq_param->type));
-	SET_ERR(rc, accfg_wq_set_str_driver_name(wq, wq_param->driver_name));
-	SET_ERR(rc, accfg_wq_set_str_name(wq, wq_param->name));
-	SET_ERR(rc, accfg_wq_set_size(wq, wq_param->wq_size));
-	SET_ERR(rc, accfg_wq_set_group_id(wq, wq_param->group_id));
-	SET_ERR(rc, accfg_wq_set_priority(wq, wq_param->priority));
-	SET_ERR(rc, accfg_wq_set_block_on_fault(wq, wq_param->block_on_fault));
-	SET_ERR(rc, accfg_wq_set_max_batch_size(wq, wq_param->max_batch_size));
-	SET_ERR(rc, accfg_wq_set_max_transfer_size(wq,
-				wq_param->max_transfer_size));
-	if (wq_param->threshold)
-		SET_ERR(rc, accfg_wq_set_threshold(wq, wq_param->threshold));
+	rc = accfg_wq_set_str_type(wq, wq_param->type);
+	if (rc)
+		return rc;
+	rc = accfg_wq_set_str_driver_name(wq, wq_param->driver_name);
+	if (rc)
+		return rc;
+	rc = accfg_wq_set_str_name(wq, wq_param->name);
+	if (rc)
+		return rc;
+	rc = accfg_wq_set_size(wq, wq_param->wq_size);
+	if (rc)
+		return rc;
+	rc = accfg_wq_set_group_id(wq, wq_param->group_id);
+	if (rc)
+		return rc;
+	rc = accfg_wq_set_priority(wq, wq_param->priority);
+	if (rc)
+		return rc;
+	rc = accfg_wq_set_block_on_fault(wq, wq_param->block_on_fault);
+	if (rc)
+		return rc;
+	rc = accfg_wq_set_max_batch_size(wq, wq_param->max_batch_size);
+	if (rc)
+		return rc;
+	rc = accfg_wq_set_max_transfer_size(wq,
+				wq_param->max_transfer_size);
+	if (rc)
+		return rc;
+	if (wq_param->threshold) {
+		rc = accfg_wq_set_threshold(wq, wq_param->threshold);
+		if (rc)
+			return rc;
+	}
 
-	SET_ERR(rc, accfg_wq_set_ats_disable(wq, wq_param->ats_disable));
+	rc = accfg_wq_set_ats_disable(wq, wq_param->ats_disable);
 	/* Don't fail test if per wq ats disable is not supported */
-	if (rc == -EOPNOTSUPP)
+	if (rc == -ENOENT)
 		rc = 0;
 
 	return rc;
@@ -251,6 +271,7 @@ static int config_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 static int check_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 		struct accfg_wq *wq, struct wq_parameters *wq_param)
 {
+	int ats_disable;
 
 	if (wq_param->wq_size != accfg_wq_get_size(wq)) {
 		fprintf(stderr, "%s failed on wq_size\n", __func__);
@@ -290,7 +311,8 @@ static int check_wq(struct accfg_ctx *ctx, struct accfg_device *device,
 		fprintf(stderr, "%s failed on wq name\n", __func__);
 		return -EINVAL;
 	}
-	if (wq_param->ats_disable != accfg_wq_get_ats_disable(wq)) {
+	ats_disable = accfg_wq_get_ats_disable(wq);
+	if (ats_disable >= 0 && wq_param->ats_disable != ats_disable) {
 		fprintf(stderr, "%s failed on ats_disable\n", __func__);
 		return -EINVAL;
 	}

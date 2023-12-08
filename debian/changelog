@@ -1,3 +1,17 @@
+accel-config (4.1.4-1) unstable; urgency=medium
+
+  * [ Ramesh Thomas ]
+  * Fix a bug while reading json objects
+  * Do not save traffic class attributes
+  * Handle cmd_status initialization failure without exiting
+  * Remove SET_ERR macro which is error prone
+  * Skip check for ats_disable if attribute absent
+  * [ Rex Zhang ]
+  * Add parameter for specifying dev and wq
+  * Fix bug about checking result of decompression
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Fri, 08 Dec 2023 14:25:17 -0500
+
 accel-config (4.1.3-1) unstable; urgency=medium
 
   * [ California Sullivan ]

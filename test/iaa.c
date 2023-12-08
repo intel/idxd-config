@@ -2000,7 +2000,7 @@ int iaa_decrypto_multi_task_nodes(struct acctest_context *ctx)
 /* mismatch_expected: expect mismatched buffer with success status 0x1 */
 int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 {
-	int ret = ACCTEST_STATUS_OK;
+	int ret = ACCTEST_STATUS_FAIL;
 
 	info("verifying task result for %#lx\n", tsk);
 
@@ -2008,6 +2008,9 @@ int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 		return tsk->comp->status;
 
 	switch (tsk->opcode) {
+	case IAX_OPCODE_NOOP:
+		ret = ACCTEST_STATUS_OK;
+		break;
 	case IAX_OPCODE_CRC64:
 		ret = task_result_verify_crc64(tsk, mismatch_expected);
 		break;
@@ -2031,6 +2034,9 @@ int iaa_task_result_verify(struct task *tsk, int mismatch_expected)
 		break;
 	case IAX_OPCODE_COMPRESS:
 		ret = task_result_verify_compress(tsk, mismatch_expected);
+		break;
+	case IAX_OPCODE_DECOMPRESS:
+		ret = task_result_verify_decompress(tsk, mismatch_expected);
 		break;
 	case IAX_OPCODE_SCAN:
 		ret = task_result_verify_scan(tsk, mismatch_expected);
