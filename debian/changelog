@@ -1,3 +1,15 @@
+accel-config (4.1.5-1) unstable; urgency=medium
+
+  [ Nimish Mishra ]
+  * Free driver_name in case of error adding wq
+
+  [ Tony Zhu ]
+  * change op config default value because of kernel change
+  * set read buffer allowed from 0 to 8
+  * disable enabled devices before unloading iaa_crypto
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Thu, 25 Jan 2024 21:03:54 -0500
+
 accel-config (4.1.4-1) unstable; urgency=medium
 
   * [ Ramesh Thomas ]
