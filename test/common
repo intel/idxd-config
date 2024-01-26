@@ -117,10 +117,49 @@ check_prereq()
 	fi
 }
 
+# Disable all active devices dsa/iax and enabled wqs.
+# Use accel-config tool to disable the device and wq.
+disable_all() {
+  for device_type in 'dsa' 'iax'; do
+    # Kernel before 5.13 has dsa and iax bus. Because of ABI change, iax
+    # bus is removed. All devices are in /sys/bus/das/devices.
+    if [ -d /sys/bus/iax ] && [ $device_type == 'iax' ]; then
+      DSA_DEVICE_PATH="/sys/bus/iax/devices"
+    else
+      DSA_DEVICE_PATH="/sys/bus/dsa/devices"
+    fi
+	# Get available devices
+    for device_path in ${DSA_DEVICE_PATH}/${device_type}* ; do
+      [[ $(echo "$device_path" | grep -c '!') -eq 0 ]] && {
+		# Get wqs and disable it if the status is enabled
+        for wqp in ${device_path}/wq* ; do
+          [[ $( cat "${wqp}"/state ) == "enabled" ]] && {
+            wq=${wqp##${DSA_DEVICE_PATH}/}
+            accel-config disable-wq "${wq}"
+            echo "-1" > "${wqp}"/group_id
+          }
+          done
+		# Disable device
+        [[ $( cat "${device_path}"/state ) == "enabled" ]] && {
+          accel-config disable-device "${device_path##${DSA_DEVICE_PATH}/}"
+        }
+		# Remove group id of engine
+        for engine in ${device_path}/engine* ; do
+          echo -1 > "$engine"/group_id
+        done
+      }
+    done
+  done
+}
+
 # cleanup
 #
 _cleanup()
 {
+  # iaa_crypto will enable iax devices by default after kernel 6.6,
+  # need to disable all enabled devices before unloading the module.
+	disable_all
+
 	lsmod | grep -wq idxd_vdev && {
 		rmmod idxd_vdev
 	}

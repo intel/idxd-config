@@ -734,6 +734,7 @@ err_read:
 	free(wq->mode);
 	free(wq->state);
 	free(wq->name);
+	free(wq->driver_name);
 err_wq:
 	free(wq);
 	return NULL;
