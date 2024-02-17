@@ -276,6 +276,7 @@ static void free_wq(struct accfg_wq *wq)
 	free(wq->mode);
 	free(wq->state);
 	free(wq->name);
+	free(wq->driver_name);
 	free(wq);
 }
 
