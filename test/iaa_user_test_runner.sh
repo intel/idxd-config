@@ -20,10 +20,6 @@ fi
 echo "$IAA"
 WQ0=wq1.4
 WQ1=wq1.1
-DBDF=`ls -l /sys/bus/dsa/devices/iax3 | awk -F '/' '{print $(NF - 1)}'`
-VENDOR_ID=`lspci -n -s ${DBDF} | awk -F ' ' '{print $NF}' | awk -F ':' '{print $1}'`
-DEVICE_ID=`lspci -n -s ${DBDF} | awk -F ' ' '{print $NF}' | awk -F ':' '{print $2}'`
-VFIO_BINDED=0
 
 IAA_OPCODE_NOOP=0x0
 IAA_OPCODE_TRANSL_FETCH=0xa
@@ -110,22 +106,6 @@ disable_wqs()
 {
 	"$ACCFG" disable-wq "$IAA"/"$WQ0"
 	"$ACCFG" disable-wq "$IAA"/"$WQ1"
-}
-
-bind_vfio()
-{
-	echo "PCI dev info: ${DBDF} ${VENDOR_ID} ${DEVICE_ID}"
-	echo ${DBDF} > /sys/bus/pci/drivers/idxd/unbind
-	echo ${VENDOR_ID} ${DEVICE_ID} > /sys/bus/pci/drivers/vfio-pci/new_id
-	VFIO_BINDED=1
-}
-
-unbind_vfio()
-{
-	echo ${VENDOR_ID} ${DEVICE_ID} > /sys/bus/pci/drivers/vfio-pci/remove_id
-	echo ${DBDF} > /sys/bus/pci/drivers/vfio-pci/unbind
-	echo 1 > /sys/bus/pci/devices/${DBDF}/reset
-	echo ${DBDF} > /sys/bus/pci/drivers/idxd/bind
 }
 
 err_exit()
@@ -349,9 +329,7 @@ test_op_transl_fetch()
 			echo "Testing $xfer_size bytes"
 
 			"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
-				-f "$flag" -m 0 -t 5000 -v $DEV_OPT
-			"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
-				-f "$flag" -m 1 -t 5000 -v $DEV_OPT
+				-f "$flag" -t 5000 -v $DEV_OPT
 		done
 	done
 }
@@ -500,8 +478,6 @@ if [ $((IAA_OPCODE_MASK_DECRYPT & OP_CAP2)) -ne 0 ]; then
 fi
 
 if [ $((IAA_OPCODE_MASK_TRANSL_FETCH & OP_CAP0)) -ne 0 ]; then
-	bind_vfio
-
 	flag="0x1"
 	echo "Testing with 'block on fault' flag ON"
 	test_op_transl_fetch $IAA_OPCODE_TRANSL_FETCH $flag
@@ -509,8 +485,6 @@ if [ $((IAA_OPCODE_MASK_TRANSL_FETCH & OP_CAP0)) -ne 0 ]; then
 	flag="0x0"
 	echo "Testing with 'block on fault' flag OFF"
 	test_op_transl_fetch $IAA_OPCODE_TRANSL_FETCH $flag
-
-	unbind_vfio
 fi
 
 if [ "$input1" != "--skip-config" ]; then
