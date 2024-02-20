@@ -23,7 +23,6 @@ static void usage(void)
 	"-2 <extra_flags_2> ; specified by each opcpde\n"
 	"-3 <extra_flags_3> ; specified by each opcpde\n"
 	"-a <aecs> ; specifies AECS\n"
-	"-m <map or unmap> ; specified by Translation Fetch\n"
 	"-o <opcode>     ; opcode, same value as in IAA spec\n"
 	"-d              ; wq device such as iax1/wq1.0\n"
 	"-n <number of descriptors> ;descriptor count to submit\n"
@@ -436,14 +435,14 @@ static int test_filter(struct acctest_context *ctx, size_t buf_size, int tflags,
 }
 
 static int test_transl_fetch(struct acctest_context *ctx, size_t buf_size,
-			     int tflags, uint32_t opcode, int num_desc, int do_map)
+			     int tflags, uint32_t opcode, int num_desc)
 {
 	struct task_node *tsk_node;
 	int rc = ACCTEST_STATUS_OK;
 	int itr = num_desc, i = 0, range = 0;
 
-	info("test transl-fetch: opcode %d len %#lx tflags %#x num_desc %ld do_map %d\n",
-	     opcode, buf_size, tflags, num_desc, do_map);
+	info("test transl-fetch: opcode %d len %#lx tflags %#x num_desc %ld\n",
+	     opcode, buf_size, tflags, num_desc);
 
 	ctx->is_batch = 0;
 
@@ -471,16 +470,10 @@ static int test_transl_fetch(struct acctest_context *ctx, size_t buf_size,
 
 		switch (opcode) {
 		case IAX_OPCODE_TRANSL_FETCH:
-			rc = iaa_transl_fetch_multi_task_nodes(ctx, do_map);
-			if ((tflags & TEST_FLAGS_BOF) ||
-			    ((!(tflags & TEST_FLAGS_BOF)) && do_map)) {
-				if (rc != ACCTEST_STATUS_OK)
-					return rc;
-			}
+			rc = iaa_transl_fetch_multi_task_nodes(ctx);
 
 			/* Verification of all the nodes*/
-			if ((tflags & TEST_FLAGS_BOF) ||
-			    ((!(tflags & TEST_FLAGS_BOF)) && do_map))
+			if (tflags & TEST_FLAGS_BOF)
 				rc = iaa_task_result_verify_task_nodes(ctx, 0);
 			else
 				rc = iaa_task_result_verify_task_nodes(ctx, 1);
@@ -579,7 +572,6 @@ int main(int argc, char *argv[])
 	int extra_flags_1 = 0;
 	int extra_flags_2 = 0;
 	int extra_flags_3 = 0;
-	int do_map = 0;
 	int aecs = 0;
 	int opcode = IAX_OPCODE_NOOP;
 	int opt;
@@ -611,9 +603,6 @@ int main(int argc, char *argv[])
 			break;
 		case 'a':
 			aecs = strtoul(optarg, NULL, 0);
-			break;
-		case 'm':
-			do_map = strtoul(optarg, NULL, 0);
 			break;
 		case 'o':
 			opcode = strtoul(optarg, NULL, 0);
@@ -702,7 +691,7 @@ int main(int argc, char *argv[])
 			goto error;
 		break;
 	case IAX_OPCODE_TRANSL_FETCH:
-		rc = test_transl_fetch(iaa, buf_size, tflags, opcode, num_desc, do_map);
+		rc = test_transl_fetch(iaa, buf_size, tflags, opcode, num_desc);
 		if (rc != ACCTEST_STATUS_OK)
 			goto error;
 		break;

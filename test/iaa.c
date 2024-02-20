@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/user.h>
 #include <linux/vfio.h>
 #include <accfg/libaccel_config.h>
 #include <accfg/idxd.h>
@@ -557,129 +558,12 @@ static int init_expand(struct task *tsk, int tflags,
 
 static int init_transl_fetch(struct task *tsk, int tflags, int opcode, unsigned long src1_xfer_size)
 {
-	int rc, groupid, device;
-	uint32_t pci_domain, pci_bus, pci_dev, pci_func;
-	char path[50], iommu_group_path[50], *group_num;
-	DIR *dirp;
-	struct dirent *dirf;
-	struct stat st;
-
-	struct vfio_group_status group_status = {
-		.argsz = sizeof(group_status) };
-
-	dirp = opendir("/sys/bus/pci/drivers/vfio-pci/");
-	if (!dirp) {
-		err("Failed to open /sys/bus/pci/drivers/vfio-pci\n");
-		return -errno;
-	}
-
-	while ((dirf = readdir(dirp))) {
-		if (isdigit(dirf->d_name[0])) {
-			rc = sscanf(dirf->d_name, "%04x:%02x:%02x.%x",
-				    &pci_domain, &pci_bus, &pci_dev, &pci_func);
-			if (rc != 4) {
-				err("BDF string construction failed\n");
-				closedir(dirp);
-				return -ENOMEM;
-			}
-			break;
-		}
-	}
-	closedir(dirp);
-
-	snprintf(path, sizeof(path), "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/",
-		 pci_domain, pci_bus, pci_dev, pci_func);
-	rc = stat(path, &st);
-	if (rc < 0) {
-		err("No such device: %s\n", strerror(errno));
-		return -errno;
-	}
-
-	memcpy(path + strlen(path), "iommu_group", sizeof("iommu_group"));
-
-	rc = readlink(path, iommu_group_path, sizeof(iommu_group_path));
-	if (rc <= 0) {
-		err("No iommu_group for device: %s, path %s\n", strerror(errno), path);
-		return -errno;
-	}
-
-	group_num = basename(iommu_group_path);
-	if (sscanf(group_num, "%d", &groupid) != 1) {
-		err("Unknown group %s\n", group_num);
-		return -EIO;
-	}
-
-	snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
-
-	tsk->container = open("/dev/vfio/vfio", O_RDWR);
-	if (tsk->container < 0) {
-		err("Failed to open /dev/vfio/vfio, %d (%s)\n",
-		    tsk->container, strerror(errno));
-		return -errno;
-	}
-
-	tsk->group = open(path, O_RDWR);
-	if (tsk->group < 0) {
-		err("Failed to open %s, %d (%s)\n", path, tsk->group, strerror(errno));
-		close(tsk->container);
-		return -errno;
-	}
-
-	rc = ioctl(tsk->group, VFIO_GROUP_GET_STATUS, &group_status);
-	if (rc) {
-		err("ioctl(VFIO_GROUP_GET_STATUS) failed: %s\n", strerror(errno));
-		close(tsk->group);
-		close(tsk->container);
-		return -errno;
-	}
-
-	if (!(group_status.flags & VFIO_GROUP_FLAGS_VIABLE)) {
-		close(tsk->group);
-		close(tsk->container);
-		err("Group not viable, are all devices attached to vfio?\n");
-		return -EINVAL;
-	}
-
-	rc = ioctl(tsk->group, VFIO_GROUP_SET_CONTAINER, &tsk->container);
-	if (rc) {
-		err("Failed to set group container: %s\n", strerror(errno));
-		close(tsk->group);
-		close(tsk->container);
-		return -errno;
-	}
-
-	rc = ioctl(tsk->container, VFIO_SET_IOMMU, VFIO_TYPE1_IOMMU);
-	if (rc) {
-		err("Failed to set IOMMU: %s\n", strerror(errno));
-		close(tsk->group);
-		close(tsk->container);
-		return -errno;
-	}
-
-	snprintf(path, sizeof(path), "%04x:%02x:%02x.%d", pci_domain, pci_bus, pci_dev, pci_func);
-
-	device = ioctl(tsk->group, VFIO_GROUP_GET_DEVICE_FD, path);
-	if (device < 0) {
-		err("Failed to get device %s:%s\n", path, strerror(errno));
-		close(tsk->group);
-		close(tsk->container);
-		return -errno;
-	}
-
-	tsk->src1 = mmap(NULL, src1_xfer_size, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS, device, 0);
-	if (tsk->src1 == MAP_FAILED) {
-		err("mmap failed: %s\n", strerror(errno));
-		close(tsk->group);
-		close(tsk->container);
-		return -errno;
-	}
-
+	tsk->src1 = aligned_alloc(PAGE_SIZE, src1_xfer_size);
 	tsk->opcode = opcode;
 	tsk->test_flags = tflags;
 	tsk->xfer_size = src1_xfer_size;
-	tsk->group = tsk->group;
-	tsk->container = tsk->container;
+	memset_pattern(tsk->src1, 0x0123456789abcdef, src1_xfer_size);
+	madvise(tsk->src1, src1_xfer_size, MADV_DONTNEED);
 
 	return ACCTEST_STATUS_OK;
 }
@@ -1810,16 +1694,10 @@ static int iaa_wait_transl_fetch(struct acctest_context *ctx, struct task *tsk)
 	return ACCTEST_STATUS_OK;
 }
 
-int iaa_transl_fetch_multi_task_nodes(struct acctest_context *ctx, int do_mmap)
+int iaa_transl_fetch_multi_task_nodes(struct acctest_context *ctx)
 {
 	struct task_node *tsk_node = ctx->multi_task_node;
 	int ret = ACCTEST_STATUS_OK;
-
-	struct vfio_iommu_type1_dma_map dma_map = {
-		.argsz = sizeof(dma_map) };
-	struct vfio_iommu_type1_dma_unmap dma_unmap = {
-		.argsz = sizeof(dma_unmap)
-	};
 
 	while (tsk_node) {
 		tsk_node->tsk->dflags |= (IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR);
@@ -1827,53 +1705,6 @@ int iaa_transl_fetch_multi_task_nodes(struct acctest_context *ctx, int do_mmap)
 			tsk_node->tsk->dflags |= IDXD_OP_FLAG_BOF;
 
 		iaa_prep_transl_fetch(tsk_node->tsk);
-
-		if (do_mmap) {
-			dma_map.vaddr = (uint64_t)tsk_node->tsk->src1;
-			dma_map.size = tsk_node->tsk->xfer_size;
-			dma_map.iova = (uint64_t)tsk_node->tsk->src1;
-			dma_map.flags = VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE;
-			dma_map.argsz = sizeof(struct vfio_iommu_type1_dma_map);
-
-			ret = ioctl(tsk_node->tsk->container, VFIO_IOMMU_MAP_DMA, &dma_map);
-			if (ret) {
-				err("Failed to map memory (%s)\n", strerror(errno));
-				munmap(tsk_node->tsk->src1, tsk_node->tsk->xfer_size);
-				close(tsk_node->tsk->group);
-				close(tsk_node->tsk->container);
-				return -errno;
-			}
-			info("Mapped memory addr %p\n", tsk_node->tsk->src1);
-		} else {
-			dma_unmap.iova = (uint64_t)tsk_node->tsk->src1;
-			dma_unmap.size = tsk_node->tsk->xfer_size;
-
-			ret = ioctl(tsk_node->tsk->container, VFIO_IOMMU_UNMAP_DMA, &dma_unmap);
-			if (ret) {
-				err("Failed to unmap memory (%s)\n", strerror(errno));
-				munmap(tsk_node->tsk->src1, tsk_node->tsk->xfer_size);
-				close(tsk_node->tsk->group);
-				close(tsk_node->tsk->container);
-				return -errno;
-			}
-			info("Unmapped memory addr %p\n", tsk_node->tsk->src1);
-		}
-
-		ret = mprotect(tsk_node->tsk->src1, tsk_node->tsk->xfer_size, PROT_READ);
-		if (ret) {
-			err("mprotect1 error: %s", strerror(errno));
-			return -errno;
-		}
-
-		ret = mprotect(tsk_node->tsk->src1, tsk_node->tsk->xfer_size,
-			       PROT_READ | PROT_WRITE);
-		if (ret) {
-			err("mprotect2 error: %s", strerror(errno));
-			return -errno;
-		}
-
-		__asm__ __volatile__ ("mfence" ::: "memory");
-
 		tsk_node = tsk_node->next;
 	}
 
