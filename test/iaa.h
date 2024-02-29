@@ -26,7 +26,7 @@ int iaa_select_multi_task_nodes(struct acctest_context *ctx);
 int iaa_rle_burst_multi_task_nodes(struct acctest_context *ctx);
 int iaa_find_unique_multi_task_nodes(struct acctest_context *ctx);
 int iaa_expand_multi_task_nodes(struct acctest_context *ctx);
-int iaa_transl_fetch_multi_task_nodes(struct acctest_context *ctx, int do_mmap);
+int iaa_transl_fetch_multi_task_nodes(struct acctest_context *ctx);
 int iaa_encrypto_multi_task_nodes(struct acctest_context *ctx);
 int iaa_decrypto_multi_task_nodes(struct acctest_context *ctx);
 

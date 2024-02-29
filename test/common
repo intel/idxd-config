@@ -182,6 +182,9 @@ _cleanup()
 	modprobe idxd
 	sleep 1
 	modprobe vfio_pci
+
+	disable_all
+	rmmod iaa_crypto
 }
 
 # json2var
