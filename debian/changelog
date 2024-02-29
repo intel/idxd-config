@@ -1,3 +1,15 @@
+accel-config (4.1.6-1) unstable; urgency=medium
+
+  [ Hentabli, Abdelrahim ]
+  * Free driver_name when freeing wq
+
+  [ Rex Zhang ]
+  * Disable all WQs and rmmod iaa_crypto
+  * Remove the script about vfio passthrough device
+  * Use madvise(MADV_DONTNEED) to ummap address
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Thu, 29 Feb 2024 13:31:15 -0500
+
 accel-config (4.1.5-1) unstable; urgency=medium
 
   [ Nimish Mishra ]
