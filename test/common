@@ -122,13 +122,18 @@ check_prereq()
 disable_all() {
   for device_type in 'dsa' 'iax'; do
     # Kernel before 5.13 has dsa and iax bus. Because of ABI change, iax
-    # bus is removed. All devices are in /sys/bus/das/devices.
+    # bus is removed. All devices are in /sys/bus/dsa/devices.
     if [ -d /sys/bus/iax ] && [ $device_type == 'iax' ]; then
       DSA_DEVICE_PATH="/sys/bus/iax/devices"
     else
       DSA_DEVICE_PATH="/sys/bus/dsa/devices"
     fi
-	# Get available devices
+
+    if ! ls "${DSA_DEVICE_PATH}/" | grep -qE "${device_type}[0-9]*"; then
+	continue
+    fi
+
+    # Get available devices
     for device_path in ${DSA_DEVICE_PATH}/${device_type}* ; do
       [[ $(echo "$device_path" | grep -c '!') -eq 0 ]] && {
 		# Get wqs and disable it if the status is enabled
