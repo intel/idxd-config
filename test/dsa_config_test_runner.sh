@@ -1,8 +1,15 @@
-#!/bin/bash -Ex
+#!/bin/bash -E
 # SPDX-License-Identifier: GPL-2.0
 # Copyright(c) 2019-2020 Intel Corporation. All rights reserved.
 
 . "$(dirname "$0")/common"
+
+if [[ $* =~ "--verbose" ]]; then
+    set -x
+    VERBOSE="-v"
+else
+    VERBOSE=""
+fi
 
 DSA=dsa0
 WQ0=wq0.0
@@ -178,8 +185,8 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 -v && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x4 -c 2 &&
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x4 -c 2 "${VERBOSE}" &&
 			echo "shoudl fail, but pass" && exit 1
 		"$ACCFG" disable-device $DSA
 
@@ -191,9 +198,9 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x3 -c 2 &&
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" || echo "shoudl pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x3 -c 2 "${VERBOSE}" &&
 			echo "shoudl fail, but pass" && exit 1
 		"$ACCFG" disable-device $DSA
 
@@ -205,18 +212,18 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x0 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x2 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x7 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x8 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x4 || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x6 || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x9 || echo "shoudl fail, but pass" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x5 -c 2 ||
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x0 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x2 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x7 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x8 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x4 "${VERBOSE}" || echo "shoudl pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 "${VERBOSE}" || echo "shoudl pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x6 "${VERBOSE}" || echo "shoudl pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x9 "${VERBOSE}" || echo "shoudl fail, but pass" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x5 -c 2 "${VERBOSE}" ||
 			echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x9 -c 2 ||
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x9 -c 2 "${VERBOSE}" ||
 			echo "shoudl pass, but fail" || exit 1
 		"$ACCFG" disable-device $DSA
 	fi

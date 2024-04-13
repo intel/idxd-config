@@ -1,4 +1,4 @@
-#!/bin/bash -Ex
+#!/bin/bash -E
 # SPDX-License-Identifier: GPL-2.0
 # Copyright(c) 2019-2020 Intel Corporation. All rights reserved.
 
@@ -7,13 +7,21 @@
 rc="$EXIT_SKIP"
 
 DEV_OPT=""
-input1=$1
-if [ "$input1" == "--skip-config" ]; then
+
+if [[ $* =~ "--verbose" ]]; then
+	VERBOSE="-v"
+	set -x
+else
+	VERBOSE=""
+fi
+
+if [[ $* =~ "--skip-config" ]]; then
 	DEV=`ls /dev/iax/ | sed -ne 's|wq\([^.]\+\)\(.*\)|iax\1/wq\1\2|p'`
 	DEV=`echo $DEV | cut -f1 -d' '`
 	IAA=`echo $DEV | cut -f1 -d/`
 	DEV_OPT="-d $DEV"
 	echo "$DEV"
+        SKIPCONFIG="true"
 else
 	IAA=iax1
 fi
@@ -140,10 +148,10 @@ test_op()
 			if [ "$extra_flag" != "" ]
 			then
 				"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
-					-f "$flag" -1 "$extra_flag" -t 5000 -v $DEV_OPT
+					-f "$flag" -1 "$extra_flag" -t 5000 "${VERBOSE}" $DEV_OPT
 			else
 				"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
-					-f "$flag" -t 5000 -v $DEV_OPT
+					-f "$flag" -t 5000 "${VERBOSE}" $DEV_OPT
 			fi
 		done
 	done
@@ -160,133 +168,133 @@ test_op_filter()
 
 		if [ $((IAA_OPCODE_MASK_SCAN & OP_CAP2)) -ne 0 ]; then
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
-				-3 128 -o $IAA_OPCODE_SCAN -t 5000 -v $DEV_OPT
+				-3 128 -o $IAA_OPCODE_SCAN -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
-				-3 256 -o $IAA_OPCODE_SCAN -t 5000 -v $DEV_OPT
+				-3 256 -o $IAA_OPCODE_SCAN -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c \
-				-3 1024 -o $IAA_OPCODE_SCAN -t 5000 -v $DEV_OPT
+				-3 1024 -o $IAA_OPCODE_SCAN -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c \
-				-3 16384 -o $IAA_OPCODE_SCAN -t 5000 -v $DEV_OPT
+				-3 16384 -o $IAA_OPCODE_SCAN -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c \
-				-3 262144 -o $IAA_OPCODE_SCAN -t 5000 -v $DEV_OPT
+				-3 262144 -o $IAA_OPCODE_SCAN -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c \
-				-3 524288 -o $IAA_OPCODE_SCAN -t 5000 -v $DEV_OPT
+				-3 524288 -o $IAA_OPCODE_SCAN -t 5000 "${VERBOSE}" $DEV_OPT
 		fi
 
 		if [ $((IAA_OPCODE_MASK_SET_MEMBERSHIP & OP_CAP2)) -ne 0 ]; then
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x38 \
-				-3 256 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v $DEV_OPT
+				-3 256 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x38 \
-				-3 512 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v $DEV_OPT
+				-3 512 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x38 \
-				-3 2048 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v $DEV_OPT
+				-3 2048 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x38 \
-				-3 32768 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v $DEV_OPT
+				-3 32768 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x38 \
-				-3 524288 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v $DEV_OPT
+				-3 524288 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x38 \
-				-3 1048576 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 -v $DEV_OPT
+				-3 1048576 -o $IAA_OPCODE_SET_MEMBERSHIP -t 5000 "${VERBOSE}" $DEV_OPT
 		fi
 
 		if [ $((IAA_OPCODE_MASK_EXTRACT & OP_CAP2)) -ne 0 ]; then
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
-				-3 128 -o $IAA_OPCODE_EXTRACT -t 5000 -v $DEV_OPT
+				-3 128 -o $IAA_OPCODE_EXTRACT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
-				-3 256 -o $IAA_OPCODE_EXTRACT -t 5000 -v $DEV_OPT
+				-3 256 -o $IAA_OPCODE_EXTRACT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c \
-				-3 1024 -o $IAA_OPCODE_EXTRACT -t 5000 -v $DEV_OPT
+				-3 1024 -o $IAA_OPCODE_EXTRACT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c \
-				-3 16384 -o $IAA_OPCODE_EXTRACT -t 5000 -v $DEV_OPT
+				-3 16384 -o $IAA_OPCODE_EXTRACT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c \
-				-3 262144 -o $IAA_OPCODE_EXTRACT -t 5000 -v $DEV_OPT
+				-3 262144 -o $IAA_OPCODE_EXTRACT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c \
-				-3 524288 -o $IAA_OPCODE_EXTRACT -t 5000 -v $DEV_OPT
+				-3 524288 -o $IAA_OPCODE_EXTRACT -t 5000 "${VERBOSE}" $DEV_OPT
 		fi
 
 		if [ $((IAA_OPCODE_MASK_SELECT & OP_CAP2)) -ne 0 ]; then
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
-				-3 128 -o $IAA_OPCODE_SELECT -t 5000 -v $DEV_OPT
+				-3 128 -o $IAA_OPCODE_SELECT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
-				-3 256 -o $IAA_OPCODE_SELECT -t 5000 -v $DEV_OPT
+				-3 256 -o $IAA_OPCODE_SELECT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c \
-				-3 1024 -o $IAA_OPCODE_SELECT -t 5000 -v $DEV_OPT
+				-3 1024 -o $IAA_OPCODE_SELECT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c \
-				-3 16384 -o $IAA_OPCODE_SELECT -t 5000 -v $DEV_OPT
+				-3 16384 -o $IAA_OPCODE_SELECT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c \
-				-3 262144 -o $IAA_OPCODE_SELECT -t 5000 -v $DEV_OPT
+				-3 262144 -o $IAA_OPCODE_SELECT -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c \
-				-3 524288 -o $IAA_OPCODE_SELECT -t 5000 -v $DEV_OPT
+				-3 524288 -o $IAA_OPCODE_SELECT -t 5000 "${VERBOSE}" $DEV_OPT
 		fi
 
 		if [ $((IAA_OPCODE_MASK_RLE_BURST & OP_CAP2)) -ne 0 ]; then
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x1c \
-				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x1c \
-				-3 1024 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 1024 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x1c \
-				-3 4096 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 4096 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 32768 -2 0x1c \
-				-3 32768 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 32768 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x1c \
-				-3 65536 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 65536 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 131072 -2 0x1c \
-				-3 131072 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 131072 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 32 -2 0x3c \
-				-3 16 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 16 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 64 -2 0x3c \
-				-3 32 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 32 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 128 -2 0x3c \
-				-3 64 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 64 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 256 -2 0x3c \
-				-3 128 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 128 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x3c \
-				-3 256 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 256 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x3c \
-				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 64 -2 0x7c \
-				-3 16 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 16 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 128 -2 0x7c \
-				-3 32 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 32 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 256 -2 0x7c \
-				-3 64 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 64 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
-				-3 128 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 128 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
-				-3 256 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 256 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2048 -2 0x7c \
-				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 -v $DEV_OPT
+				-3 512 -o $IAA_OPCODE_RLE_BURST -t 5000 "${VERBOSE}" $DEV_OPT
 		fi
 
 		if [ $((IAA_OPCODE_MASK_FIND_UNIQUE & OP_CAP2)) -ne 0 ]; then
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x38 \
-				-3 256 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v $DEV_OPT
+				-3 256 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x38 \
-				-3 512 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v $DEV_OPT
+				-3 512 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x38 \
-				-3 2048 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v $DEV_OPT
+				-3 2048 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x38 \
-				-3 32768 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v $DEV_OPT
+				-3 32768 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x38 \
-				-3 524288 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v $DEV_OPT
+				-3 524288 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x38 \
-				-3 1048576 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 -v $DEV_OPT
+				-3 1048576 -o $IAA_OPCODE_FIND_UNIQUE -t 5000 "${VERBOSE}" $DEV_OPT
 		fi
 
 		if [ $((IAA_OPCODE_MASK_EXPAND & OP_CAP2)) -ne 0 ]; then
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 512 -2 0x7c \
-				-3 128 -o $IAA_OPCODE_EXPAND -t 5000 -v $DEV_OPT
+				-3 128 -o $IAA_OPCODE_EXPAND -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1024 -2 0x7c \
-				-3 256 -o $IAA_OPCODE_EXPAND -t 5000 -v $DEV_OPT
+				-3 256 -o $IAA_OPCODE_EXPAND -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 4096 -2 0x7c \
-				-3 1024 -o $IAA_OPCODE_EXPAND -t 5000 -v $DEV_OPT
+				-3 1024 -o $IAA_OPCODE_EXPAND -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 65536 -2 0x7c \
-				-3 16384 -o $IAA_OPCODE_EXPAND -t 5000 -v $DEV_OPT
+				-3 16384 -o $IAA_OPCODE_EXPAND -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 1048576 -2 0x7c \
-				-3 262144 -o $IAA_OPCODE_EXPAND -t 5000 -v $DEV_OPT
+				-3 262144 -o $IAA_OPCODE_EXPAND -t 5000 "${VERBOSE}" $DEV_OPT
 			"$IAATEST" -w "$wq_mode_code" -f "$flag" -l 2097152 -2 0x7c \
-				-3 524288 -o $IAA_OPCODE_EXPAND -t 5000 -v $DEV_OPT
+				-3 524288 -o $IAA_OPCODE_EXPAND -t 5000 "${VERBOSE}" $DEV_OPT
 		fi
 	done
 }
@@ -308,7 +316,7 @@ test_op_crypto()
 			echo "Testing $xfer_size bytes"
 
 			"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
-				-f "$flag" -a "$aecs_flag" -t 5000 -v $DEV_OPT
+				-f "$flag" -a "$aecs_flag" -t 5000 "${VERBOSE}" $DEV_OPT
 		done
 	done
 }
@@ -329,12 +337,12 @@ test_op_transl_fetch()
 			echo "Testing $xfer_size bytes"
 
 			"$IAATEST" -w "$wq_mode_code" -l "$xfer_size" -o "$opcode" \
-				-f "$flag" -t 5000 -v $DEV_OPT
+				-f "$flag" -t 5000 "${VERBOSE}" $DEV_OPT
 		done
 	done
 }
 
-if [ "$input1" != "--skip-config" ]; then
+if test -z "${SKIPCONFIG}"; then
 	_cleanup
 	start_iaa
 	enable_wqs
@@ -487,7 +495,7 @@ if [ $((IAA_OPCODE_MASK_TRANSL_FETCH & OP_CAP0)) -ne 0 ]; then
 	test_op_transl_fetch $IAA_OPCODE_TRANSL_FETCH $flag
 fi
 
-if [ "$input1" != "--skip-config" ]; then
+if test -z "${SKIPCONFIG}"; then
 	disable_wqs
 	stop_iaa
 	_cleanup
