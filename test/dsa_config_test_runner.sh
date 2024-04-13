@@ -185,9 +185,9 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" && echo "should fail, but pass" && exit 1
 		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x4 -c 2 "${VERBOSE}" &&
-			echo "shoudl fail, but pass" && exit 1
+			echo "should fail, but pass" && exit 1
 		"$ACCFG" disable-device $DSA
 
 		"$ACCFG" config-wq $DSA/$WQ0 -g 0 -m dedicated -y user -n app1 -d user -p 10 -o 8
@@ -198,10 +198,10 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" || echo "should pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 "${VERBOSE}" && echo "should fail, but pass" && exit 1
 		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x3 -c 2 "${VERBOSE}" &&
-			echo "shoudl fail, but pass" && exit 1
+			echo "should fail, but pass" && exit 1
 		"$ACCFG" disable-device $DSA
 
 		"$ACCFG" config-wq $DSA/$WQ0 -g 0 -m dedicated -y user -n app1 -d user -p 10 -o 272
@@ -212,19 +212,19 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x0 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x2 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x7 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x8 "${VERBOSE}" && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x4 "${VERBOSE}" || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 "${VERBOSE}" || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x6 "${VERBOSE}" || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x9 "${VERBOSE}" || echo "shoudl fail, but pass" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x0 "${VERBOSE}" && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x2 "${VERBOSE}" && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 "${VERBOSE}" && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x7 "${VERBOSE}" && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x8 "${VERBOSE}" && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x4 "${VERBOSE}" || echo "should pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 "${VERBOSE}" || echo "should pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x6 "${VERBOSE}" || echo "should pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x9 "${VERBOSE}" || echo "should fail, but pass" || exit 1
 		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x5 -c 2 "${VERBOSE}" ||
-			echo "shoudl pass, but fail" || exit 1
+			echo "should pass, but fail" || exit 1
 		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x9 -c 2 "${VERBOSE}" ||
-			echo "shoudl pass, but fail" || exit 1
+			echo "should pass, but fail" || exit 1
 		"$ACCFG" disable-device $DSA
 	fi
 }
