@@ -60,7 +60,7 @@ group_config_test()
 	# Traffic class is set 1 for best performance
 	# Not allow to config traffic class a and b
 
-	# group descriptor in gregress limit
+	# group descriptor in progress limit
 	if [ "$IDXD_VERSION" != "0x100" ]; then
 
 		"$ACCFG" config-group $DSA/$GRP0 -d 3 || exit 1
@@ -141,7 +141,7 @@ wq_config_test()
 	fi
 	"$ACCFG" config-wq $DSA/$WQ0 -g -1 || exit 1
 
-	# operaton config
+	# operation config
 	if [ "$IDXD_VERSION" != "0x100" ]; then
 		[ ! -f "$IDXD_DEVICE_PATH/$DSA/$WQ0/op_config" ] && exit 1
 
@@ -178,9 +178,9 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 -v && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 -v && echo "should fail, but pass" && exit 1
 		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x4 -c 2 &&
-			echo "shoudl fail, but pass" && exit 1
+			echo "should fail, but pass" && exit 1
 		"$ACCFG" disable-device $DSA
 
 		"$ACCFG" config-wq $DSA/$WQ0 -g 0 -m dedicated -y user -n app1 -d user -p 10 -o 8
@@ -191,10 +191,10 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 && echo "shoudl fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 || echo "should pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 && echo "should fail, but pass" && exit 1
 		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x3 -c 2 &&
-			echo "shoudl fail, but pass" && exit 1
+			echo "should fail, but pass" && exit 1
 		"$ACCFG" disable-device $DSA
 
 		"$ACCFG" config-wq $DSA/$WQ0 -g 0 -m dedicated -y user -n app1 -d user -p 10 -o 272
@@ -205,19 +205,19 @@ wq_config_test()
 		fi
 		"$ACCFG" enable-device $DSA
 		"$ACCFG" enable-wq $DSA/$WQ0
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x0 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x2 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x7 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x8 && echo "shoudl fail, but pass" && exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x4 || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x6 || echo "shoudl pass, but fail" || exit 1
-		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x9 || echo "shoudl fail, but pass" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x0 && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x2 && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x3 && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x7 && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x8 && echo "should fail, but pass" && exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x4 || echo "should pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x5 || echo "should pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x6 || echo "should pass, but fail" || exit 1
+		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x9 || echo "should fail, but pass" || exit 1
 		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x5 -c 2 ||
-			echo "shoudl pass, but fail" || exit 1
+			echo "should pass, but fail" || exit 1
 		"$DSATEST" -w 0 -l 4096 -f 0x1 -o 0x1 -b 0x9 -c 2 ||
-			echo "shoudl pass, but fail" || exit 1
+			echo "should pass, but fail" || exit 1
 		"$ACCFG" disable-device $DSA
 	fi
 }
