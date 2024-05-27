@@ -2625,6 +2625,10 @@ int task_result_verify_encrypto(struct task *tsk, int mismatch_expected)
 				     (uint8_t *)iaa_crypto_aecs->aes_key_low,
 				     (uint8_t *)iaa_crypto_aecs->counter_iv,
 				     key_size, iaa_crypto_aecs->crypto_algorithm, 1);
+	if (expected_len < 0) {
+		err("iaa_do_crypto returned: %d\n", expected_len);
+		return -ENXIO;
+	}
 	rc = memcmp(tsk->dst1, tsk->output, expected_len);
 
 	if (!mismatch_expected) {
@@ -2673,6 +2677,10 @@ int task_result_verify_decrypto(struct task *tsk, int mismatch_expected)
 				     (uint8_t *)iaa_crypto_aecs->aes_key_low,
 				     (uint8_t *)iaa_crypto_aecs->counter_iv,
 				     key_size, iaa_crypto_aecs->crypto_algorithm, 0);
+	if (expected_len < 0) {
+		err("iaa_do_crypto returned: %d\n", expected_len);
+		return -ENXIO;
+	}
 	rc = memcmp(tsk->dst1, tsk->output, expected_len);
 
 	if (!mismatch_expected) {
