@@ -1,3 +1,18 @@
+accel-config (4.1.7-1) unstable; urgency=medium
+
+  * [ Adrian Huang ]
+  * Typo fixes
+  * [ Jerry Snitselaar ]
+  * Make verbose logging optional
+  * Clean up typo
+  * Don't attempt to disable non-existent devices
+  * [ Ramesh Thomas ]
+  * Don't list attributes not present
+  * [ Robert Dower ]
+  * add required SECURITY.md file for OSSF Scorecard compliance
+
+ -- Ramesh Thomas <ramesh.thomas@intel.com>  Tue, 11 Jun 2024 14:53:12 -0400
+
 accel-config (4.1.6-1) unstable; urgency=medium
 
   [ Hentabli, Abdelrahim ]
