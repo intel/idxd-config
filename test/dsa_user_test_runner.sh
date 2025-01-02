@@ -124,7 +124,7 @@ test_op_batch()
 				-c 16 -f "$flag" t2000 "${VERBOSE}" -d "$DEV"
 			else
 			"$DSATEST" -w "$wq_mode_code" -l "$xfer_size" -o 0x1 -b "$opcode" \
-				-c 16 -f "$flag" t2000 "${VERBOSE}"
+				-c 16 -f "$flag" t2000 "${VERBOSE}" -u
 			fi
 		done
 	done
@@ -184,7 +184,7 @@ test_dif_op_batch()
 				-c 16 -f "$flag" t2000 "${VERBOSE}" -d "$DEV"
 			else
 			"$DSATEST" -w "$wq_mode_code" -l "$xfer_size" -o 0x1 -b "$opcode" \
-				-c 16 -f "$flag" t2000 "${VERBOSE}"
+				-c 16 -f "$flag" t2000 "${VERBOSE}" -u
 			fi
 		done
 	done
