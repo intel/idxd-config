@@ -189,7 +189,10 @@ _cleanup()
 	modprobe vfio_pci
 
 	disable_all
-	rmmod iaa_crypto
+	lsmod | grep -wq iaa_crypto && {
+		rmmod iaa_crypto
+	}
+	return 0
 }
 
 # json2var
