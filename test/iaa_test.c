@@ -28,6 +28,7 @@ static void usage(void)
 	"-n <number of descriptors> ;descriptor count to submit\n"
 	"-t <ms timeout> ; ms to wait for descs to complete\n"
 	"-v              ; verbose\n"
+	"-u              ; use ENQCMD to submit descriptor\n"
 	"-h              ; print this message\n");
 }
 
@@ -581,7 +582,7 @@ int main(int argc, char *argv[])
 	int dev_wq_id = ACCTEST_DEVICE_ID_NO_INPUT;
 	unsigned int num_desc = 1;
 
-	while ((opt = getopt(argc, argv, "w:l:f:1:2:3:a:m:o:b:c:d:n:t:p:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "w:l:f:1:2:3:a:m:o:b:c:d:n:t:p:vuh")) != -1) {
 		switch (opt) {
 		case 'w':
 			wq_type = atoi(optarg);
@@ -623,6 +624,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			debug_logging = 1;
+			break;
+		case 'u':
+			force_enqcmd = 1;
 			break;
 		case 'h':
 			usage();
