@@ -91,7 +91,7 @@ static int acctest_setup_wq(struct acctest_context *ctx, struct accfg_wq *wq)
 		return -errno;
 	}
 
-	if (force_enqcmd) {
+	if (force_enqcmd || accfg_wq_get_mode(wq) == ACCFG_WQ_DEDICATED) {
 		ctx->wq_reg = mmap(NULL, PAGE_SIZE, PROT_WRITE,
 		     MAP_SHARED | MAP_POPULATE, ctx->fd, 0);
 		if (ctx->wq_reg == MAP_FAILED) {
