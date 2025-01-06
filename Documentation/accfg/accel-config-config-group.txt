@@ -40,7 +40,7 @@ OPTIONS
 
 -l::
 --use-read-buffer-limit=::
-	toggle the enabling of read-buffer limt usage. use-read-buffer-limit should be
+	toggle the enabling of read-buffer limit usage. use-read-buffer-limit should be
 	either 0 or 1.
 
 -a::
