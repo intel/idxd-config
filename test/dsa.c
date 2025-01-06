@@ -2216,7 +2216,7 @@ int batch_result_verify(struct batch_task *btsk, int bof, int cpfault)
 		}
 	} else {
 		if (core_stat == DSA_COMP_SUCCESS) {
-			info("core task success, chekcing sub-tasks\n");
+			info("core task success, checking sub-tasks\n");
 		} else if (core_stat == DSA_COMP_BATCH_PAGE_FAULT) {
 			info("batch desc list page fault\n");
 		} else if (core_stat == DSA_COMP_BATCH_FAIL) {
