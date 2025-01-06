@@ -20,7 +20,7 @@ dsa0 [active]
 
 00000000,00000000,00000000,00000000,00000000,00000000,0000007b,00bf07fd
 
-Batch[-] Drain[+] Memory Move[+] Fill[+] Compare[+] Compare Pattern[+] Create Delta Record[+] Apply Delta Record[+] Memory Copy with Dualcast[+] Translation Fetch[+] CRC Generation[+] Copy with CRC Generation[+] DIF Check[+] DIF Insert[+] DIF Strip[+] DIF Update[+] DIX Generate[+] Cache Flush[+] Update Window[+] Inter-Domain Momery Copy[+] Inter-Domain Fill[+] Inter-Domain Compare[+] Inter-Domain Compare Pattern[+] Inter-Domain Cache Flush[-]
+Batch[-] Drain[+] Memory Move[+] Fill[+] Compare[+] Compare Pattern[+] Create Delta Record[+] Apply Delta Record[+] Memory Copy with Dualcast[+] Translation Fetch[+] CRC Generation[+] Copy with CRC Generation[+] DIF Check[+] DIF Insert[+] DIF Strip[+] DIF Update[+] DIX Generate[+] Cache Flush[+] Update Window[+] Inter-Domain Memory Copy[+] Inter-Domain Fill[+] Inter-Domain Compare[+] Inter-Domain Compare Pattern[+] Inter-Domain Cache Flush[-]
 
 iax1
 

@@ -79,7 +79,7 @@ struct map_op_name iax_op_code_name[] = {
 	{0x17, "DIX Generate"},			\
 	{0x20, "Cache Flush"},			\
 	{0x21, "Update Window"},		\
-	{0x23, "Inter-Domain Momery Copy"},	\
+	{0x23, "Inter-Domain Memory Copy"},	\
 	{0x24, "Inter-Domain Fill"},		\
 	{0x25, "Inter-Domain Compare"},		\
 	{0x26, "Inter-Domain Compare Pattern"},	\
