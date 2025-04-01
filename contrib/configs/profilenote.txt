@@ -51,7 +51,7 @@ profile descriptions.
               "ats_disable":0
               "prs_disable":1
               "name":"user_default_wq"
-            - Calcuated attributes:
+            - Calculated attributes:
               "size": max WQ size / max WQs
               "threshold": WQ size
             - Fixed attributes:
