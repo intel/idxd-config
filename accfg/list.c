@@ -408,6 +408,10 @@ static bool filter_device(struct accfg_device *device,
 	if (!jc)
 		return false;
 
+	jc->jgroup_assigned = NULL;
+	jc->jwq_group = NULL;
+	jc->jengine_group = NULL;
+
 	jc->jgroup_assigned = calloc(max_groups, sizeof(struct json_object *));
 	if (!jc->jgroup_assigned)
 		goto err_jc;
@@ -438,6 +442,13 @@ static bool filter_device(struct accfg_device *device,
 
 	return true;
 err_jc:
+	if (jc->jgroup_assigned)
+		free(jc->jgroup_assigned);
+	if (jc->jwq_group)
+		free(jc->jwq_group);
+	if (jc->jengine_group)
+		free(jc->jengine_group);
+
 	free(jc);
 	return false;
 }
