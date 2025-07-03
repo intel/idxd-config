@@ -1307,8 +1307,14 @@ ACCFG_EXPORT int accfg_device_set_read_buffer_limit(struct accfg_device *dev, in
 	}
 
 	if (access(path, F_OK)) {
-		if (sprintf(path, "%s/%s", dev->device_path,
-					deprecated_attr("read_buffer_limit")) >=
+		const char *attr = deprecated_attr("read_buffer_limit");
+
+		if (!attr) {
+			err(ctx, "%s; invalid attr 'read_buffer_limit'.\n",
+					accfg_device_get_devname(dev));
+			return -errno;
+		}
+		if (sprintf(path, "%s/%s", dev->device_path, attr) >=
 					(int)dev->buf_len) {
 			err(ctx, "%s; buf len exceeded.\n",
 					accfg_device_get_devname(dev));
@@ -1733,8 +1739,15 @@ ACCFG_EXPORT int accfg_group_set_##field( \
 	if (rc < 0) \
 		return -errno; \
 	if (access(path, F_OK)) { \
+		const char *attr = deprecated_attr(#field); \
+		if (!attr) { \
+			err(ctx, "%s; invalid attr '%s'.\n", \
+				accfg_group_get_devname(group), \
+				#field); \
+			return -errno; \
+		} \
 		rc = sprintf(group->group_buf, "%s/%s", \
-				group->group_path, deprecated_attr(#field)); \
+				group->group_path, attr); \
 		if (rc < 0) \
 			return -errno; \
 	} \
