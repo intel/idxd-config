@@ -1,3 +1,15 @@
+
+accel-config (4.1.9-1) unstable; urgency=medium
+
+  * Sync with upstream 4.1.9 release
+  * debian/rules: re-enable DEB_LDFLAGS_MAINT_APPEND
+  * debian/control: update maintainer, use pkgconf, fix dependency
+  * debian/copyright: update copyright years
+  * debian/watch: fix filemangling to match version numbering
+  * licences: reformat to 80 wide lines and UNIX format
+
+ -- Colin Ian King <colin.i.king@gmail.com>  Thu, 31 Jul 2025 16:40:17 +0100
+
 accel-config (4.1.8-2) unstable; urgency=medium
 
   * Make accel-config-test depend on accel-config
