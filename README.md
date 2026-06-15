@@ -2,7 +2,7 @@
 
 Utility library for controlling and configuring DSA (Intel® Data Streaming
 Accelerator Architecture) and IAA (Intel® Analytics Accelerator Architecture)
-sub-systems in the Linux kernel
+sub-systems in the Linux kernel.
 
 ## Resolve dependencies
 
